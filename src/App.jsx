@@ -122,6 +122,112 @@ const AlertsPanel = ({ bills, paidStatus, onClose }) => {
     );
 };
 
+const ReportsSection = ({ clients, jobs, bills, inventory }) => {
+    const clientProfitability = useMemo(() => {
+        return clients.map(client => {
+            const clientJobs = jobs.filter(job => job.clientId === client.id);
+            const totalRevenue = clientJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
+            const totalCost = clientJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
+            return {
+                name: client.name,
+                netProfit: totalRevenue - totalCost,
+            };
+        }).sort((a,b) => b.netProfit - a.netProfit);
+    }, [clients, jobs]);
+
+    const trendData = useMemo(() => {
+        const dataByMonth = {};
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+        jobs.forEach(job => {
+            if(job.date && new Date(job.date) > twelveMonthsAgo) {
+                const month = new Date(job.date).toISOString().slice(0, 7);
+                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
+                dataByMonth[month].revenue += job.revenue || 0;
+            }
+        });
+
+        bills.forEach(bill => {
+            const createdAt = bill.createdAt?.toDate ? bill.createdAt.toDate() : new Date();
+             if(createdAt > twelveMonthsAgo) {
+                const month = createdAt.toISOString().slice(0,7);
+                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
+                dataByMonth[month].expenses += bill.amount || 0;
+             }
+        });
+
+        return Object.keys(dataByMonth).map(month => ({
+            month,
+            Revenue: dataByMonth[month].revenue,
+            Expenses: dataByMonth[month].expenses,
+        })).sort((a,b) => a.month.localeCompare(b.month));
+    }, [jobs, bills]);
+
+    const inventoryValue = useMemo(() => {
+        return inventory.map(item => ({
+            name: item.name,
+            totalValue: (item.quantity || 0) * (item.cost || 0)
+        })).sort((a,b) => b.totalValue - a.totalValue);
+    }, [inventory]);
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 className="text-2xl font-bold text-white mb-4">Revenue vs. Expenses Trend (Last 12 Months)</h3>
+                 <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={trendData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                        <XAxis dataKey="month" stroke="#94a3b8" />
+                        <YAxis stroke="#94a3b8" tickFormatter={(value) => `$${(value/1000)}k`} />
+                        <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569' }} formatter={(value) => `$${value.toLocaleString()}`} />
+                        <Legend />
+                        <Bar dataKey="Revenue" fill="#22c55e" />
+                        <Bar dataKey="Expenses" fill="#ef4444" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 className="text-2xl font-bold text-white mb-4">Client Profitability</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
+                            <tr><th className="p-3">Client</th><th className="p-3 text-right">Net Profit</th></tr>
+                        </thead>
+                        <tbody>
+                            {clientProfitability.map(client => (
+                                <tr key={client.name} className="border-b border-slate-700/50">
+                                    <td className="p-3 font-medium">{client.name}</td>
+                                    <td className={`p-3 text-right font-mono ${client.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>${client.netProfit.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h3 className="text-2xl font-bold text-white mb-4">Inventory Value</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
+                            <tr><th className="p-3">Item</th><th className="p-3 text-center">Quantity</th><th className="p-3 text-right">Total Value</th></tr>
+                        </thead>
+                        <tbody>
+                            {inventoryValue.map(item => (
+                                <tr key={item.name} className="border-b border-slate-700/50">
+                                    <td className="p-3 font-medium">{item.name}</td>
+                                    <td className="p-3 text-center">{inventory.find(i => i.name === item.name)?.quantity}</td>
+                                    <td className="p-3 text-right font-mono">${item.totalValue.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 
 // --- Main Application Component ---
 const App = () => {
@@ -660,101 +766,9 @@ const App = () => {
         </div>
     );
     
-    const renderReportsSection = () => {
-        const clientProfitability = clients.map(client => {
-            const clientJobs = jobs.filter(job => job.clientId === client.id);
-            const totalRevenue = clientJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
-            const totalCost = clientJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
-            return {
-                name: client.name,
-                netProfit: totalRevenue - totalCost,
-            };
-        }).sort((a,b) => b.netProfit - a.netProfit);
-
-        const trendData = useMemo(() => {
-            const dataByMonth = {};
-            const twelveMonthsAgo = new Date();
-            twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-
-            jobs.forEach(job => {
-                if(job.date && new Date(job.date) > twelveMonthsAgo) {
-                    const month = new Date(job.date).toISOString().slice(0, 7);
-                    if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
-                    dataByMonth[month].revenue += job.revenue || 0;
-                }
-            });
-
-            bills.forEach(bill => {
-                 const month = bill.createdAt?.toDate().toISOString().slice(0,7) || new Date().toISOString().slice(0,7);
-                 if(new Date(month) > twelveMonthsAgo) {
-                    if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
-                    dataByMonth[month].expenses += bill.amount || 0;
-                 }
-            });
-
-            return Object.keys(dataByMonth).map(month => ({
-                month,
-                Revenue: dataByMonth[month].revenue,
-                Expenses: dataByMonth[month].expenses,
-            })).sort((a,b) => a.month.localeCompare(b.month));
-        }, [jobs, bills]);
-
-        return (
-            <div className="space-y-8">
-                <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 className="text-2xl font-bold text-white mb-4">Revenue vs. Expenses Trend (Last 12 Months)</h3>
-                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={trendData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                            <XAxis dataKey="month" stroke="#94a3b8" />
-                            <YAxis stroke="#94a3b8" tickFormatter={(value) => `$${(value/1000)}k`} />
-                            <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569' }} formatter={(value) => `$${value.toLocaleString()}`} />
-                            <Legend />
-                            <Bar dataKey="Revenue" fill="#22c55e" />
-                            <Bar dataKey="Expenses" fill="#ef4444" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-                 <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 className="text-2xl font-bold text-white mb-4">Client Profitability</h3>
-                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
-                                <tr><th className="p-3">Client</th><th className="p-3 text-right">Net Profit</th></tr>
-                            </thead>
-                            <tbody>
-                                {clientProfitability.map(client => (
-                                    <tr key={client.name} className="border-b border-slate-700/50">
-                                        <td className="p-3 font-medium">{client.name}</td>
-                                        <td className={`p-3 text-right font-mono ${client.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>${client.netProfit.toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                 <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                    <h3 className="text-2xl font-bold text-white mb-4">Inventory Value</h3>
-                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
-                                <tr><th className="p-3">Item</th><th className="p-3 text-center">Quantity</th><th className="p-3 text-right">Total Value</th></tr>
-                            </thead>
-                            <tbody>
-                                {inventory.map(item => (
-                                    <tr key={item.id} className="border-b border-slate-700/50">
-                                        <td className="p-3 font-medium">{item.name}</td>
-                                        <td className="p-3 text-center">{item.quantity}</td>
-                                        <td className="p-3 text-right font-mono">${(item.quantity * item.cost).toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        )
-    }
+    const renderReportsSection = () => (
+        <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />
+    );
 
     const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
     const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
@@ -797,7 +811,7 @@ const App = () => {
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
-                    {activeSection === 'reports' && renderReportsSection()}
+                    {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}
                     {activeSection === 'goals' && renderGoalsSection()}
