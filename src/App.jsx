@@ -786,5 +786,4 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete 
     );
 };
 
-
 export default App;
