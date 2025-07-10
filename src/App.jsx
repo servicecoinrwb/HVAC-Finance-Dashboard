@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query } from 'firebase/firestore';
+import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, MessageSquare, Paperclip, PlusCircle, Save, Trash2, X } from 'lucide-react';
+import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar } from 'recharts';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Trash2, X, XCircle } from 'lucide-react';
 
 // --- Firebase Configuration ---
 // Make sure your .env.local file is created with these keys
@@ -23,19 +23,19 @@ const appId = 'hvac-finance-dashboard';
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app); // Initialize storage for file uploads
+const storage = getStorage(app);
 
 // --- Initial Data (Seed for first-time use) ---
-const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null }, { name: "Blue Cross Blue Shield", amount: 397.73, dueDay: 1, isAutoPay: true, category: "Insurance", notes: "", attachmentURL: null }, ];
-const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" }, { name: "Great Lakes", totalAmount: 1200, paidAmount: 0, interestRate: 6.8, notes: "" },];
-const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "" }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "" },];
+const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null, isRecurring: true }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null, isRecurring: true }, ];
+const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" },];
+const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false },];
 const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
-const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit." }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract." }];
+const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit.", date: new Date().toISOString() }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract.", date: new Date().toISOString() }];
 
 // --- Helper Components ---
 const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
 const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-400">{title}</h3> <div className={`text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-white mt-2">{typeof value === 'number' ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}</p> {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>} </div> </div>);
-const ActivePieChart = ({ data }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
+const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
 const ItemFormModal = ({ item, type, onSave, onClose }) => {
     const [formData, setFormData] = useState({});
@@ -43,30 +43,19 @@ const ItemFormModal = ({ item, type, onSave, onClose }) => {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const defaults = { 
-            bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null },
-            debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' },
-            income: { name: '', amount: 0, type: 'monthly', notes: '' },
-            weekly: { name: '', amount: 0, notes: '' },
-            job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '' },
-        };
+        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0] }, };
         setFormData(item || defaults[type]);
     }, [item, type]);
 
     const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || 0 : value) })); };
     const handleFileChange = (e) => { if (e.target.files[0]) { setFileToUpload(e.target.files[0]); } };
     
-    const handleSubmit = async (e) => { 
-        e.preventDefault(); 
-        setIsSaving(true);
-        await onSave(formData, fileToUpload);
-        setIsSaving(false);
-    };
+    const handleSubmit = async (e) => { e.preventDefault(); setIsSaving(true); await onSave(formData, fileToUpload); setIsSaving(false); };
 
     const renderFields = () => {
         switch (type) {
-            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div> </>;
-            case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div></>;
+            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-300">Is Recurring?</label></div></div> </>;
+            case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div></>;
             default: return <p>Editing for this item type is not yet implemented.</p>;
         }
     };
@@ -89,6 +78,7 @@ const App = () => {
     const [modalType, setModalType] = useState('bill');
     const [sortConfig, setSortConfig] = useState({ key: 'dueDay', direction: 'ascending' });
     const [activeSection, setActiveSection] = useState('dashboard');
+    const [selectedCategory, setSelectedCategory] = useState(null);
     
     const [selectedDate, setSelectedDate] = useState(new Date());
     const selectedMonthYear = useMemo(() => selectedDate.getFullYear() + '-' + String(selectedDate.getMonth() + 1).padStart(2, '0'), [selectedDate]);
@@ -104,11 +94,11 @@ const App = () => {
                     console.log("No data found. Seeding initial data...");
                     const batch = writeBatch(db);
                     const basePath = ['artifacts', appId, 'users', user.uid];
-                    INITIAL_BILLS.forEach(item => batch.set(doc(collection(db, ...basePath, 'bills')), item));
-                    INITIAL_DEBTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'debts')), item));
-                    INITIAL_INCOME.forEach(item => batch.set(doc(collection(db, ...basePath, 'incomes')), item));
-                    INITIAL_WEEKLY_COSTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'weeklyCosts')), item));
-                    INITIAL_JOBS.forEach(item => batch.set(doc(collection(db, ...basePath, 'jobs')), item));
+                    INITIAL_BILLS.forEach(item => batch.set(doc(collection(db, ...basePath, 'bills')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_DEBTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'debts')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_INCOME.forEach(item => batch.set(doc(collection(db, ...basePath, 'incomes')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_WEEKLY_COSTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'weeklyCosts')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_JOBS.forEach(item => batch.set(doc(collection(db, ...basePath, 'jobs')), {...item, createdAt: serverTimestamp()}));
                     const initialMonthYear = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
                     batch.set(doc(db, ...basePath, 'paidStatus', initialMonthYear), { status: {} });
                     await batch.commit();
@@ -136,6 +126,9 @@ const App = () => {
         return () => { unsubscribers.forEach(unsub => unsub()); unsubPaidStatus(); };
     }, [userId, selectedMonthYear]);
 
+    const filteredJobs = useMemo(() => jobs.filter(job => job.date && job.date.startsWith(selectedMonthYear)), [jobs, selectedMonthYear]);
+    const filteredBills = useMemo(() => bills.filter(bill => !selectedCategory || bill.category === selectedCategory), [bills, selectedCategory]);
+
     const totals = useMemo(() => {
         const totalIncome = incomes.reduce((acc, i) => acc + (i.amount || 0), 0);
         const totalMonthlyBills = bills.reduce((acc, b) => acc + (b.amount || 0), 0);
@@ -146,6 +139,15 @@ const App = () => {
         const paidThisMonth = bills.filter(b => paidStatus[b.id]).reduce((acc, b) => acc + b.amount, 0);
         return { totalIncome, totalOutflow, netCashFlow, paidThisMonth, totalDebt, totalMonthlyBills, projectedMonthlyWeekly };
     }, [bills, debts, incomes, weeklyCosts, paidStatus]);
+
+    const pnlData = useMemo(() => {
+        const revenue = filteredJobs.reduce((acc, job) => acc + job.revenue, 0);
+        const cogs = filteredJobs.reduce((acc, job) => acc + job.materialCost + job.laborCost, 0);
+        const grossProfit = revenue - cogs;
+        const operatingExpenses = bills.reduce((acc, bill) => acc + bill.amount, 0) + (weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
+        const netProfit = grossProfit - operatingExpenses;
+        return { revenue, cogs, grossProfit, operatingExpenses, netProfit };
+    }, [filteredJobs, bills, weeklyCosts]);
 
     const expenseByCategory = useMemo(() => {
         const categories = bills.reduce((acc, bill) => {
@@ -158,7 +160,7 @@ const App = () => {
     }, [bills]);
 
     const sortedData = useMemo(() => {
-        const dataMap = { bills, debts, incomes, weeklyCosts, jobs };
+        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs };
         const activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
         return [...activeData].sort((a, b) => {
             if (!sortConfig.key) return 0;
@@ -166,7 +168,7 @@ const App = () => {
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
-    }, [bills, debts, incomes, weeklyCosts, jobs, sortConfig, activeSection]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, sortConfig, activeSection]);
 
     const debtPayoffStrategies = useMemo(() => {
         const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
@@ -185,13 +187,14 @@ const App = () => {
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
+        const dataToSave = {...itemData, modifiedAt: serverTimestamp()};
+        
         if (file) {
             console.log("Uploading file:", file.name);
             const storageRef = ref(storage, `receipts/${userId}/${Date.now()}-${file.name}`);
             try {
                 await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(storageRef);
-                itemData.attachmentURL = downloadURL;
+                dataToSave.attachmentURL = await getDownloadURL(storageRef);
             } catch (error) {
                 console.error("File upload failed:", error);
                 alert("File upload failed. Please try again.");
@@ -200,9 +203,9 @@ const App = () => {
         }
 
         if (editingItem?.id) {
-            await updateDoc(doc(db, ...basePath, editingItem.id), itemData);
+            await updateDoc(doc(db, ...basePath, editingItem.id), dataToSave);
         } else {
-            await addDoc(collection(db, ...basePath), itemData);
+            await addDoc(collection(db, ...basePath), {...dataToSave, createdAt: serverTimestamp()});
         }
         setIsModalOpen(false);
         setEditingItem(null);
@@ -248,6 +251,7 @@ const App = () => {
                 <div className="lg:col-span-3 bg-slate-800 p-6 rounded-xl border border-slate-700">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xl font-bold text-white">Monthly Bills</h3>
+                        {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
                         <button onClick={() => handleExportCSV(sortedData, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
                     </div>
                     <div className="overflow-x-auto">
@@ -284,7 +288,7 @@ const App = () => {
                     <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
                 </div>
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700"><h3 className="text-xl font-bold text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} /></div>
+                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700"><h3 className="text-xl font-bold text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
                 </div>
             </div>
         </>
@@ -341,6 +345,39 @@ const App = () => {
         </div>
     );
 
+    const renderPnLStatement = () => (
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+            <h3 className="text-2xl font-bold text-white mb-4">Profit & Loss Statement</h3>
+            <p className="text-slate-400 mb-6">For {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="font-semibold">Total Revenue</span>
+                    <span className="font-mono font-bold text-green-400">${pnlData.revenue.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 pl-8">
+                    <span className="text-slate-400">Cost of Goods Sold (COGS)</span>
+                    <span className="font-mono text-orange-400">(${pnlData.cogs.toFixed(2)})</span>
+                </div>
+                <hr className="border-slate-700"/>
+                <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="font-bold text-lg">Gross Profit</span>
+                    <span className="font-mono font-bold text-lg">${pnlData.grossProfit.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 pl-8">
+                    <span className="text-slate-400">Operating Expenses</span>
+                    <span className="font-mono text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
+                </div>
+                <hr className="border-slate-600 border-2"/>
+                <div className="flex justify-between items-center p-4 bg-slate-900 rounded-lg">
+                    <span className="font-bold text-xl text-cyan-400">Net Profit / (Loss)</span>
+                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-cyan-400' : 'text-red-500'}`}>
+                        {pnlData.netProfit < 0 && '('}${Math.abs(pnlData.netProfit).toFixed(2)}{pnlData.netProfit < 0 && ')'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+
     const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
     const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
     const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
@@ -366,6 +403,7 @@ const App = () => {
                 </header>
                 <nav className="flex items-center border-b border-slate-700 mb-6">
                     <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'dashboard' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Dashboard</button>
+                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'pnl' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>P&L Statement</button>
                     <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
                     <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
                     <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'incomes' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
@@ -373,6 +411,7 @@ const App = () => {
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
+                    {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
