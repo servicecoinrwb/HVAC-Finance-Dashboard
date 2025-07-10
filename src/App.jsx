@@ -47,9 +47,9 @@ const INITIAL_BILLS = [
     { name: "Southfield Tax", amount: 175.64, dueDay: 31, isAutoPay: false, category: "Taxes", notes: "" },
     { name: "Podium", amount: 499.00, dueDay: 2, isAutoPay: false, category: "Marketing", notes: "" },
 ];
-const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5 }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99 }, { name: "Great Lakes", totalAmount: 1200, paidAmount: 0, interestRate: 6.8 },];
-const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly" }, { name: "Job Revenue", amount: 5000, type: "monthly" },];
-const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800 }, { name: "Fuel & Maintenance", amount: 450 },];
+const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" }, { name: "Great Lakes", totalAmount: 1200, paidAmount: 0, interestRate: 6.8, notes: "" },];
+const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "" }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "" },];
+const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
 
 // --- Helper Components ---
 const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
@@ -59,27 +59,29 @@ const ActivePieChart = ({ data }) => { const [activeIndex, setActiveIndex] = use
 const ItemFormModal = ({ item, type, onSave, onClose }) => {
     const [formData, setFormData] = useState({});
     useEffect(() => {
-        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '' } };
+        const defaults = { 
+            bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '' },
+            debt: { name: '', totalAmount: 0, paidAmount: 0, notes: '' },
+            income: { name: '', amount: 0, type: 'monthly', notes: '' },
+            weekly: { name: '', amount: 0, notes: '' },
+        };
         setFormData(item || defaults[type]);
     }, [item, type]);
+
     const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || 0 : value) })); };
     const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+
     const renderFields = () => {
-        if (type !== 'bill') return <p>This feature is only available for bills currently.</p>;
-        return <>
-            <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-                <div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div>
-                <div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div>
-            </div>
-            <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div>
-            <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div>
-            <div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div>
-        </>;
+        switch (type) {
+            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div> <div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div> </>;
+            case 'debt': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Debt Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Total Amount</label><input type="number" name="totalAmount" value={formData.totalAmount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Paid Amount</label><input type="number" name="paidAmount" value={formData.paidAmount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div> </>;
+            case 'income': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Income Source</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div> </>;
+            case 'weekly': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Weekly Cost</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div> </>;
+            default: return null;
+        }
     };
     return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600">Cancel</button><button type="submit" className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2"><Save size={16} /> Save</button></div></form></Modal> );
 };
-
 
 // --- Main Application Component ---
 const App = () => {
@@ -95,6 +97,7 @@ const App = () => {
     const [editingItem, setEditingItem] = useState(null);
     const [modalType, setModalType] = useState('bill');
     const [sortConfig, setSortConfig] = useState({ key: 'dueDay', direction: 'ascending' });
+    const [activeSection, setActiveSection] = useState('dashboard');
     
     const [selectedDate, setSelectedDate] = useState(new Date());
     const selectedMonthYear = useMemo(() => {
@@ -173,21 +176,31 @@ const App = () => {
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
-    const handleSave = async (itemData) => { if (!userId) return; const collectionName = `bills`; const basePath = ['artifacts', appId, 'users', userId, collectionName]; if (editingItem?.id) { await updateDoc(doc(db, ...basePath, editingItem.id), itemData); } else { await addDoc(collection(db, ...basePath), itemData); } setIsModalOpen(false); setEditingItem(null); };
-    const handleDelete = async (type, id) => { if (!userId || !window.confirm("Delete this item?")) return; await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, `bills`, id)); };
+    
+    const handleSave = async (itemData) => {
+        if (!userId) return;
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts' };
+        const collectionName = collectionNameMap[modalType];
+        const basePath = ['artifacts', appId, 'users', userId, collectionName];
+        if (editingItem?.id) {
+            await updateDoc(doc(db, ...basePath, editingItem.id), itemData);
+        } else {
+            await addDoc(collection(db, ...basePath), itemData);
+        }
+        setIsModalOpen(false);
+        setEditingItem(null);
+    };
+
+    const handleDelete = async (type, id) => {
+        if (!userId || !window.confirm("Delete this item?")) return;
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts' };
+        const collectionName = collectionNameMap[type];
+        await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
+    };
     
     const handleExportCSV = () => {
         const headers = ['Name', 'Amount', 'Due Day', 'Category', 'Autopay', 'Paid', 'Notes'];
-        const rows = sortedBills.map(bill => [
-            `"${bill.name}"`,
-            bill.amount,
-            bill.dueDay,
-            `"${bill.category || ''}"`,
-            bill.isAutoPay ? 'Yes' : 'No',
-            paidStatus[bill.id] ? 'Yes' : 'No',
-            `"${(bill.notes || '').replace(/"/g, '""')}"`
-        ].join(','));
-
+        const rows = sortedBills.map(bill => [ `"${bill.name}"`, bill.amount, bill.dueDay, `"${bill.category || ''}"`, bill.isAutoPay ? 'Yes' : 'No', paidStatus[bill.id] ? 'Yes' : 'No', `"${(bill.notes || '').replace(/"/g, '""')}"` ].join(','));
         const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -199,6 +212,98 @@ const App = () => {
     };
 
     if (isLoading || isSeeding) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
+
+    const renderDashboard = () => (
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-6">
+                <StatCard title="Total Monthly Income" value={totals.totalIncome} icon={<Banknote size={24} />} color="green" />
+                <StatCard title="Total Monthly Outflow" value={totals.totalOutflow} icon={<ArrowDown size={24} />} color="red" />
+                <StatCard title="Projected Net" value={totals.netCashFlow} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
+                <StatCard title="Paid This Month" value={totals.paidThisMonth} icon={<CheckCircle size={24} />} color="blue" subtext={`For ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`} />
+                <StatCard title="Outstanding Debt" value={totals.totalDebt} icon={<AlertTriangle size={24} />} color="orange" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-3 bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold text-white">Monthly Bills</h3>
+                        <button onClick={handleExportCSV} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
+                                <tr>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
+                                    <th className="p-3">Notes</th>
+                                    <th className="p-3 cursor-pointer text-right" onClick={() => handleSort('amount')}>Amount</th>
+                                    <th className="p-3 cursor-pointer text-center" onClick={() => handleSort('dueDay')}>Due Day</th>
+                                    <th className="p-3 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedBills.map(bill => (
+                                    <tr key={bill.id} className={`border-b border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-500' : 'text-slate-200'}`}>
+                                        <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-600" />}</button></td>
+                                        <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
+                                        <td className="p-3 text-center">
+                                            {bill.notes && <div className="group relative flex justify-center">
+                                                <MessageSquare size={16} className="text-slate-500" />
+                                                <span className="absolute top-[-30px] w-max scale-0 transition-all rounded bg-slate-700 p-2 text-xs text-white group-hover:scale-100">{bill.notes}</span>
+                                            </div>}
+                                        </td>
+                                        <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
+                                        <td className="p-3 text-center">{bill.dueDay}</td>
+                                        <td className="p-3 text-center">
+                                            <button onClick={() => openModal('bill', bill)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                            <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
+                </div>
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700"><h3 className="text-xl font-bold text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} /></div>
+                </div>
+            </div>
+        </>
+    );
+
+    const renderManagementSection = (title, data, columns, type) => (
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+            <h3 className="text-xl font-bold text-white mb-4">{title}</h3>
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
+                        <tr>
+                            {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
+                            <th className="p-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                        {data.map(item => (
+                            <tr key={item.id} className="border-b border-slate-700/50 text-slate-200">
+                                {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
+                                <td className="p-3 text-center">
+                                    <button onClick={() => openModal(type, item)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete(type, item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <button onClick={() => openModal(type)} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold">
+                <PlusCircle size={18} /> Add New {type.charAt(0).toUpperCase() + type.slice(1)}
+            </button>
+        </div>
+    );
+
+    const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
+    const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
+    const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
 
     return (
         <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
@@ -218,60 +323,17 @@ const App = () => {
                        />
                     </div>
                 </header>
+                <nav className="flex items-center border-b border-slate-700 mb-6">
+                    <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'dashboard' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Dashboard</button>
+                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
+                    <button onClick={() => setActiveSection('income')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'income' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
+                    <button onClick={() => setActiveSection('weekly')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'weekly' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Weekly Costs</button>
+                </nav>
                 <main>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-6">
-                        <StatCard title="Total Monthly Income" value={totals.totalIncome} icon={<Banknote size={24} />} color="green" />
-                        <StatCard title="Total Monthly Outflow" value={totals.totalOutflow} icon={<ArrowDown size={24} />} color="red" />
-                        <StatCard title="Projected Net" value={totals.netCashFlow} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
-                        <StatCard title="Paid This Month" value={totals.paidThisMonth} icon={<CheckCircle size={24} />} color="blue" subtext={`For ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`} />
-                        <StatCard title="Outstanding Debt" value={totals.totalDebt} icon={<AlertTriangle size={24} />} color="orange" />
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        <div className="lg:col-span-3 bg-slate-800 p-6 rounded-xl border border-slate-700">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-xl font-bold text-white">Monthly Bills</h3>
-                                <button onClick={handleExportCSV} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
-                                        <tr>
-                                            <th className="p-3">Status</th>
-                                            <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
-                                            <th className="p-3">Notes</th>
-                                            <th className="p-3 cursor-pointer text-right" onClick={() => handleSort('amount')}>Amount</th>
-                                            <th className="p-3 cursor-pointer text-center" onClick={() => handleSort('dueDay')}>Due Day</th>
-                                            <th className="p-3 text-center">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {sortedBills.map(bill => (
-                                            <tr key={bill.id} className={`border-b border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-500' : 'text-slate-200'}`}>
-                                                <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-600" />}</button></td>
-                                                <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
-                                                <td className="p-3 text-center">
-                                                    {bill.notes && <div className="group relative flex justify-center">
-                                                        <MessageSquare size={16} className="text-slate-500" />
-                                                        <span className="absolute top-[-30px] w-max scale-0 transition-all rounded bg-slate-700 p-2 text-xs text-white group-hover:scale-100">{bill.notes}</span>
-                                                    </div>}
-                                                </td>
-                                                <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
-                                                <td className="p-3 text-center">{bill.dueDay}</td>
-                                                <td className="p-3 text-center">
-                                                    <button onClick={() => openModal('bill', bill)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                                    <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
-                        </div>
-                        <div className="lg:col-span-2 space-y-6">
-                            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700"><h3 className="text-xl font-bold text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} /></div>
-                        </div>
-                    </div>
+                    {activeSection === 'dashboard' && renderDashboard()}
+                    {activeSection === 'debts' && renderManagementSection('Debt Management', debts, debtColumns, 'debt')}
+                    {activeSection === 'income' && renderManagementSection('Income Sources', incomes, incomeColumns, 'income')}
+                    {activeSection === 'weekly' && renderManagementSection('Recurring Weekly Costs', weeklyCosts, weeklyCostColumns, 'weekly')}
                 </main>
             </div>
             {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} />}
