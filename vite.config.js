@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './' // or '/your-repo-name/' for GitHub Pages
-});
+  base: '/HVAC-Finance-Dashboard/', // 👈 critical for GitHub Pages
+})
