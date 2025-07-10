@@ -740,11 +740,17 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete 
                                     <p className="text-xs text-slate-400">{vehicle.year} {vehicle.make} {vehicle.model}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <p className="font-mono text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === vehicle.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</p>
-                                <p className="text-xs text-slate-400">Total Expenses</p>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="font-mono text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === vehicle.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</p>
+                                    <p className="text-xs text-slate-400">Total Expenses</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={(e) => { e.stopPropagation(); openModal('vehicle', vehicle); }} className="p-1 hover:text-cyan-400"><Edit size={16} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDelete('vehicle', vehicle.id); }} className="p-1 hover:text-red-500"><Trash2 size={16} /></button>
+                                </div>
+                                {expandedVehicleId === vehicle.id ? <ChevronUp /> : <ChevronDown />}
                             </div>
-                            {expandedVehicleId === vehicle.id ? <ChevronUp /> : <ChevronDown />}
                         </div>
                         {expandedVehicleId === vehicle.id && (
                             <div className="p-4 bg-slate-800/50 rounded-b-lg border-t-2 border-slate-700">
