@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, Save, Target, Trash2, TrendingUp, User, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car } from 'lucide-react';
 
 // --- Firebase Configuration ---
 // Make sure your .env.local file is created with these keys
@@ -26,7 +26,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // --- Initial Data (Seed for first-time use) ---
-const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null, isRecurring: true }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null, isRecurring: true }, ];
+const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null, isRecurring: true }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null, isRecurring: true }, { name: "GM Financial Black Truck", amount: 1307.20, dueDay: 6, isAutoPay: false, category: "Vehicle", notes: "", vehicleId: "1" }];
 const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" },];
 const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false },];
 const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
@@ -34,20 +34,20 @@ const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, m
 const INITIAL_GOALS = [ { name: "Pay off Chase Card", type: "debt", targetId: "Chase Card", targetValue: 0, deadline: "2025-12-31" }, { name: "Achieve $50k Job Revenue", type: "revenue", targetValue: 50000, deadline: "2025-12-31" }];
 const INITIAL_CLIENTS = [ {id: "1", name: "John Johnson", address: "123 Main St, Anytown, USA", phone: "555-1234", email: "john@example.com"}, {id: "2", name: "Downtown Restaurant", address: "456 Oak Ave, Anytown, USA", phone: "555-5678", email: "contact@downtownrestaurant.com"}];
 const INITIAL_INVENTORY = [ {name: "Standard 1-inch Filter", quantity: 50, cost: 5.50}, {name: "Capacitor 45/5 MFD", quantity: 15, cost: 25.00} ];
-
+const INITIAL_VEHICLES = [ {id: "1", name: "Black Truck", year: "2022", model: "GMC Sierra"}, {id: "2", name: "Red Van", year: "2021", model: "Ford Transit"}];
 
 // --- Helper Components ---
 const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
 const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-400">{title}</h3> <div className={`text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-white mt-2">{typeof value === 'number' ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}</p> {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>} </div> </div>);
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
-const ItemFormModal = ({ item, type, onSave, onClose, debts, clients }) => {
+const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }) => {
     const [formData, setFormData] = useState({});
     const [fileToUpload, setFileToUpload] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: ''}, inventory: { name: '', quantity: 0, cost: 0 } };
+        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false, vehicleId: '' }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: ''}, inventory: { name: '', quantity: 0, cost: 0 }, vehicle: { name: '', year: '', model: '' } };
         setFormData(item || defaults[type]);
     }, [item, type]);
 
@@ -58,11 +58,12 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients }) => {
 
     const renderFields = () => {
         switch (type) {
-            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-300">Is Recurring?</label></div></div> </>;
+            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div> {formData.category === 'Vehicle' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Assign to Vehicle</label><select name="vehicleId" value={formData.vehicleId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- Select Vehicle --</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></div>} <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-300">Is Recurring?</label></div></div> </>;
             case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Link to Client</label><select name="clientId" value={formData.clientId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- No Client --</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div></>;
             case 'goal': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Goal Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Goal Type</label><select name="type" value={formData.type || 'revenue'} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="revenue">Revenue</option><option value="debt">Debt Payoff</option></select></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Deadline</label><input type="date" name="deadline" value={formData.deadline || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> {formData.type === 'revenue' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Target Revenue ($)</label><input type="number" name="targetValue" value={formData.targetValue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div>} {formData.type === 'debt' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Select Debt to Pay Off</label><select name="targetId" value={formData.targetId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- Select a Debt --</option>{debts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>} </>;
             case 'client': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Client Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Address</label><input type="text" name="address" value={formData.address || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Phone Number</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
             case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
+            case 'vehicle': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Vehicle Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Year</label><input type="text" name="year" value={formData.year || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Model</label><input type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
             default: return <p>Editing for this item type is not yet implemented.</p>;
         }
     };
@@ -82,6 +83,7 @@ const App = () => {
     const [goals, setGoals] = useState([]);
     const [clients, setClients] = useState([]);
     const [inventory, setInventory] = useState([]);
+    const [vehicles, setVehicles] = useState([]);
     const [paidStatus, setPaidStatus] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -90,9 +92,27 @@ const App = () => {
     const [activeSection, setActiveSection] = useState('dashboard');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [currentBankBalance, setCurrentBankBalance] = useState(25000);
-    
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const selectedMonthYear = useMemo(() => selectedDate.getFullYear() + '-' + String(selectedDate.getMonth() + 1).padStart(2, '0'), [selectedDate]);
+    const [dateRange, setDateRange] = useState({start: new Date(), end: new Date()});
+    const [reportingPeriod, setReportingPeriod] = useState('monthly'); // 'monthly', 'quarterly', 'yearly'
+
+    useEffect(() => {
+        const now = new Date();
+        let start, end;
+        if (reportingPeriod === 'monthly') {
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        } else if (reportingPeriod === 'quarterly') {
+            const quarter = Math.floor(now.getMonth() / 3);
+            start = new Date(now.getFullYear(), quarter * 3, 1);
+            end = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+        } else { // yearly
+            start = new Date(now.getFullYear(), 0, 1);
+            end = new Date(now.getFullYear(), 11, 31);
+        }
+        setDateRange({start, end});
+    }, [reportingPeriod]);
+
+    const selectedMonthYear = useMemo(() => dateRange.start.getFullYear() + '-' + String(dateRange.start.getMonth() + 1).padStart(2, '0'), [dateRange]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -113,6 +133,7 @@ const App = () => {
                     INITIAL_GOALS.forEach(item => batch.set(doc(collection(db, ...basePath, 'goals')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_CLIENTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'clients')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_INVENTORY.forEach(item => batch.set(doc(collection(db, ...basePath, 'inventory')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_VEHICLES.forEach(item => batch.set(doc(collection(db, ...basePath, 'vehicles')), {...item, createdAt: serverTimestamp()}));
                     const initialMonthYear = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
                     batch.set(doc(db, ...basePath, 'paidStatus', initialMonthYear), { status: {} });
                     await batch.commit();
@@ -128,7 +149,7 @@ const App = () => {
 
     useEffect(() => {
         if (!userId) return;
-        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, goals: setGoals, clients: setClients, inventory: setInventory };
+        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
                 setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -140,7 +161,12 @@ const App = () => {
         return () => { unsubscribers.forEach(unsub => unsub()); unsubPaidStatus(); };
     }, [userId, selectedMonthYear]);
 
-    const filteredJobs = useMemo(() => jobs.filter(job => job.date && job.date.startsWith(selectedMonthYear)), [jobs, selectedMonthYear]);
+    const filteredJobs = useMemo(() => jobs.filter(job => {
+        if (!job.date) return false;
+        const jobDate = new Date(job.date);
+        return jobDate >= dateRange.start && jobDate <= dateRange.end;
+    }), [jobs, dateRange]);
+
     const filteredBills = useMemo(() => bills.filter(bill => !selectedCategory || bill.category === selectedCategory), [bills, selectedCategory]);
 
     const totals = useMemo(() => {
@@ -160,7 +186,10 @@ const App = () => {
         const grossProfit = revenue - cogs;
         const operatingExpenses = bills.reduce((acc, bill) => acc + bill.amount, 0) + (weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
         const netProfit = grossProfit - operatingExpenses;
-        return { revenue, cogs, grossProfit, operatingExpenses, netProfit };
+        const taxRate = 0.06; // 6%
+        const estimatedTax = netProfit > 0 ? netProfit * taxRate : 0;
+        const netProfitAfterTax = netProfit - estimatedTax;
+        return { revenue, cogs, grossProfit, operatingExpenses, netProfit, estimatedTax, netProfitAfterTax };
     }, [filteredJobs, bills, weeklyCosts]);
 
     const forecastData = useMemo(() => {
@@ -205,7 +234,7 @@ const App = () => {
     }, [bills]);
 
     const sortedData = useMemo(() => {
-        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress, clients, inventory };
+        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress, clients, inventory, vehicles };
         const activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
         return [...activeData].sort((a, b) => {
             if (!sortConfig.key) return 0;
@@ -213,7 +242,7 @@ const App = () => {
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
-    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, clients, inventory, sortConfig, activeSection]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, clients, inventory, vehicles, sortConfig, activeSection]);
 
     const debtPayoffStrategies = useMemo(() => {
         const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
@@ -228,7 +257,7 @@ const App = () => {
     
     const handleSave = async (itemData, file) => {
         if (!userId) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles' };
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
@@ -258,7 +287,7 @@ const App = () => {
 
     const handleDelete = async (type, id) => {
         if (!userId || !window.confirm("Delete this item?")) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles' };
         const collectionName = collectionNameMap[type];
         await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
     };
@@ -281,6 +310,40 @@ const App = () => {
         document.body.removeChild(link);
     };
 
+    const handleImportCSV = (file) => {
+        if (!file || !userId) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const text = event.target.result;
+            // Basic CSV parsing, assumes header row matches object keys
+            const lines = text.split('\n').filter(line => line);
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim());
+                return headers.reduce((obj, header, index) => {
+                    obj[header] = values[index];
+                    return obj;
+                }, {});
+            });
+
+            const batch = writeBatch(db);
+            const collectionRef = collection(db, 'artifacts', appId, 'users', userId, 'clients');
+            data.forEach(item => {
+                const docRef = doc(collectionRef);
+                batch.set(docRef, {...item, createdAt: serverTimestamp()});
+            });
+
+            try {
+                await batch.commit();
+                alert(`Successfully imported ${data.length} clients!`);
+            } catch (error) {
+                console.error("Error importing CSV:", error);
+                alert("Failed to import CSV. Please check the console for errors.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
     if (isLoading || isSeeding) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
 
     const renderDashboard = () => (
@@ -289,7 +352,7 @@ const App = () => {
                 <StatCard title="Total Monthly Income" value={totals.totalIncome} icon={<Banknote size={24} />} color="green" />
                 <StatCard title="Total Monthly Outflow" value={totals.totalOutflow} icon={<ArrowDown size={24} />} color="red" />
                 <StatCard title="Projected Net" value={totals.netCashFlow} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
-                <StatCard title="Paid This Month" value={totals.paidThisMonth} icon={<CheckCircle size={24} />} color="blue" subtext={`For ${selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`} />
+                <StatCard title="Paid This Month" value={totals.paidThisMonth} icon={<CheckCircle size={24} />} color="blue" subtext={`For ${dateRange.start.toLocaleString('default', { month: 'long', year: 'numeric' })}`} />
                 <StatCard title="Outstanding Debt" value={totals.totalDebt} icon={<AlertTriangle size={24} />} color="orange" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -343,7 +406,13 @@ const App = () => {
         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-white">{title}</h3>
-                <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                <div className="flex items-center gap-2">
+                    {type === 'client' && <>
+                        <input type="file" id="csv-importer" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0])} />
+                        <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
+                    </>}
+                    <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                </div>
             </div>
             {type === 'debt' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-800/50 p-4 rounded-lg border border-slate-700">
@@ -393,7 +462,7 @@ const App = () => {
     const renderPnLStatement = () => (
         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
             <h3 className="text-2xl font-bold text-white mb-4">Profit & Loss Statement</h3>
-            <p className="text-slate-400 mb-6">For {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+            <p className="text-slate-400 mb-6">For {reportingPeriod === 'monthly' ? dateRange.start.toLocaleString('default', { month: 'long', year: 'numeric' }) : `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`}</p>
             <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
                     <span className="font-semibold">Total Revenue (from Jobs)</span>
@@ -413,10 +482,21 @@ const App = () => {
                     <span className="font-mono text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
                 </div>
                 <hr className="border-slate-600 border-2"/>
-                <div className="flex justify-between items-center p-4 bg-slate-900 rounded-lg">
-                    <span className="font-bold text-xl text-cyan-400">Net Profit / (Loss)</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-cyan-400' : 'text-red-500'}`}>
+                <div className="flex justify-between items-center p-3 bg-slate-900/50 rounded-lg">
+                    <span className="font-bold text-xl">Net Profit / (Loss) Before Tax</span>
+                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-white' : 'text-red-500'}`}>
                         {pnlData.netProfit < 0 && '('}${Math.abs(pnlData.netProfit).toFixed(2)}{pnlData.netProfit < 0 && ')'}
+                    </span>
+                </div>
+                 <div className="flex justify-between items-center p-3 pl-8">
+                    <span className="text-slate-400">Estimated Tax Liability (6%)</span>
+                    <span className="font-mono text-orange-400">(${pnlData.estimatedTax.toFixed(2)})</span>
+                </div>
+                 <hr className="border-slate-600 border-2"/>
+                 <div className="flex justify-between items-center p-4 bg-slate-900 rounded-lg">
+                    <span className="font-bold text-xl text-cyan-400">Net Profit / (Loss) After Tax</span>
+                    <span className={`font-mono font-bold text-xl ${pnlData.netProfitAfterTax >= 0 ? 'text-cyan-400' : 'text-red-500'}`}>
+                        {pnlData.netProfitAfterTax < 0 && '('}${Math.abs(pnlData.netProfitAfterTax).toFixed(2)}{pnlData.netProfitAfterTax < 0 && ')'}
                     </span>
                 </div>
             </div>
@@ -481,6 +561,7 @@ const App = () => {
     const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
     const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
     const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
+    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(bills.filter(b => b.vehicleId === item.id).reduce((acc, b) => acc + b.amount, 0)).toFixed(2)}</span> }, ];
 
     return (
         <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
@@ -491,13 +572,12 @@ const App = () => {
                         <p className="text-slate-400 mt-1">Monthly Money Management</p>
                     </div>
                     <div className="flex items-center gap-4 bg-slate-800 border border-slate-700 p-2 rounded-lg">
-                       <span className="text-sm font-semibold text-slate-300">Selected Month:</span>
-                       <input 
-                            type="month" 
-                            value={selectedMonthYear}
-                            onChange={(e) => setSelectedDate(new Date(e.target.value + '-02'))}
-                            className="bg-slate-700 text-white rounded-md p-2 border-none focus:ring-2 focus:ring-cyan-500"
-                       />
+                       <span className="text-sm font-semibold text-slate-300">Reporting Period:</span>
+                       <div className="flex items-center gap-1 bg-slate-700 rounded-md p-1">
+                           <button onClick={() => setReportingPeriod('monthly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>Monthly</button>
+                           <button onClick={() => setReportingPeriod('quarterly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'quarterly' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>Quarterly</button>
+                           <button onClick={() => setReportingPeriod('yearly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>Yearly</button>
+                       </div>
                     </div>
                 </header>
                 <nav className="flex items-center border-b border-slate-700 mb-6 overflow-x-auto">
@@ -507,6 +587,7 @@ const App = () => {
                     <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Goals</button>
                     <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Clients</button>
                     <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
+                    <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Vehicles</button>
                     <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Inventory</button>
                     <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
                     <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
@@ -519,13 +600,14 @@ const App = () => {
                     {activeSection === 'goals' && renderGoalsSection()}
                     {activeSection === 'clients' && renderManagementSection('Clients', sortedData, clientColumns, 'client')}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
+                    {activeSection === 'vehicles' && renderManagementSection('Vehicles', sortedData, vehicleColumns, 'vehicle')}
                     {activeSection === 'inventory' && renderManagementSection('Inventory', sortedData, inventoryColumns, 'inventory')}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
                 </main>
             </div>
-            {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} debts={debts} clients={clients} />}
+            {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} debts={debts} clients={clients} vehicles={vehicles} />}
         </div>
     );
 };
