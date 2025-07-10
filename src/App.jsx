@@ -4,7 +4,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car } from 'lucide-react';
 
 // --- Firebase Configuration ---
 // Make sure your .env.local file is created with these keys
@@ -34,10 +34,25 @@ const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, m
 const INITIAL_GOALS = [ { name: "Pay off Chase Card", type: "debt", targetId: "Chase Card", targetValue: 0, deadline: "2025-12-31" }, { name: "Achieve $50k Job Revenue", type: "revenue", targetValue: 50000, deadline: "2025-12-31" }];
 const INITIAL_CLIENTS = [ {id: "1", name: "John Johnson", address: "123 Main St, Anytown, USA", phone: "555-1234", email: "john@example.com"}, {id: "2", name: "Downtown Restaurant", address: "456 Oak Ave, Anytown, USA", phone: "555-5678", email: "contact@downtownrestaurant.com"}];
 const INITIAL_INVENTORY = [ {name: "Standard 1-inch Filter", quantity: 50, cost: 5.50}, {name: "Capacitor 45/5 MFD", quantity: 15, cost: 25.00} ];
-const INITIAL_VEHICLES = [ {id: "1", name: "Black Truck", year: "2022", model: "GMC Sierra"}, {id: "2", name: "Red Van", year: "2021", model: "Ford Transit"}];
+const INITIAL_VEHICLES = [ {id: "7", name: "Jason's Truck", make: "FORD", model: "TRANSIT T250", year: "2020", vin: "1FTBR1C84LKA59065", licensePlate: "DD16326", currentMileage: 104071}, {id: "8", name: "Red Van", make: "FORD", model: "TRANSIT T250", year: "2020", vin: "1FTBR1C85LKA70866", licensePlate: "DD16337", currentMileage: 107046}, {id: "11", name: "GMC Sierra", make: "GMC", model: "SIERRA", year: "2022", vin: "3GTPUJEK7NG635190", licensePlate: "DF94421", currentMileage: 18811} ];
+const INITIAL_MAINTENANCE_LOGS = [
+    { vehicleId: "7", date: "2023-08-11", mileage: 75018, workPerformed: "LICENSE TABS", cost: 183.00, notes: "" },
+    { vehicleId: "7", date: "2024-06-06", mileage: 76504, workPerformed: "oil change", cost: 55.00, notes: "" },
+    { vehicleId: "7", date: "2024-09-24", mileage: 89627, workPerformed: "oil change, air filter oil cleaner", cost: 146.09, notes: "" },
+    { vehicleId: "7", date: "2024-11-08", mileage: null, workPerformed: "Replaced front and rear rotors and pads", cost: 500.00, notes: "" },
+    { vehicleId: "7", date: "2024-12-12", mileage: 99399, workPerformed: "Replaced tires and oil change", cost: 958.00, notes: "" },
+    { vehicleId: "8", date: "2023-08-11", mileage: 84948, workPerformed: "LICENSE TABS", cost: 183.00, notes: "" },
+    { vehicleId: "8", date: "2023-09-25", mileage: 87270, workPerformed: "oil change", cost: 40.00, notes: "oil filter pf63 6 quarts 5w20" },
+    { vehicleId: "8", date: "2024-06-06", mileage: 98000, workPerformed: "oil change", cost: 55.00, notes: "" },
+    { vehicleId: "8", date: "2024-11-01", mileage: null, workPerformed: "Replace Rear rotor and pads", cost: 241.00, notes: "" },
+    { vehicleId: "11", date: "2023-08-11", mileage: 9435, workPerformed: "LICENSE TABS", cost: 302.00, notes: "" },
+    { vehicleId: "11", date: "2023-09-20", mileage: 10008, workPerformed: "Oil Change", cost: 50.00, notes: "PF66 oil filter 6 quarts 5w30 full synthetic" },
+    { vehicleId: "11", date: "2025-02-11", mileage: 19024, workPerformed: "Oil Change / air filter", cost: 143.17, notes: "valvoline oil shop" }
+];
+
 
 // --- Helper Components ---
-const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
+const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
 const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-400">{title}</h3> <div className={`text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-white mt-2">{typeof value === 'number' ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}</p> {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>} </div> </div>);
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
@@ -47,7 +62,7 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false, vehicleId: '' }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: ''}, inventory: { name: '', quantity: 0, cost: 0 }, vehicle: { name: '', year: '', model: '' } };
+        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false, vehicleId: '' }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: ''}, inventory: { name: '', quantity: 0, cost: 0 }, vehicle: { name: '', make: '', model: '', year: '', vin: '', licensePlate: '', currentMileage: 0 }, maintenanceLog: { date: new Date().toISOString().split('T')[0], mileage: '', workPerformed: '', cost: 0, notes: '', vehicleId: item?.vehicleId || '' } };
         setFormData(item || defaults[type]);
     }, [item, type]);
 
@@ -64,11 +79,48 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
             case 'client': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Client Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Address</label><input type="text" name="address" value={formData.address || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Phone Number</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
             case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
             case 'vehicle': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Vehicle Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Year</label><input type="text" name="year" value={formData.year || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Model</label><input type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
+            case 'maintenanceLog': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Mileage</label><input type="number" name="mileage" value={formData.mileage || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Cost</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Work Performed</label><textarea name="workPerformed" value={formData.workPerformed || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div> </>;
             default: return <p>Editing for this item type is not yet implemented.</p>;
         }
     };
     return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
 };
+
+const AlertsPanel = ({ bills, paidStatus, onClose }) => {
+    const upcomingBills = useMemo(() => {
+        const today = new Date();
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(today.getDate() + 3);
+
+        return bills.filter(bill => {
+            if (paidStatus[bill.id]) return false;
+            const dueDate = new Date(today.getFullYear(), today.getMonth(), bill.dueDay);
+            return dueDate >= today && dueDate <= threeDaysFromNow;
+        });
+    }, [bills, paidStatus]);
+
+    if (upcomingBills.length === 0) return null;
+
+    return (
+        <div className="bg-yellow-900/50 border border-yellow-700 text-yellow-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <div className="flex items-center">
+                <Bell size={20} className="mr-3" />
+                <div>
+                    <strong className="font-bold">Upcoming Bills!</strong>
+                    <ul className="list-disc list-inside mt-1">
+                        {upcomingBills.map(bill => (
+                            <li key={bill.id}>{bill.name} is due on day {bill.dueDay}.</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+            <button onClick={onClose} className="absolute top-0 bottom-0 right-0 px-4 py-3">
+                <X size={18} />
+            </button>
+        </div>
+    );
+};
+
 
 // --- Main Application Component ---
 const App = () => {
@@ -84,6 +136,7 @@ const App = () => {
     const [clients, setClients] = useState([]);
     const [inventory, setInventory] = useState([]);
     const [vehicles, setVehicles] = useState([]);
+    const [maintenanceLogs, setMaintenanceLogs] = useState([]);
     const [paidStatus, setPaidStatus] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -94,6 +147,8 @@ const App = () => {
     const [currentBankBalance, setCurrentBankBalance] = useState(25000);
     const [dateRange, setDateRange] = useState({start: new Date(), end: new Date()});
     const [reportingPeriod, setReportingPeriod] = useState('monthly'); // 'monthly', 'quarterly', 'yearly'
+    const [showAlerts, setShowAlerts] = useState(true);
+    const [expandedVehicle, setExpandedVehicle] = useState(null);
 
     useEffect(() => {
         const now = new Date();
@@ -134,6 +189,7 @@ const App = () => {
                     INITIAL_CLIENTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'clients')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_INVENTORY.forEach(item => batch.set(doc(collection(db, ...basePath, 'inventory')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_VEHICLES.forEach(item => batch.set(doc(collection(db, ...basePath, 'vehicles')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_MAINTENANCE_LOGS.forEach(item => batch.set(doc(collection(db, ...basePath, 'maintenanceLogs')), {...item, createdAt: serverTimestamp()}));
                     const initialMonthYear = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
                     batch.set(doc(db, ...basePath, 'paidStatus', initialMonthYear), { status: {} });
                     await batch.commit();
@@ -149,7 +205,7 @@ const App = () => {
 
     useEffect(() => {
         if (!userId) return;
-        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles };
+        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles, maintenanceLogs: setMaintenanceLogs };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
                 setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -257,7 +313,7 @@ const App = () => {
     
     const handleSave = async (itemData, file) => {
         if (!userId) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
@@ -287,7 +343,7 @@ const App = () => {
 
     const handleDelete = async (type, id) => {
         if (!userId || !window.confirm("Delete this item?")) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
         const collectionName = collectionNameMap[type];
         await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
     };
@@ -310,24 +366,31 @@ const App = () => {
         document.body.removeChild(link);
     };
 
-    const handleImportCSV = (file) => {
+    const handleImportCSV = (file, type) => {
         if (!file || !userId) return;
         const reader = new FileReader();
         reader.onload = async (event) => {
             const text = event.target.result;
-            // Basic CSV parsing, assumes header row matches object keys
             const lines = text.split('\n').filter(line => line);
             const headers = lines[0].split(',').map(h => h.trim());
             const data = lines.slice(1).map(line => {
                 const values = line.split(',').map(v => v.trim());
                 return headers.reduce((obj, header, index) => {
-                    obj[header] = values[index];
+                    const value = values[index];
+                    obj[header] = isNaN(value) || value === '' ? value : parseFloat(value);
                     return obj;
                 }, {});
             });
 
+            const collectionNameMap = { client: 'clients', job: 'jobs', inventory: 'inventory' };
+            const collectionName = collectionNameMap[type];
+            if (!collectionName) {
+                alert("Invalid import type.");
+                return;
+            }
+
             const batch = writeBatch(db);
-            const collectionRef = collection(db, 'artifacts', appId, 'users', userId, 'clients');
+            const collectionRef = collection(db, 'artifacts', appId, 'users', userId, collectionName);
             data.forEach(item => {
                 const docRef = doc(collectionRef);
                 batch.set(docRef, {...item, createdAt: serverTimestamp()});
@@ -335,7 +398,7 @@ const App = () => {
 
             try {
                 await batch.commit();
-                alert(`Successfully imported ${data.length} clients!`);
+                alert(`Successfully imported ${data.length} ${collectionName}!`);
             } catch (error) {
                 console.error("Error importing CSV:", error);
                 alert("Failed to import CSV. Please check the console for errors.");
@@ -344,10 +407,47 @@ const App = () => {
         reader.readAsText(file);
     };
 
+    const handleGenerateRecurring = async () => {
+        if (!userId || !window.confirm("This will generate recurring transactions for next month. Continue?")) return;
+
+        const nextMonthDate = new Date(dateRange.start);
+        nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+        const nextMonthYear = nextMonthDate.getFullYear() + '-' + String(nextMonthDate.getMonth() + 1).padStart(2, '0');
+
+        const recurringBills = bills.filter(b => b.isRecurring);
+        const recurringIncomes = incomes.filter(i => i.isRecurring);
+        
+        const batch = writeBatch(db);
+
+        recurringBills.forEach(bill => {
+            const newBill = { ...bill, createdAt: serverTimestamp(), notes: `Generated for ${nextMonthYear}` };
+            delete newBill.id; // Remove old ID
+            const docRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'bills'));
+            batch.set(docRef, newBill);
+        });
+
+        recurringIncomes.forEach(income => {
+            const newIncome = { ...income, createdAt: serverTimestamp(), notes: `Generated for ${nextMonthYear}` };
+            delete newIncome.id;
+            const docRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'incomes'));
+            batch.set(docRef, newIncome);
+        });
+
+        try {
+            await batch.commit();
+            alert(`Generated ${recurringBills.length} bills and ${recurringIncomes.length} incomes for next month.`);
+        } catch (error) {
+            console.error("Error generating recurring transactions:", error);
+            alert("Failed to generate recurring transactions.");
+        }
+    };
+
+
     if (isLoading || isSeeding) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
 
     const renderDashboard = () => (
         <>
+            {showAlerts && <AlertsPanel bills={bills} paidStatus={paidStatus} onClose={() => setShowAlerts(false)} />}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-6">
                 <StatCard title="Total Monthly Income" value={totals.totalIncome} icon={<Banknote size={24} />} color="green" />
                 <StatCard title="Total Monthly Outflow" value={totals.totalOutflow} icon={<ArrowDown size={24} />} color="red" />
@@ -397,6 +497,10 @@ const App = () => {
                 </div>
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-slate-800 p-6 rounded-xl border border-slate-700"><h3 className="text-xl font-bold text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
+                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                        <h3 className="text-xl font-bold text-white mb-4">Automations</h3>
+                        <button onClick={handleGenerateRecurring} className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><RefreshCw size={16} /> Generate Next Month's Bills</button>
+                    </div>
                 </div>
             </div>
         </>
@@ -407,8 +511,8 @@ const App = () => {
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-white">{title}</h3>
                 <div className="flex items-center gap-2">
-                    {type === 'client' && <>
-                        <input type="file" id="csv-importer" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0])} />
+                    {(type === 'client' || type === 'job' || type === 'inventory') && <>
+                        <input type="file" id="csv-importer" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], type)} />
                         <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
                     </>}
                     <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
@@ -561,7 +665,7 @@ const App = () => {
     const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
     const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
     const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
-    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(bills.filter(b => b.vehicleId === item.id).reduce((acc, b) => acc + b.amount, 0)).toFixed(2)}</span> }, ];
+    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
 
     return (
         <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
@@ -600,7 +704,7 @@ const App = () => {
                     {activeSection === 'goals' && renderGoalsSection()}
                     {activeSection === 'clients' && renderManagementSection('Clients', sortedData, clientColumns, 'client')}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
-                    {activeSection === 'vehicles' && renderManagementSection('Vehicles', sortedData, vehicleColumns, 'vehicle')}
+                    {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'inventory' && renderManagementSection('Inventory', sortedData, inventoryColumns, 'inventory')}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
@@ -612,4 +716,75 @@ const App = () => {
     );
 };
 
-export default App;
+const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete }) => {
+    const [expandedVehicleId, setExpandedVehicleId] = useState(null);
+
+    const toggleVehicle = (id) => {
+        setExpandedVehicleId(prevId => (prevId === id ? null : id));
+    };
+
+    return (
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white">Vehicle Management</h3>
+                <button onClick={() => openModal('vehicle')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Vehicle</button>
+            </div>
+            <div className="space-y-2">
+                {vehicles.map(vehicle => (
+                    <div key={vehicle.id}>
+                        <div onClick={() => toggleVehicle(vehicle.id)} className="bg-slate-700/50 p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-700">
+                            <div className="flex items-center gap-4">
+                                <Car size={24} className="text-cyan-400" />
+                                <div>
+                                    <p className="font-bold">{vehicle.name}</p>
+                                    <p className="text-xs text-slate-400">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-mono text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === vehicle.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</p>
+                                <p className="text-xs text-slate-400">Total Expenses</p>
+                            </div>
+                            {expandedVehicleId === vehicle.id ? <ChevronUp /> : <ChevronDown />}
+                        </div>
+                        {expandedVehicleId === vehicle.id && (
+                            <div className="p-4 bg-slate-800/50 rounded-b-lg border-t-2 border-slate-700">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-bold">Maintenance Log</h4>
+                                    <button onClick={() => openModal('maintenanceLog', { vehicleId: vehicle.id })} className="flex items-center gap-2 text-xs bg-green-600 hover:bg-green-500 text-white font-semibold px-2 py-1 rounded-md"><PlusCircle size={14} /> Add Log Entry</button>
+                                </div>
+                                <table className="w-full text-left text-sm">
+                                    <thead className="text-xs text-slate-400 uppercase">
+                                        <tr>
+                                            <th className="p-2">Date</th>
+                                            <th className="p-2">Mileage</th>
+                                            <th className="p-2">Work Performed</th>
+                                            <th className="p-2 text-right">Cost</th>
+                                            <th className="p-2 text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {maintenanceLogs.filter(log => log.vehicleId === vehicle.id).sort((a,b) => new Date(b.date) - new Date(a.date)).map(log => (
+                                            <tr key={log.id} className="border-b border-slate-700/50">
+                                                <td className="p-2">{log.date}</td>
+                                                <td className="p-2">{log.mileage?.toLocaleString() || 'N/A'}</td>
+                                                <td className="p-2">{log.workPerformed}</td>
+                                                <td className="p-2 text-right font-mono">${log.cost.toFixed(2)}</td>
+                                                <td className="p-2 text-center">
+                                                    <button onClick={() => openModal('maintenanceLog', log)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={14} /></button>
+                                                    <button onClick={() => handleDelete('maintenanceLog', log.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+export default A
