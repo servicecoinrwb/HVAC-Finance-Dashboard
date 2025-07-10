@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query } from 'firebase/firestore';
-// Note: Firebase Storage is needed for file uploads. It would be imported here.
-// import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip } from 'recharts';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, MessageSquare, Paperclip, PlusCircle, Save, Trash2, X } from 'lucide-react';
 
@@ -24,7 +23,7 @@ const appId = 'hvac-finance-dashboard';
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-// const storage = getStorage(app); // Initialize storage for file uploads
+const storage = getStorage(app); // Initialize storage for file uploads
 
 // --- Initial Data (Seed for first-time use) ---
 const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null }, { name: "Blue Cross Blue Shield", amount: 397.73, dueDay: 1, isAutoPay: true, category: "Insurance", notes: "", attachmentURL: null }, ];
@@ -41,6 +40,7 @@ const ActivePieChart = ({ data }) => { const [activeIndex, setActiveIndex] = use
 const ItemFormModal = ({ item, type, onSave, onClose }) => {
     const [formData, setFormData] = useState({});
     const [fileToUpload, setFileToUpload] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const defaults = { 
@@ -55,7 +55,13 @@ const ItemFormModal = ({ item, type, onSave, onClose }) => {
 
     const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || 0 : value) })); };
     const handleFileChange = (e) => { if (e.target.files[0]) { setFileToUpload(e.target.files[0]); } };
-    const handleSubmit = (e) => { e.preventDefault(); onSave(formData, fileToUpload); };
+    
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        setIsSaving(true);
+        await onSave(formData, fileToUpload);
+        setIsSaving(false);
+    };
 
     const renderFields = () => {
         switch (type) {
@@ -64,7 +70,7 @@ const ItemFormModal = ({ item, type, onSave, onClose }) => {
             default: return <p>Editing for this item type is not yet implemented.</p>;
         }
     };
-    return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600">Cancel</button><button type="submit" className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2"><Save size={16} /> Save</button></div></form></Modal> );
+    return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
 };
 
 // --- Main Application Component ---
@@ -179,14 +185,18 @@ const App = () => {
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
-        // Placeholder for file upload logic
         if (file) {
             console.log("Uploading file:", file.name);
-            // const storageRef = ref(storage, `receipts/${userId}/${file.name}`);
-            // await uploadBytes(storageRef, file);
-            // const downloadURL = await getDownloadURL(storageRef);
-            // itemData.attachmentURL = downloadURL;
-            alert("File upload UI is ready, but Firebase Storage integration is required to complete this feature.");
+            const storageRef = ref(storage, `receipts/${userId}/${Date.now()}-${file.name}`);
+            try {
+                await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(storageRef);
+                itemData.attachmentURL = downloadURL;
+            } catch (error) {
+                console.error("File upload failed:", error);
+                alert("File upload failed. Please try again.");
+                return;
+            }
         }
 
         if (editingItem?.id) {
