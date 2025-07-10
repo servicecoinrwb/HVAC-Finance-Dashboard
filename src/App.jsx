@@ -3,8 +3,8 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Trash2, X, XCircle } from 'lucide-react';
+import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, CheckCircle, Circle, DollarSign, Edit, FileText, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, X } from 'lucide-react';
 
 // --- Firebase Configuration ---
 // Make sure your .env.local file is created with these keys
@@ -31,19 +31,20 @@ const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 
 const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false },];
 const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
 const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit.", date: new Date().toISOString() }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract.", date: new Date().toISOString() }];
+const INITIAL_GOALS = [ { name: "Pay off Chase Card", type: "debt", targetId: "Chase Card", targetValue: 0, deadline: "2025-12-31" }, { name: "Achieve $50k Job Revenue", type: "revenue", targetValue: 50000, deadline: "2025-12-31" }];
 
 // --- Helper Components ---
 const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
 const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-400">{title}</h3> <div className={`text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-white mt-2">{typeof value === 'number' ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}</p> {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>} </div> </div>);
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
-const ItemFormModal = ({ item, type, onSave, onClose }) => {
+const ItemFormModal = ({ item, type, onSave, onClose, debts, jobs }) => {
     const [formData, setFormData] = useState({});
     const [fileToUpload, setFileToUpload] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0] }, };
+        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0] }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' } };
         setFormData(item || defaults[type]);
     }, [item, type]);
 
@@ -56,6 +57,7 @@ const ItemFormModal = ({ item, type, onSave, onClose }) => {
         switch (type) {
             case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-300">Is Recurring?</label></div></div> </>;
             case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div></>;
+            case 'goal': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Goal Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Goal Type</label><select name="type" value={formData.type || 'revenue'} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="revenue">Revenue</option><option value="debt">Debt Payoff</option></select></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Deadline</label><input type="date" name="deadline" value={formData.deadline || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> {formData.type === 'revenue' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Target Revenue ($)</label><input type="number" name="targetValue" value={formData.targetValue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div>} {formData.type === 'debt' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Select Debt to Pay Off</label><select name="targetId" value={formData.targetId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- Select a Debt --</option>{debts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>} </>;
             default: return <p>Editing for this item type is not yet implemented.</p>;
         }
     };
@@ -72,6 +74,7 @@ const App = () => {
     const [incomes, setIncomes] = useState([]);
     const [weeklyCosts, setWeeklyCosts] = useState([]);
     const [jobs, setJobs] = useState([]);
+    const [goals, setGoals] = useState([]);
     const [paidStatus, setPaidStatus] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -79,6 +82,7 @@ const App = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'dueDay', direction: 'ascending' });
     const [activeSection, setActiveSection] = useState('dashboard');
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [currentBankBalance, setCurrentBankBalance] = useState(25000);
     
     const [selectedDate, setSelectedDate] = useState(new Date());
     const selectedMonthYear = useMemo(() => selectedDate.getFullYear() + '-' + String(selectedDate.getMonth() + 1).padStart(2, '0'), [selectedDate]);
@@ -99,6 +103,7 @@ const App = () => {
                     INITIAL_INCOME.forEach(item => batch.set(doc(collection(db, ...basePath, 'incomes')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_WEEKLY_COSTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'weeklyCosts')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_JOBS.forEach(item => batch.set(doc(collection(db, ...basePath, 'jobs')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_GOALS.forEach(item => batch.set(doc(collection(db, ...basePath, 'goals')), {...item, createdAt: serverTimestamp()}));
                     const initialMonthYear = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
                     batch.set(doc(db, ...basePath, 'paidStatus', initialMonthYear), { status: {} });
                     await batch.commit();
@@ -114,7 +119,7 @@ const App = () => {
 
     useEffect(() => {
         if (!userId) return;
-        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs };
+        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, goals: setGoals };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
                 setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -141,13 +146,44 @@ const App = () => {
     }, [bills, debts, incomes, weeklyCosts, paidStatus]);
 
     const pnlData = useMemo(() => {
-        const revenue = filteredJobs.reduce((acc, job) => acc + job.revenue, 0);
-        const cogs = filteredJobs.reduce((acc, job) => acc + job.materialCost + job.laborCost, 0);
+        const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
+        const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
         const grossProfit = revenue - cogs;
         const operatingExpenses = bills.reduce((acc, bill) => acc + bill.amount, 0) + (weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
         const netProfit = grossProfit - operatingExpenses;
         return { revenue, cogs, grossProfit, operatingExpenses, netProfit };
     }, [filteredJobs, bills, weeklyCosts]);
+
+    const forecastData = useMemo(() => {
+        const recurringIncome = incomes.filter(i => i.isRecurring).reduce((acc, i) => acc + i.amount, 0);
+        const recurringBills = bills.filter(b => b.isRecurring).reduce((acc, b) => acc + b.amount, 0);
+        const weeklyCostsTotal = weeklyCosts.reduce((acc, c) => acc + c.amount, 0);
+        const netMonthlyRecurring = recurringIncome - recurringBills - (weeklyCostsTotal * 4.33);
+
+        const forecast = [
+            { month: 'Current', balance: currentBankBalance },
+            { month: '+1 Month', balance: currentBankBalance + netMonthlyRecurring },
+            { month: '+3 Months', balance: currentBankBalance + (netMonthlyRecurring * 3) },
+            { month: '+6 Months', balance: currentBankBalance + (netMonthlyRecurring * 6) },
+        ];
+        return forecast;
+    }, [incomes, bills, weeklyCosts, currentBankBalance]);
+
+    const goalsWithProgress = useMemo(() => {
+        return goals.map(goal => {
+            let progress = 0;
+            if (goal.type === 'debt') {
+                const debt = debts.find(d => d.id === goal.targetId);
+                if (debt) {
+                    progress = (debt.paidAmount / debt.totalAmount) * 100;
+                }
+            } else if (goal.type === 'revenue') {
+                const currentRevenue = jobs.reduce((acc, j) => acc + (j.revenue || 0), 0);
+                progress = (currentRevenue / goal.targetValue) * 100;
+            }
+            return { ...goal, progress: Math.min(progress, 100) };
+        });
+    }, [goals, debts, jobs]);
 
     const expenseByCategory = useMemo(() => {
         const categories = bills.reduce((acc, bill) => {
@@ -160,7 +196,7 @@ const App = () => {
     }, [bills]);
 
     const sortedData = useMemo(() => {
-        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs };
+        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress };
         const activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
         return [...activeData].sort((a, b) => {
             if (!sortConfig.key) return 0;
@@ -168,7 +204,7 @@ const App = () => {
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
-    }, [filteredBills, debts, incomes, weeklyCosts, jobs, sortConfig, activeSection]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, sortConfig, activeSection]);
 
     const debtPayoffStrategies = useMemo(() => {
         const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
@@ -183,7 +219,7 @@ const App = () => {
     
     const handleSave = async (itemData, file) => {
         if (!userId) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals' };
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
@@ -213,7 +249,7 @@ const App = () => {
 
     const handleDelete = async (type, id) => {
         if (!userId || !window.confirm("Delete this item?")) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals' };
         const collectionName = collectionNameMap[type];
         await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
     };
@@ -351,7 +387,7 @@ const App = () => {
             <p className="text-slate-400 mb-6">For {selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
             <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
-                    <span className="font-semibold">Total Revenue</span>
+                    <span className="font-semibold">Total Revenue (from Jobs)</span>
                     <span className="font-mono font-bold text-green-400">${pnlData.revenue.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 pl-8">
@@ -364,7 +400,7 @@ const App = () => {
                     <span className="font-mono font-bold text-lg">${pnlData.grossProfit.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-400">Operating Expenses</span>
+                    <span className="text-slate-400">Operating Expenses (Bills & Weekly)</span>
                     <span className="font-mono text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
                 </div>
                 <hr className="border-slate-600 border-2"/>
@@ -375,6 +411,58 @@ const App = () => {
                     </span>
                 </div>
             </div>
+        </div>
+    );
+
+    const renderGoalsSection = () => (
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+             <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white">Financial Goals</h3>
+                <button onClick={() => openModal('goal')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Goal</button>
+            </div>
+            <div className="space-y-6">
+                {goalsWithProgress.map(goal => (
+                    <div key={goal.id}>
+                        <div className="flex justify-between items-end mb-1">
+                            <span className="font-semibold">{goal.name}</span>
+                            <span className="text-sm text-slate-400">{goal.progress.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-700 rounded-full h-4">
+                            <div className="bg-green-500 h-4 rounded-full" style={{ width: `${goal.progress}%` }}></div>
+                        </div>
+                        <div className="flex justify-between items-end mt-1 text-xs text-slate-500">
+                            <span>Target: {goal.type === 'debt' ? 'Pay Off' : `$${goal.targetValue.toLocaleString()}`}</span>
+                            <span>Deadline: {goal.deadline}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderForecastSection = () => (
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+            <h3 className="text-xl font-bold text-white mb-4">Cash Flow Forecast</h3>
+            <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
+                <input 
+                    type="number"
+                    value={currentBankBalance}
+                    onChange={(e) => setCurrentBankBalance(parseFloat(e.target.value) || 0)}
+                    className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-md p-2 text-white"
+                />
+            </div>
+            <p className="text-xs text-slate-400 mb-4">This forecast projects your balance based on recurring income and expenses.</p>
+            <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={forecastData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                    <XAxis dataKey="month" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" tickFormatter={(value) => `$${(value/1000)}k`} />
+                    <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569' }} formatter={(value) => `$${value.toLocaleString()}`} />
+                    <Legend />
+                    <Line type="monotone" dataKey="balance" stroke="#22d3ee" strokeWidth={2} activeDot={{ r: 8 }} />
+                </LineChart>
+            </ResponsiveContainer>
         </div>
     );
 
@@ -401,24 +489,28 @@ const App = () => {
                        />
                     </div>
                 </header>
-                <nav className="flex items-center border-b border-slate-700 mb-6">
-                    <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'dashboard' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Dashboard</button>
-                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'pnl' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>P&L Statement</button>
-                    <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
-                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
-                    <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'incomes' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
-                    <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeSection === 'weeklyCosts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Weekly Costs</button>
+                <nav className="flex items-center border-b border-slate-700 mb-6 overflow-x-auto">
+                    <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Dashboard</button>
+                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>P&L Statement</button>
+                    <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Forecast</button>
+                    <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Goals</button>
+                    <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
+                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
+                    <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
+                    <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Weekly Costs</button>
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'pnl' && renderPnLStatement()}
+                    {activeSection === 'forecast' && renderForecastSection()}
+                    {activeSection === 'goals' && renderGoalsSection()}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
                 </main>
             </div>
-            {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} />}
+            {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} debts={debts} jobs={jobs} />}
         </div>
     );
 };
