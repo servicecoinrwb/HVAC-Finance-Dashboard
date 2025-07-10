@@ -223,7 +223,6 @@ const ReportsSection = ({ clients, jobs, bills, inventory }) => {
     )
 }
 
-
 // --- Main Application Component ---
 const App = () => {
     const [userId, setUserId] = useState(null);
@@ -840,9 +839,9 @@ const App = () => {
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}
                     {activeSection === 'goals' && renderGoalsSection()}
-                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
-                    {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'inventory' && renderManagementSection('Inventory', sortedData, inventoryColumns, 'inventory')}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
@@ -854,21 +853,26 @@ const App = () => {
     );
 };
 
-const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete }) => {
+const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete, searchTerm, setSearchTerm }) => {
     const [expandedVehicleId, setExpandedVehicleId] = useState(null);
 
     const toggleVehicle = (id) => {
         setExpandedVehicleId(prevId => (prevId === id ? null : id));
     };
+    
+    const filteredVehicles = useMemo(() => vehicles.filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.model.toLowerCase().includes(searchTerm.toLowerCase())), [vehicles, searchTerm]);
 
     return (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Vehicle Management</h3>
-                <button onClick={() => openModal('vehicle')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Vehicle</button>
+                <div className="flex items-center gap-2">
+                    <input type="text" placeholder="Search Vehicles..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
+                    <button onClick={() => openModal('vehicle')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Vehicle</button>
+                </div>
             </div>
             <div className="space-y-2">
-                {vehicles.map(vehicle => (
+                {filteredVehicles.map(vehicle => (
                     <div key={vehicle.id}>
                         <div onClick={() => toggleVehicle(vehicle.id)} className="bg-slate-100 dark:bg-slate-700/50 p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700">
                             <div className="flex items-center gap-4">
@@ -930,9 +934,12 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete 
     );
 };
 
-const ClientManagement = ({ clients, openModal, handleDelete }) => {
+const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSearchTerm }) => {
     const [expandedClientId, setExpandedClientId] = useState(null);
-    const parentAccounts = clients.filter(c => !c.parentId);
+    
+    const filteredClients = useMemo(() => clients.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.address.toLowerCase().includes(searchTerm.toLowerCase())), [clients, searchTerm]);
+    
+    const parentAccounts = useMemo(() => filteredClients.filter(c => !c.parentId), [filteredClients]);
 
     const toggleClient = (id) => {
         setExpandedClientId(prevId => (prevId === id ? null : id));
@@ -942,7 +949,10 @@ const ClientManagement = ({ clients, openModal, handleDelete }) => {
          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Client Management</h3>
-                <button onClick={() => openModal('client')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Client</button>
+                <div className="flex items-center gap-2">
+                    <input type="text" placeholder="Search Clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
+                    <button onClick={() => openModal('client')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
+                </div>
             </div>
             <div className="space-y-2">
                 {parentAccounts.map(parent => (
