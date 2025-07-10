@@ -853,6 +853,11 @@ const App = () => {
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
                 </main>
+                <footer className="text-center mt-8 py-4 border-t border-slate-200 dark:border-slate-700">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Powered by <a href="https://servicecoin.io" target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-600 dark:text-cyan-400 hover:underline">Service Coin</a>
+                    </p>
+                </footer>
             </div>
             {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} debts={debts} clients={clients} vehicles={vehicles} />}
         </div>
