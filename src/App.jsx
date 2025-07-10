@@ -4,7 +4,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2 } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon } from 'lucide-react';
 
 // --- Firebase Configuration ---
 // Make sure your .env.local file is created with these keys
@@ -52,8 +52,8 @@ const INITIAL_MAINTENANCE_LOGS = [
 
 
 // --- Helper Components ---
-const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4 relative border border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
-const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-400">{title}</h3> <div className={`text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-white mt-2">{typeof value === 'number' ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}</p> {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>} </div> </div>);
+const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4 relative border dark:border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
+const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</h3> <div className={`text-${color}-500 dark:text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-slate-800 dark:text-white mt-2">{typeof value === 'number' ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : value}</p> {subtext && <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">{subtext}</p>} </div> </div>);
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
 const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }) => {
@@ -74,17 +74,12 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
     const renderFields = () => {
         const parentAccounts = clients.filter(c => !c.parentId);
         switch (type) {
-            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div> {formData.category === 'Vehicle' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Assign to Vehicle</label><select name="vehicleId" value={formData.vehicleId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- Select Vehicle --</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></div>} <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-300">Is Recurring?</label></div></div> </>;
-            case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Link to Client Location</label><select name="clientId" value={formData.clientId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white">{parentAccounts.map(p => <optgroup key={p.id} label={p.name}>{clients.filter(c => c.parentId === p.id || c.id === p.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</select></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Job Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div></>;
-            case 'goal': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Goal Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Goal Type</label><select name="type" value={formData.type || 'revenue'} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="revenue">Revenue</option><option value="debt">Debt Payoff</option></select></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Deadline</label><input type="date" name="deadline" value={formData.deadline || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> {formData.type === 'revenue' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Target Revenue ($)</label><input type="number" name="targetValue" value={formData.targetValue || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div>} {formData.type === 'debt' && <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Select Debt to Pay Off</label><select name="targetId" value={formData.targetId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- Select a Debt --</option>{debts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>} </>;
-            case 'client': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Client/Location Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Parent Account (Optional)</label><select name="parentId" value={formData.parentId || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"><option value="">-- None (Is a Parent Account) --</option>{parentAccounts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Address</label><input type="text" name="address" value={formData.address || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Phone Number</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
-            case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
-            case 'vehicle': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Vehicle Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Year</label><input type="text" name="year" value={formData.year || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Model</label><input type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> </>;
-            case 'maintenanceLog': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-300 mb-1">Mileage</label><input type="number" name="mileage" value={formData.mileage || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div><div><label className="block text-sm font-medium text-slate-300 mb-1">Cost</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white" /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-300 mb-1">Work Performed</label><textarea name="workPerformed" value={formData.workPerformed || ''} onChange={handleChange} rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white"></textarea></div> </>;
-            default: return <p>Editing for this item type is not yet implemented.</p>;
+            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Category</label><input type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div> {formData.category === 'Vehicle' && <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Assign to Vehicle</label><select name="vehicleId" value={formData.vehicleId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- Select Vehicle --</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></div>} <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Is Recurring?</label></div></div> </>;
+            case 'client': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Client/Location Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Parent Account (Optional)</label><select name="parentId" value={formData.parentId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- None (Is a Parent Account) --</option>{parentAccounts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Address</label><input type="text" name="address" value={formData.address || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Phone Number</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
+            default: return <p>This form is not yet implemented.</p>;
         }
     };
-    return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-600">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
+    return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-white">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500 text-white">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
 };
 
 const AlertsPanel = ({ bills, paidStatus, onClose }) => {
@@ -103,7 +98,7 @@ const AlertsPanel = ({ bills, paidStatus, onClose }) => {
     if (upcomingBills.length === 0) return null;
 
     return (
-        <div className="bg-yellow-900/50 border border-yellow-700 text-yellow-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+        <div className="bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
             <div className="flex items-center">
                 <Bell size={20} className="mr-3" />
                 <div>
@@ -121,112 +116,6 @@ const AlertsPanel = ({ bills, paidStatus, onClose }) => {
         </div>
     );
 };
-
-const ReportsSection = ({ clients, jobs, bills, inventory }) => {
-    const clientProfitability = useMemo(() => {
-        return clients.map(client => {
-            const clientJobs = jobs.filter(job => job.clientId === client.id);
-            const totalRevenue = clientJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
-            const totalCost = clientJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
-            return {
-                name: client.name,
-                netProfit: totalRevenue - totalCost,
-            };
-        }).sort((a,b) => b.netProfit - a.netProfit);
-    }, [clients, jobs]);
-
-    const trendData = useMemo(() => {
-        const dataByMonth = {};
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-
-        jobs.forEach(job => {
-            if(job.date && new Date(job.date) > twelveMonthsAgo) {
-                const month = new Date(job.date).toISOString().slice(0, 7);
-                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
-                dataByMonth[month].revenue += job.revenue || 0;
-            }
-        });
-
-        bills.forEach(bill => {
-            const createdAt = bill.createdAt?.toDate ? bill.createdAt.toDate() : new Date();
-             if(createdAt > twelveMonthsAgo) {
-                const month = createdAt.toISOString().slice(0,7);
-                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
-                dataByMonth[month].expenses += bill.amount || 0;
-             }
-        });
-
-        return Object.keys(dataByMonth).map(month => ({
-            month,
-            Revenue: dataByMonth[month].revenue,
-            Expenses: dataByMonth[month].expenses,
-        })).sort((a,b) => a.month.localeCompare(b.month));
-    }, [jobs, bills]);
-
-    const inventoryValue = useMemo(() => {
-        return inventory.map(item => ({
-            name: item.name,
-            totalValue: (item.quantity || 0) * (item.cost || 0)
-        })).sort((a,b) => b.totalValue - a.totalValue);
-    }, [inventory]);
-
-    return (
-        <div className="space-y-8">
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h3 className="text-2xl font-bold text-white mb-4">Revenue vs. Expenses Trend (Last 12 Months)</h3>
-                 <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={trendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                        <XAxis dataKey="month" stroke="#94a3b8" />
-                        <YAxis stroke="#94a3b8" tickFormatter={(value) => `$${(value/1000)}k`} />
-                        <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569' }} formatter={(value) => `$${value.toLocaleString()}`} />
-                        <Legend />
-                        <Bar dataKey="Revenue" fill="#22c55e" />
-                        <Bar dataKey="Expenses" fill="#ef4444" />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h3 className="text-2xl font-bold text-white mb-4">Client Profitability</h3>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
-                            <tr><th className="p-3">Client</th><th className="p-3 text-right">Net Profit</th></tr>
-                        </thead>
-                        <tbody>
-                            {clientProfitability.map(client => (
-                                <tr key={client.name} className="border-b border-slate-700/50">
-                                    <td className="p-3 font-medium">{client.name}</td>
-                                    <td className={`p-3 text-right font-mono ${client.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>${client.netProfit.toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                <h3 className="text-2xl font-bold text-white mb-4">Inventory Value</h3>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
-                            <tr><th className="p-3">Item</th><th className="p-3 text-center">Quantity</th><th className="p-3 text-right">Total Value</th></tr>
-                        </thead>
-                        <tbody>
-                            {inventoryValue.map(item => (
-                                <tr key={item.name} className="border-b border-slate-700/50">
-                                    <td className="p-3 font-medium">{item.name}</td>
-                                    <td className="p-3 text-center">{inventory.find(i => i.name === item.name)?.quantity}</td>
-                                    <td className="p-3 text-right font-mono">${item.totalValue.toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    )
-}
 
 
 // --- Main Application Component ---
@@ -253,9 +142,24 @@ const App = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [currentBankBalance, setCurrentBankBalance] = useState(25000);
     const [dateRange, setDateRange] = useState({start: new Date(), end: new Date()});
-    const [reportingPeriod, setReportingPeriod] = useState('monthly'); // 'monthly', 'quarterly', 'yearly'
+    const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
     const [expandedVehicle, setExpandedVehicle] = useState(null);
+    const [theme, setTheme] = useState('dark');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [theme]);
+
+    const toggleTheme = () => {
+        const newTheme = theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+    };
 
     useEffect(() => {
         const now = new Date();
@@ -398,14 +302,23 @@ const App = () => {
 
     const sortedData = useMemo(() => {
         const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress, clients, inventory, vehicles };
-        const activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
+        let activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
+        
+        if(searchTerm) {
+            activeData = activeData.filter(item => 
+                Object.values(item).some(val => 
+                    String(val).toLowerCase().includes(searchTerm.toLowerCase())
+                )
+            );
+        }
+
         return [...activeData].sort((a, b) => {
             if (!sortConfig.key) return 0;
             if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
-    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, clients, inventory, vehicles, sortConfig, activeSection]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, clients, inventory, vehicles, sortConfig, activeSection, searchTerm]);
 
     const debtPayoffStrategies = useMemo(() => {
         const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
@@ -563,15 +476,15 @@ const App = () => {
                 <StatCard title="Outstanding Debt" value={totals.totalDebt} icon={<AlertTriangle size={24} />} color="orange" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <div className="lg:col-span-3 bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-white">Monthly Bills</h3>
-                        {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">Monthly Bills</h3>
+                        {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-500 dark:text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
                         <button onClick={() => handleExportCSV(sortedData, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
+                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
                                 <tr>
                                     <th className="p-3">Status</th>
                                     <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
@@ -584,28 +497,28 @@ const App = () => {
                             </thead>
                             <tbody>
                                 {sortedData.map(bill => (
-                                    <tr key={bill.id} className={`border-b border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-500' : 'text-slate-200'}`}>
-                                        <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-600" />}</button></td>
+                                    <tr key={bill.id} className={`border-b border-slate-200 dark:border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                        <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-400 dark:text-slate-600" />}</button></td>
                                         <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
                                         <td className="p-3 text-center"> {bill.notes && <div className="group relative flex justify-center"><MessageSquare size={16} className="text-slate-500" /><span className="absolute top-[-30px] w-max scale-0 transition-all rounded bg-slate-700 p-2 text-xs text-white group-hover:scale-100">{bill.notes}</span></div>} </td>
-                                        <td className="p-3 text-center"> {bill.attachmentURL ? <a href={bill.attachmentURL} target="_blank" rel="noopener noreferrer"><Paperclip size={16} className="text-cyan-400"/></a> : <Paperclip size={16} className="text-slate-600"/>} </td>
+                                        <td className="p-3 text-center"> {bill.attachmentURL ? <a href={bill.attachmentURL} target="_blank" rel="noopener noreferrer"><Paperclip size={16} className="text-cyan-500 dark:text-cyan-400"/></a> : <Paperclip size={16} className="text-slate-400 dark:text-slate-600"/>} </td>
                                         <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
                                         <td className="p-3 text-center">{bill.dueDay}</td>
                                         <td className="p-3 text-center">
-                                            <button onClick={() => openModal('bill', bill)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                            <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                            <button onClick={() => openModal('bill', bill)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                            <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                    <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
+                    <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
                 </div>
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700"><h3 className="text-xl font-bold text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
-                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                        <h3 className="text-xl font-bold text-white mb-4">Automations</h3>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700"><h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Automations</h3>
                         <button onClick={handleGenerateRecurring} className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><RefreshCw size={16} /> Generate Next Month's Bills</button>
                     </div>
                 </div>
@@ -614,38 +527,39 @@ const App = () => {
     );
 
     const renderManagementSection = (title, data, columns, type) => (
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">{title}</h3>
-                <div className="flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
                     {(type === 'client' || type === 'job' || type === 'inventory') && <>
                         <input type="file" id="csv-importer" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], type)} />
                         <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
                     </>}
-                    <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                    <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export CSV</button>
                 </div>
             </div>
             {type === 'debt' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
                     <div>
-                        <h4 className="font-bold text-lg text-cyan-400 mb-2">Avalanche Method</h4>
-                        <p className="text-xs text-slate-400 mb-3">Pay off debts with the highest interest rate first to save the most money over time.</p>
+                        <h4 className="font-bold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Avalanche Method</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the highest interest rate first to save the most money over time.</p>
                         <ol className="list-decimal list-inside space-y-1 text-sm">
-                            {debtPayoffStrategies.avalanche.map(d => <li key={d.id}>{d.name} <span className="text-slate-400">({d.interestRate}%)</span></li>)}
+                            {debtPayoffStrategies.avalanche.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">({d.interestRate}%)</span></li>)}
                         </ol>
                     </div>
                     <div>
-                        <h4 className="font-bold text-lg text-green-400 mb-2">Snowball Method</h4>
-                        <p className="text-xs text-slate-400 mb-3">Pay off debts with the smallest balance first for quick wins and motivation.</p>
+                        <h4 className="font-bold text-lg text-green-600 dark:text-green-400 mb-2">Snowball Method</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the smallest balance first for quick wins and motivation.</p>
                         <ol className="list-decimal list-inside space-y-1 text-sm">
-                            {debtPayoffStrategies.snowball.map(d => <li key={d.id}>{d.name} <span className="text-slate-400">(${d.remaining.toFixed(2)})</span></li>)}
+                            {debtPayoffStrategies.snowball.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">(${d.remaining.toFixed(2)})</span></li>)}
                         </ol>
                     </div>
                 </div>
             )}
             <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                    <thead className="text-xs text-slate-400 uppercase border-b border-slate-700">
+                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
                         <tr>
                             {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
                             <th className="p-3 text-center">Actions</th>
@@ -653,60 +567,60 @@ const App = () => {
                     </thead>
                     <tbody className="text-sm">
                         {data.map(item => (
-                            <tr key={item.id} className="border-b border-slate-700/50 text-slate-200">
+                            <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
                                 {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
                                 <td className="p-3 text-center">
-                                    <button onClick={() => openModal(type, item)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                    <button onClick={() => handleDelete(type, item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                    <button onClick={() => openModal(type, item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete(type, item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-            <button onClick={() => openModal(type)} className="mt-4 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold">
+            <button onClick={() => openModal(type)} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold">
                 <PlusCircle size={18} /> Add New {type.charAt(0).toUpperCase() + type.slice(1)}
             </button>
         </div>
     );
 
     const renderPnLStatement = () => (
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <h3 className="text-2xl font-bold text-white mb-4">Profit & Loss Statement</h3>
-            <p className="text-slate-400 mb-6">For {reportingPeriod === 'monthly' ? dateRange.start.toLocaleString('default', { month: 'long', year: 'numeric' }) : `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`}</p>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Profit & Loss Statement</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">For {reportingPeriod === 'monthly' ? dateRange.start.toLocaleString('default', { month: 'long', year: 'numeric' }) : `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`}</p>
             <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
                     <span className="font-semibold">Total Revenue (from Jobs)</span>
-                    <span className="font-mono font-bold text-green-400">${pnlData.revenue.toFixed(2)}</span>
+                    <span className="font-mono font-bold text-green-600 dark:text-green-400">${pnlData.revenue.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-400">Cost of Goods Sold (COGS)</span>
-                    <span className="font-mono text-orange-400">(${pnlData.cogs.toFixed(2)})</span>
+                    <span className="text-slate-600 dark:text-slate-400">Cost of Goods Sold (COGS)</span>
+                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.cogs.toFixed(2)})</span>
                 </div>
-                <hr className="border-slate-700"/>
-                <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                <hr className="border-slate-200 dark:border-slate-700"/>
+                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
                     <span className="font-bold text-lg">Gross Profit</span>
                     <span className="font-mono font-bold text-lg">${pnlData.grossProfit.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-400">Operating Expenses (Bills & Weekly)</span>
-                    <span className="font-mono text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
+                    <span className="text-slate-600 dark:text-slate-400">Operating Expenses (Bills & Weekly)</span>
+                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
                 </div>
-                <hr className="border-slate-600 border-2"/>
-                <div className="flex justify-between items-center p-3 bg-slate-900/50 rounded-lg">
+                <hr className="border-slate-300 dark:border-slate-600 border-2"/>
+                <div className="flex justify-between items-center p-3 bg-slate-200 dark:bg-slate-900/50 rounded-lg">
                     <span className="font-bold text-xl">Net Profit / (Loss) Before Tax</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-white' : 'text-red-500'}`}>
+                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-slate-800 dark:text-white' : 'text-red-500'}`}>
                         {pnlData.netProfit < 0 && '('}${Math.abs(pnlData.netProfit).toFixed(2)}{pnlData.netProfit < 0 && ')'}
                     </span>
                 </div>
                  <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-400">Estimated Tax Liability (6%)</span>
-                    <span className="font-mono text-orange-400">(${pnlData.estimatedTax.toFixed(2)})</span>
+                    <span className="text-slate-600 dark:text-slate-400">Estimated Tax Liability (6%)</span>
+                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.estimatedTax.toFixed(2)})</span>
                 </div>
-                 <hr className="border-slate-600 border-2"/>
-                 <div className="flex justify-between items-center p-4 bg-slate-900 rounded-lg">
-                    <span className="font-bold text-xl text-cyan-400">Net Profit / (Loss) After Tax</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfitAfterTax >= 0 ? 'text-cyan-400' : 'text-red-500'}`}>
+                 <hr className="border-slate-300 dark:border-slate-600 border-2"/>
+                 <div className="flex justify-between items-center p-4 bg-slate-200 dark:bg-slate-900 rounded-lg">
+                    <span className="font-bold text-xl text-cyan-600 dark:text-cyan-400">Net Profit / (Loss) After Tax</span>
+                    <span className={`font-mono font-bold text-xl ${pnlData.netProfitAfterTax >= 0 ? 'text-cyan-600 dark:text-cyan-400' : 'text-red-500'}`}>
                         {pnlData.netProfitAfterTax < 0 && '('}${Math.abs(pnlData.netProfitAfterTax).toFixed(2)}{pnlData.netProfitAfterTax < 0 && ')'}
                     </span>
                 </div>
@@ -715,9 +629,9 @@ const App = () => {
     );
 
     const renderGoalsSection = () => (
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Financial Goals</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Financial Goals</h3>
                 <button onClick={() => openModal('goal')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Goal</button>
             </div>
             <div className="space-y-6">
@@ -725,12 +639,12 @@ const App = () => {
                     <div key={goal.id}>
                         <div className="flex justify-between items-end mb-1">
                             <span className="font-semibold">{goal.name}</span>
-                            <span className="text-sm text-slate-400">{goal.progress.toFixed(1)}%</span>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">{goal.progress.toFixed(1)}%</span>
                         </div>
-                        <div className="w-full bg-slate-700 rounded-full h-4">
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4">
                             <div className="bg-green-500 h-4 rounded-full" style={{ width: `${goal.progress}%` }}></div>
                         </div>
-                        <div className="flex justify-between items-end mt-1 text-xs text-slate-500">
+                        <div className="flex justify-between items-end mt-1 text-xs text-slate-500 dark:text-slate-500">
                             <span>Target: {goal.type === 'debt' ? 'Pay Off' : `$${goal.targetValue.toLocaleString()}`}</span>
                             <span>Deadline: {goal.deadline}</span>
                         </div>
@@ -741,26 +655,26 @@ const App = () => {
     );
 
     const renderForecastSection = () => (
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <h3 className="text-xl font-bold text-white mb-4">Cash Flow Forecast</h3>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Cash Flow Forecast</h3>
             <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
                 <input 
                     type="number"
                     value={currentBankBalance}
                     onChange={(e) => setCurrentBankBalance(parseFloat(e.target.value) || 0)}
-                    className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-md p-2 text-white"
+                    className="w-full max-w-xs bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
                 />
             </div>
-            <p className="text-xs text-slate-400 mb-4">This forecast projects your balance based on recurring income and expenses.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">This forecast projects your balance based on recurring income and expenses.</p>
             <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={forecastData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                    <XAxis dataKey="month" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" tickFormatter={(value) => `$${(value/1000)}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569' }} formatter={(value) => `$${value.toLocaleString()}`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="month" stroke="#64748b" />
+                    <YAxis stroke="#64748b" tickFormatter={(value) => `$${(value/1000)}k`} />
+                    <Tooltip contentStyle={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} />
                     <Legend />
-                    <Line type="monotone" dataKey="balance" stroke="#22d3ee" strokeWidth={2} activeDot={{ r: 8 }} />
+                    <Line type="monotone" dataKey="balance" stroke="#0891b2" strokeWidth={2} activeDot={{ r: 8 }} />
                 </LineChart>
             </ResponsiveContainer>
         </div>
@@ -770,44 +684,49 @@ const App = () => {
         <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />
     );
 
-    const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
-    const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
-    const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
-    const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
+    const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
+    const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-600 dark:text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
+    const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-600 dark:text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
+    const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-600 dark:text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-600 dark:text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
     const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
     const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
-    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
+    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
 
     return (
-        <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className={`${theme} bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white min-h-screen font-sans`}>
+            <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-white">HVAC Financial Dashboard</h1>
-                        <p className="text-slate-400 mt-1">Monthly Money Management</p>
+                        <h1 className="text-3xl font-bold">HVAC Financial Dashboard</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">Monthly Money Management</p>
                     </div>
-                    <div className="flex items-center gap-4 bg-slate-800 border border-slate-700 p-2 rounded-lg">
-                       <span className="text-sm font-semibold text-slate-300">Reporting Period:</span>
-                       <div className="flex items-center gap-1 bg-slate-700 rounded-md p-1">
-                           <button onClick={() => setReportingPeriod('monthly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>Monthly</button>
-                           <button onClick={() => setReportingPeriod('quarterly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'quarterly' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>Quarterly</button>
-                           <button onClick={() => setReportingPeriod('yearly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-300'}`}>Yearly</button>
-                       </div>
+                    <div className="flex items-center gap-4">
+                         <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
+                        <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg">
+                           <span className="text-sm font-semibold">Reporting Period:</span>
+                           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
+                               <button onClick={() => setReportingPeriod('monthly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Monthly</button>
+                               <button onClick={() => setReportingPeriod('quarterly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'quarterly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Quarterly</button>
+                               <button onClick={() => setReportingPeriod('yearly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Yearly</button>
+                           </div>
+                        </div>
                     </div>
                 </header>
-                <nav className="flex items-center border-b border-slate-700 mb-6 overflow-x-auto">
-                    <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Dashboard</button>
-                    <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Reports</button>
-                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>P&L Statement</button>
-                    <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Forecast</button>
-                    <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Goals</button>
-                    <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Clients</button>
-                    <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
-                    <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Vehicles</button>
-                    <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Inventory</button>
-                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
-                    <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
-                    <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-white border-b-2 border-cyan-400' : 'text-slate-400 hover:text-white'}`}>Weekly Costs</button>
+                <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
+                    <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
+                    <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
+                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L Statement</button>
+                    <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Forecast</button>
+                    <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Goals</button>
+                    <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Clients</button>
+                    <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
+                    <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Vehicles</button>
+                    <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Inventory</button>
+                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Debt Management</button>
+                    <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Income Sources</button>
+                    <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Weekly Costs</button>
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
@@ -837,42 +756,42 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete 
     };
 
     return (
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Vehicle Management</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Vehicle Management</h3>
                 <button onClick={() => openModal('vehicle')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Vehicle</button>
             </div>
             <div className="space-y-2">
                 {vehicles.map(vehicle => (
                     <div key={vehicle.id}>
-                        <div onClick={() => toggleVehicle(vehicle.id)} className="bg-slate-700/50 p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-700">
+                        <div onClick={() => toggleVehicle(vehicle.id)} className="bg-slate-100 dark:bg-slate-700/50 p-4 rounded-lg flex justify-between items-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700">
                             <div className="flex items-center gap-4">
-                                <Car size={24} className="text-cyan-400" />
+                                <Car size={24} className="text-cyan-500" />
                                 <div>
                                     <p className="font-bold">{vehicle.name}</p>
-                                    <p className="text-xs text-slate-400">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{vehicle.year} {vehicle.make} {vehicle.model}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="text-right">
-                                    <p className="font-mono text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === vehicle.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</p>
-                                    <p className="text-xs text-slate-400">Total Expenses</p>
+                                    <p className="font-mono text-orange-600 dark:text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === vehicle.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Total Expenses</p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={(e) => { e.stopPropagation(); openModal('vehicle', vehicle); }} className="p-1 hover:text-cyan-400"><Edit size={16} /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDelete('vehicle', vehicle.id); }} className="p-1 hover:text-red-500"><Trash2 size={16} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); openModal('vehicle', vehicle); }} className="p-1 text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400"><Edit size={16} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDelete('vehicle', vehicle.id); }} className="p-1 text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                 </div>
                                 {expandedVehicleId === vehicle.id ? <ChevronUp /> : <ChevronDown />}
                             </div>
                         </div>
                         {expandedVehicleId === vehicle.id && (
-                            <div className="p-4 bg-slate-800/50 rounded-b-lg border-t-2 border-slate-700">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-lg border-t-2 border-slate-200 dark:border-slate-700">
                                 <div className="flex justify-between items-center mb-3">
                                     <h4 className="font-bold">Maintenance Log</h4>
                                     <button onClick={() => openModal('maintenanceLog', { vehicleId: vehicle.id })} className="flex items-center gap-2 text-xs bg-green-600 hover:bg-green-500 text-white font-semibold px-2 py-1 rounded-md"><PlusCircle size={14} /> Add Log Entry</button>
                                 </div>
                                 <table className="w-full text-left text-sm">
-                                    <thead className="text-xs text-slate-400 uppercase">
+                                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase">
                                         <tr>
                                             <th className="p-2">Date</th>
                                             <th className="p-2">Mileage</th>
@@ -883,14 +802,14 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete 
                                     </thead>
                                     <tbody>
                                         {maintenanceLogs.filter(log => log.vehicleId === vehicle.id).sort((a,b) => new Date(b.date) - new Date(a.date)).map(log => (
-                                            <tr key={log.id} className="border-b border-slate-700/50">
+                                            <tr key={log.id} className="border-b border-slate-200 dark:border-slate-700/50">
                                                 <td className="p-2">{log.date}</td>
                                                 <td className="p-2">{log.mileage?.toLocaleString() || 'N/A'}</td>
                                                 <td className="p-2">{log.workPerformed}</td>
                                                 <td className="p-2 text-right font-mono">${log.cost.toFixed(2)}</td>
                                                 <td className="p-2 text-center">
-                                                    <button onClick={() => openModal('maintenanceLog', log)} className="text-slate-400 hover:text-cyan-400 mr-2"><Edit size={14} /></button>
-                                                    <button onClick={() => handleDelete('maintenanceLog', log.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                                    <button onClick={() => openModal('maintenanceLog', log)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={14} /></button>
+                                                    <button onClick={() => handleDelete('maintenanceLog', log.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -914,43 +833,43 @@ const ClientManagement = ({ clients, openModal, handleDelete }) => {
     };
 
     return (
-         <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Client Management</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Client Management</h3>
                 <button onClick={() => openModal('client')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Client</button>
             </div>
             <div className="space-y-2">
                 {parentAccounts.map(parent => (
-                    <div key={parent.id} className="bg-slate-700/50 rounded-lg">
-                        <div onClick={() => toggleClient(parent.id)} className="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-700 rounded-t-lg">
+                    <div key={parent.id} className="bg-slate-100 dark:bg-slate-700/50 rounded-lg">
+                        <div onClick={() => toggleClient(parent.id)} className="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 rounded-t-lg">
                             <div className="flex items-center gap-4">
-                                <Building size={24} className="text-cyan-400" />
+                                <Building size={24} className="text-cyan-500" />
                                 <div>
                                     <p className="font-bold">{parent.name}</p>
-                                    <p className="text-xs text-slate-400">{parent.address}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{parent.address}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">
                                  <div className="flex gap-2">
-                                    <button onClick={(e) => { e.stopPropagation(); openModal('client', parent); }} className="p-1 hover:text-cyan-400"><Edit size={16} /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDelete('client', parent.id); }} className="p-1 hover:text-red-500"><Trash2 size={16} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); openModal('client', parent); }} className="p-1 text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400"><Edit size={16} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDelete('client', parent.id); }} className="p-1 text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                 </div>
                                 {expandedClientId === parent.id ? <ChevronUp /> : <ChevronDown />}
                             </div>
                         </div>
                         {expandedClientId === parent.id && (
-                            <div className="p-4 border-t-2 border-slate-600">
+                            <div className="p-4 border-t-2 border-slate-200 dark:border-slate-600">
                                 <h4 className="font-bold mb-2">Service Locations:</h4>
                                 {clients.filter(c => c.parentId === parent.id).map(child => (
-                                    <div key={child.id} className="flex justify-between items-center p-2 rounded hover:bg-slate-800/50">
-                                        <p>{child.name} - <span className="text-slate-400">{child.address}</span></p>
+                                    <div key={child.id} className="flex justify-between items-center p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-800/50">
+                                        <p>{child.name} - <span className="text-slate-500 dark:text-slate-400">{child.address}</span></p>
                                         <div className="flex gap-2">
-                                            <button onClick={() => openModal('client', child)} className="p-1 hover:text-cyan-400"><Edit size={14} /></button>
-                                            <button onClick={() => handleDelete('client', child.id)} className="p-1 hover:text-red-500"><Trash2 size={14} /></button>
+                                            <button onClick={() => openModal('client', child)} className="p-1 text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400"><Edit size={14} /></button>
+                                            <button onClick={() => handleDelete('client', child.id)} className="p-1 text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
                                 ))}
-                                {clients.filter(c => c.parentId === parent.id).length === 0 && <p className="text-sm text-slate-400">No service locations for this account.</p>}
+                                {clients.filter(c => c.parentId === parent.id).length === 0 && <p className="text-sm text-slate-500 dark:text-slate-400">No service locations for this account.</p>}
                             </div>
                         )}
                     </div>
