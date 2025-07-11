@@ -124,7 +124,7 @@ const AlertsPanel = ({ bills, paidStatus, onClose }) => {
     );
 };
 
-const ReportsSection = ({ clients, jobs, bills, inventory }) => {
+const ReportsSection = ({ clients, jobs, bills, inventory, vehicles, maintenanceLogs }) => {
     const clientProfitability = useMemo(() => {
         return clients.map(client => {
             const clientJobs = jobs.filter(job => job.clientId === client.id);
@@ -136,6 +136,33 @@ const ReportsSection = ({ clients, jobs, bills, inventory }) => {
             };
         }).sort((a,b) => b.netProfit - a.netProfit);
     }, [clients, jobs]);
+
+    const jobTypeProfitability = useMemo(() => {
+        const jobTypes = jobs.reduce((acc, job) => {
+            const type = job.type || 'Uncategorized';
+            if(!acc[type]) acc[type] = { revenue: 0, cost: 0, count: 0 };
+            acc[type].revenue += job.revenue || 0;
+            acc[type].cost += (job.materialCost || 0) + (job.laborCost || 0);
+            acc[type].count += 1;
+            return acc;
+        }, {});
+        return Object.entries(jobTypes).map(([name, data]) => ({
+            name,
+            netProfit: data.revenue - data.cost,
+            jobCount: data.count
+        })).sort((a,b) => b.netProfit - a.netProfit);
+    }, [jobs]);
+
+    const vehicleExpenseReport = useMemo(() => {
+        return vehicles.map(vehicle => {
+            const vehicleLogs = maintenanceLogs.filter(log => log.vehicleId === vehicle.id);
+            const totalCost = vehicleLogs.reduce((acc, log) => acc + (log.cost || 0), 0);
+            return {
+                name: vehicle.name,
+                totalCost,
+            };
+        }).sort((a,b) => b.totalCost - a.totalCost);
+    }, [vehicles, maintenanceLogs]);
 
     const trendData = useMemo(() => {
         const dataByMonth = {};
@@ -201,6 +228,43 @@ const ReportsSection = ({ clients, jobs, bills, inventory }) => {
                                 <tr key={client.name} className="border-b border-slate-200 dark:border-slate-700/50">
                                     <td className="p-3 font-medium">{client.name}</td>
                                     <td className={`p-3 text-right font-mono ${client.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>${client.netProfit.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Profitability by Job Type</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                            <tr><th className="p-3">Job Type</th><th className="p-3 text-center">Job Count</th><th className="p-3 text-right">Net Profit</th></tr>
+                        </thead>
+                        <tbody>
+                            {jobTypeProfitability.map(jobType => (
+                                <tr key={jobType.name} className="border-b border-slate-200 dark:border-slate-700/50">
+                                    <td className="p-3 font-medium">{jobType.name}</td>
+                                    <td className="p-3 text-center">{jobType.jobCount}</td>
+                                    <td className={`p-3 text-right font-mono ${jobType.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>${jobType.netProfit.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Vehicle Expense Report</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                            <tr><th className="p-3">Vehicle</th><th className="p-3 text-right">Total Expenses</th></tr>
+                        </thead>
+                        <tbody>
+                            {vehicleExpenseReport.map(vehicle => (
+                                <tr key={vehicle.name} className="border-b border-slate-200 dark:border-slate-700/50">
+                                    <td className="p-3 font-medium">{vehicle.name}</td>
+                                    <td className="p-3 text-right font-mono">${vehicle.totalCost.toFixed(2)}</td>
                                 </tr>
                             ))}
                         </tbody>
