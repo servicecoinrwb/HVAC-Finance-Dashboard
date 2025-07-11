@@ -83,7 +83,7 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
             case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
             case 'vehicle': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Vehicle Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Year</label><input type="text" name="year" value={formData.year || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Model</label><input type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
             case 'maintenanceLog': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Mileage</label><input type="number" name="mileage" value={formData.mileage || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Work Performed</label><textarea name="workPerformed" value={formData.workPerformed || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div> </>;
-            default: return <p>Editing for this item type is not yet implemented.</p>;
+            default: return <p>This form is not yet implemented.</p>;
         }
     };
     return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-white">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500 text-white">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
@@ -828,7 +828,7 @@ const App = () => {
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold">HVAC Financial Dashboard</h1>
+                        <h1 className="text-3xl font-bold">HVACFI Dashboard</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">Monthly Money Management</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -868,7 +868,7 @@ const App = () => {
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                    {activeSection === 'inventory' && <InventoryManagement inventory={sortedData} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedIds={selectedIds} setSelectedIds={setSelectedIds} handleBulkDelete={handleBulkDelete} />}
+                    {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} />}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
@@ -1021,6 +1021,57 @@ const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSea
                         )}
                     </div>
                 ))}
+            </div>
+        </div>
+    );
+};
+
+const InventoryManagement = ({ inventory, openModal, handleDelete, handleBulkDelete, searchTerm, setSearchTerm, selectedIds, setSelectedIds }) => {
+    const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
+    const filteredInventory = useMemo(() => inventory.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase())), [inventory, searchTerm]);
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedIds(filteredInventory.map(i => i.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Inventory Management</h3>
+                <div className="flex items-center gap-2">
+                    <input type="text" placeholder="Search Inventory..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
+                    {selectedIds.length > 0 && <button onClick={() => handleBulkDelete('inventory', selectedIds)} className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><Trash2 size={16} /> Delete ({selectedIds.length})</button>}
+                    <button onClick={() => openModal('inventory')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
+                </div>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                            <th className="p-3"><input type="checkbox" onChange={handleSelectAll} /></th>
+                            {inventoryColumns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
+                            <th className="p-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                        {filteredInventory.map(item => (
+                            <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
+                                <td className="p-3"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => {
+                                    setSelectedIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])
+                                }} /></td>
+                                {inventoryColumns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
+                                <td className="p-3 text-center">
+                                    <button onClick={() => openModal('inventory', item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete('inventory', item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
