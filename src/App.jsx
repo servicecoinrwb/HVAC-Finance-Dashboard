@@ -421,7 +421,7 @@ const App = () => {
         if(searchTerm) {
             activeData = activeData.filter(item => 
                 Object.values(item).some(val => 
-                    String(val).toLowerCase().includes(searchTerm.toLowerCase())
+                    val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
                 )
             );
         }
@@ -868,7 +868,7 @@ const App = () => {
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                    {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} />}
+                    {activeSection === 'inventory' && <InventoryManagement inventory={sortedData} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
@@ -891,7 +891,7 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete,
         setExpandedVehicleId(prevId => (prevId === id ? null : id));
     };
     
-    const filteredVehicles = useMemo(() => vehicles.filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.model.toLowerCase().includes(searchTerm.toLowerCase())), [vehicles, searchTerm]);
+    const filteredVehicles = useMemo(() => vehicles.filter(v => (v.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (v.model || '').toLowerCase().includes(searchTerm.toLowerCase())), [vehicles, searchTerm]);
 
     return (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -968,7 +968,7 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete,
 const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSearchTerm }) => {
     const [expandedClientId, setExpandedClientId] = useState(null);
     
-    const filteredClients = useMemo(() => clients.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.address.toLowerCase().includes(searchTerm.toLowerCase())), [clients, searchTerm]);
+    const filteredClients = useMemo(() => clients.filter(c => (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.address || '').toLowerCase().includes(searchTerm.toLowerCase())), [clients, searchTerm]);
     
     const parentAccounts = useMemo(() => filteredClients.filter(c => !c.parentId), [filteredClients]);
 
@@ -1028,7 +1028,7 @@ const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSea
 
 const InventoryManagement = ({ inventory, openModal, handleDelete, handleBulkDelete, searchTerm, setSearchTerm, selectedIds, setSelectedIds }) => {
     const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
-    const filteredInventory = useMemo(() => inventory.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase())), [inventory, searchTerm]);
+    const filteredInventory = useMemo(() => inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase())), [inventory, searchTerm]);
 
     const handleSelectAll = (e) => {
         if (e.target.checked) {
