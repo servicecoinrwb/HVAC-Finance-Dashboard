@@ -576,6 +576,18 @@ const App = () => {
         }
     };
 
+    const handleBulkDelete = async (type, ids) => {
+        if (!userId || !ids.length || !window.confirm(`Delete ${ids.length} selected items?`)) return;
+        const collectionName = `${type}s`;
+        const batch = writeBatch(db);
+        ids.forEach(id => {
+            const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
+            batch.delete(docRef);
+        });
+        await batch.commit();
+        setSelectedIds([]);
+    };
+
 
     if (isLoading || isSeeding) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
 
@@ -651,6 +663,7 @@ const App = () => {
                         <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
                     </>}
                     <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                    {type === 'inventory' && selectedIds.length > 0 && <button onClick={() => handleBulkDelete('inventory', selectedIds)} className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><Trash2 size={16} /> Delete Selected</button>}
                 </div>
             </div>
             {type === 'debt' && (
@@ -675,6 +688,7 @@ const App = () => {
                 <table className="w-full text-left">
                     <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
                         <tr>
+                            {type === 'inventory' && <th className="p-3"><input type="checkbox" onChange={(e) => e.target.checked ? setSelectedIds(data.map(i => i.id)) : setSelectedIds([])} /></th>}
                             {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
                             <th className="p-3 text-center">Actions</th>
                         </tr>
@@ -682,6 +696,9 @@ const App = () => {
                     <tbody className="text-sm">
                         {data.map(item => (
                             <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
+                                {type === 'inventory' && <td className="p-3"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => {
+                                    setSelectedIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])
+                                }} /></td>}
                                 {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
                                 <td className="p-3 text-center">
                                     <button onClick={() => openModal(type, item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
@@ -811,7 +828,7 @@ const App = () => {
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold">HVAC Financial Dashboard</h1>
+                        <h1 className="text-3xl font-bold">HVACFI Dashboard</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">Monthly Money Management</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -851,7 +868,7 @@ const App = () => {
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                    {activeSection === 'inventory' && renderManagementSection('Inventory', sortedData, inventoryColumns, 'inventory')}
+                    {activeSection === 'inventory' && <InventoryManagement inventory={sortedData} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedIds={selectedIds} setSelectedIds={setSelectedIds} handleBulkDelete={handleBulkDelete} />}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
