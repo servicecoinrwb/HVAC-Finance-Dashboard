@@ -83,7 +83,7 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
             case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
             case 'vehicle': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Vehicle Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Year</label><input type="text" name="year" value={formData.year || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Model</label><input type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
             case 'maintenanceLog': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Mileage</label><input type="number" name="mileage" value={formData.mileage || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Work Performed</label><textarea name="workPerformed" value={formData.workPerformed || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div> </>;
-            default: return <p>This form is not yet implemented.</p>;
+            default: return <p>Editing for this item type is not yet implemented.</p>;
         }
     };
     return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-white">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500 text-white">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
@@ -578,7 +578,12 @@ const App = () => {
 
     const handleBulkDelete = async (type, ids) => {
         if (!userId || !ids.length || !window.confirm(`Delete ${ids.length} selected items?`)) return;
-        const collectionName = `${type}s`;
+        const collectionNameMap = { inventory: 'inventory' };
+        const collectionName = collectionNameMap[type];
+        if (!collectionName) {
+            alert("Invalid bulk delete type.");
+            return;
+        }
         const batch = writeBatch(db);
         ids.forEach(id => {
             const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
@@ -663,7 +668,6 @@ const App = () => {
                         <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
                     </>}
                     <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
-                    {type === 'inventory' && selectedIds.length > 0 && <button onClick={() => handleBulkDelete('inventory', selectedIds)} className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><Trash2 size={16} /> Delete Selected</button>}
                 </div>
             </div>
             {type === 'debt' && (
@@ -688,7 +692,6 @@ const App = () => {
                 <table className="w-full text-left">
                     <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
                         <tr>
-                            {type === 'inventory' && <th className="p-3"><input type="checkbox" onChange={(e) => e.target.checked ? setSelectedIds(data.map(i => i.id)) : setSelectedIds([])} /></th>}
                             {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
                             <th className="p-3 text-center">Actions</th>
                         </tr>
@@ -696,9 +699,6 @@ const App = () => {
                     <tbody className="text-sm">
                         {data.map(item => (
                             <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
-                                {type === 'inventory' && <td className="p-3"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => {
-                                    setSelectedIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])
-                                }} /></td>}
                                 {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
                                 <td className="p-3 text-center">
                                     <button onClick={() => openModal(type, item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
@@ -828,7 +828,7 @@ const App = () => {
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold">HVACFI Dashboard</h1>
+                        <h1 className="text-3xl font-bold">HVAC Financial Dashboard</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">Monthly Money Management</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -891,7 +891,7 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete,
         setExpandedVehicleId(prevId => (prevId === id ? null : id));
     };
     
-    const filteredVehicles = useMemo(() => vehicles.filter(v => (v.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (v.model || '').toLowerCase().includes(searchTerm.toLowerCase())), [vehicles, searchTerm]);
+    const filteredVehicles = useMemo(() => vehicles.filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.model.toLowerCase().includes(searchTerm.toLowerCase())), [vehicles, searchTerm]);
 
     return (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
