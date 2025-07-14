@@ -639,7 +639,11 @@ const App = () => {
             const collectionRef = collection(db, 'artifacts', appId, 'users', userId, collectionName);
             data.forEach(item => {
                 const docRef = doc(collectionRef);
-                batch.set(docRef, {...item, createdAt: serverTimestamp()});
+                const sanitizedItem = Object.entries(item).reduce((acc, [key, value]) => {
+                    acc[key] = value === undefined ? null : value;
+                    return acc;
+                }, {});
+                batch.set(docRef, {...sanitizedItem, createdAt: serverTimestamp()});
             });
 
             try {
@@ -936,7 +940,6 @@ const App = () => {
     const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-600 dark:text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
     const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-600 dark:text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-600 dark:text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
     const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
-    const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
     const invoiceColumns = [ { key: 'billTo', header: 'Bill To', render: item => <span className="font-medium">{item.billTo}</span> }, { key: 'customer', header: 'Customer', render: item => <span>{item.customer}</span> }, { key: 'grandTotal', header: 'Amount', className: 'text-right', render: item => <span className="font-mono">${(item.grandTotal || 0).toFixed(2)}</span> }, { key: 'status', header: 'Status', className: 'text-center', render: item => <span>{item.status}</span> }, ];
     const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
 
@@ -989,10 +992,10 @@ const App = () => {
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}
                     {activeSection === 'goals' && renderGoalsSection()}
-                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                    {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                    {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
                     {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
                     {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
                     {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
@@ -1089,7 +1092,7 @@ const VehicleManagement = ({ vehicles, maintenanceLogs, openModal, handleDelete,
     );
 };
 
-const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSearchTerm }) => {
+const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSearchTerm, handleImportCSV, handleExportCSV }) => {
     const [expandedClientId, setExpandedClientId] = useState(null);
     
     const filteredClients = useMemo(() => clients.filter(c => (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.address || '').toLowerCase().includes(searchTerm.toLowerCase())), [clients, searchTerm]);
@@ -1106,7 +1109,10 @@ const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSea
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Client Management</h3>
                 <div className="flex items-center gap-2">
                     <input type="text" placeholder="Search Clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
-                    <button onClick={() => openModal('client')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
+                     <input type="file" id="csv-importer-client" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], 'client')} />
+                    <label htmlFor="csv-importer-client" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
+                    <button onClick={() => handleExportCSV(clients, 'clients')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                    <button onClick={() => openModal('client')} className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
                 </div>
             </div>
             <div className="space-y-2">
@@ -1150,7 +1156,7 @@ const ClientManagement = ({ clients, openModal, handleDelete, searchTerm, setSea
     );
 };
 
-const InventoryManagement = ({ inventory, openModal, handleDelete, handleBulkDelete, searchTerm, setSearchTerm, selectedIds, setSelectedIds }) => {
+const InventoryManagement = ({ inventory, openModal, handleDelete, handleBulkDelete, searchTerm, setSearchTerm, selectedIds, setSelectedIds, handleImportCSV, handleExportCSV }) => {
     const inventoryColumns = [ { key: 'name', header: 'Item Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'quantity', header: 'Quantity on Hand', className: 'text-center', render: item => <span>{item.quantity}</span> }, { key: 'cost', header: 'Cost per Item', className: 'text-right', render: item => <span className="font-mono">${(item.cost || 0).toFixed(2)}</span> }, ];
     const filteredInventory = useMemo(() => inventory.filter(i => (i.name || '').toLowerCase().includes(searchTerm.toLowerCase())), [inventory, searchTerm]);
 
@@ -1169,7 +1175,10 @@ const InventoryManagement = ({ inventory, openModal, handleDelete, handleBulkDel
                 <div className="flex items-center gap-2">
                     <input type="text" placeholder="Search Inventory..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
                     {selectedIds.length > 0 && <button onClick={() => handleBulkDelete('inventory', selectedIds)} className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><Trash2 size={16} /> Delete ({selectedIds.length})</button>}
-                    <button onClick={() => openModal('inventory')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
+                    <input type="file" id="csv-importer-inventory" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], 'inventory')} />
+                    <label htmlFor="csv-importer-inventory" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
+                    <button onClick={() => handleExportCSV(inventory, 'inventory')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                    <button onClick={() => openModal('inventory')} className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
                 </div>
             </div>
             <div className="overflow-x-auto">
