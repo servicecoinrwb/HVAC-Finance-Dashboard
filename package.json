@@ -12,10 +12,15 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
     "firebase": "^10.12.2",
     "lucide-react": "^0.395.0",
+    "plaid": "^36.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-plaid-link": "^4.0.1",
     "recharts": "^2.12.7"
   },
   "devDependencies": {
@@ -25,6 +30,6 @@
     "gh-pages": "^6.1.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
-    "vite": "^5.3.1"
+    "vite": "^7.0.4"
   }
 }

@@ -4,7 +4,8 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { usePlaidLink } from 'react-plaid-link';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -338,6 +339,34 @@ const App = () => {
     const [theme, setTheme] = useState('dark');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
+    const [linkToken, setLinkToken] = useState(null);
+
+    const generateLinkToken = useCallback(async () => {
+        const response = await fetch('http://localhost:8000/api/create_link_token', {
+            method: 'POST',
+        });
+        const data = await response.json();
+        setLinkToken(data.link_token);
+    }, []);
+
+    useEffect(() => {
+        generateLinkToken();
+    }, [generateLinkToken]);
+    
+    const onSuccess = useCallback((public_token, metadata) => {
+        fetch('http://localhost:8000/api/exchange_public_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ public_token }),
+        });
+    }, []);
+
+    const { open, ready } = usePlaidLink({
+        token: linkToken,
+        onSuccess,
+    });
 
     useEffect(() => {
         if (theme === 'dark') {
@@ -916,6 +945,9 @@ const App = () => {
                     <div className="flex items-center gap-4">
                          <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
                             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
+                        <button onClick={() => open()} disabled={!ready} className="flex items-center gap-2 text-sm bg-purple-600 hover:bg-purple-500 text-white font-semibold px-3 py-2 rounded-md transition-colors disabled:opacity-50">
+                            <LinkIcon size={16} /> Link Bank Account
                         </button>
                         <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg">
                            <span className="text-sm font-semibold">Reporting Period:</span>
