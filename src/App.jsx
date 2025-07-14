@@ -30,6 +30,7 @@ const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 
 const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false },];
 const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
 const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit.", date: new Date().toISOString(), clientId: "1" }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract.", date: new Date().toISOString(), clientId: "2" }];
+const INITIAL_TASKS = [ { title: "Follow up with Johnson about quote", date: new Date().toISOString().split('T')[0], notes: "Sent quote last week", isComplete: false }, { title: "Order filters for Downtown Restaurant", date: new Date().toISOString().split('T')[0], notes: "Need 10x 20x25x1 filters", isComplete: true }];
 const INITIAL_GOALS = [ { name: "Pay off Chase Card", type: "debt", targetId: "Chase Card", targetValue: 0, deadline: "2025-12-31" }, { name: "Achieve $50k Job Revenue", type: "revenue", targetValue: 50000, deadline: "2025-12-31" }];
 const INITIAL_CLIENTS = [ {id: "1", name: "John Johnson", address: "123 Main St, Anytown, USA", phone: "555-1234", email: "john@example.com"}, {id: "3", name: "Restaurant Group Inc.", address: "789 Corp Blvd, Big City, USA", phone: "555-9999", email: "accounts@restaurantgroup.com"}, {id: "2", name: "Downtown Restaurant", address: "456 Oak Ave, Anytown, USA", phone: "555-5678", email: "contact@downtownrestaurant.com", parentId: "3"}];
 const INITIAL_INVENTORY = [ {name: "Standard 1-inch Filter", quantity: 50, cost: 5.50}, {name: "Capacitor 45/5 MFD", quantity: 15, cost: 25.00} ];
@@ -61,7 +62,7 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false, vehicleId: '' }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: '', parentId: ''}, inventory: { name: '', quantity: 0, cost: 0 }, vehicle: { name: '', make: '', model: '', year: '', vin: '', licensePlate: '', currentMileage: 0 }, maintenanceLog: { date: new Date().toISOString().split('T')[0], mileage: '', workPerformed: '', cost: 0, notes: '', vehicleId: item?.vehicleId || '' } };
+        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false, vehicleId: '' }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, task: { title: '', date: new Date().toISOString().split('T')[0], notes: '', isComplete: false }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: '', parentId: ''}, inventory: { name: '', quantity: 0, cost: 0 }, vehicle: { name: '', make: '', model: '', year: '', vin: '', licensePlate: '', currentMileage: 0 }, maintenanceLog: { date: new Date().toISOString().split('T')[0], mileage: '', workPerformed: '', cost: 0, notes: '', vehicleId: item?.vehicleId || '' } };
         setFormData(item || defaults[type]);
     }, [item, type]);
 
@@ -78,6 +79,7 @@ const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }
             case 'income': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Income Source</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Is Recurring?</label></div></>;
             case 'weekly': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Weekly Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div></>;
             case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Link to Client Location</label><select name="clientId" value={formData.clientId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white">{parentAccounts.map(p => <optgroup key={p.id} label={p.name}>{clients.filter(c => c.parentId === p.id || c.id === p.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</select></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Job Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div></>;
+            case 'task': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Task Title</label><input type="text" name="title" value={formData.title || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div><div className="flex items-center"><input type="checkbox" id="isComplete" name="isComplete" checked={formData.isComplete || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isComplete" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Is Complete?</label></div></>;
             case 'goal': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Goal Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Goal Type</label><select name="type" value={formData.type || 'revenue'} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="revenue">Revenue</option><option value="debt">Debt Payoff</option></select></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Deadline</label><input type="date" name="deadline" value={formData.deadline || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> {formData.type === 'revenue' && <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Target Revenue ($)</label><input type="number" name="targetValue" value={formData.targetValue || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div>} {formData.type === 'debt' && <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Select Debt to Pay Off</label><select name="targetId" value={formData.targetId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- Select a Debt --</option>{debts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>} </>;
             case 'client': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Client/Location Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Parent Account (Optional)</label><select name="parentId" value={formData.parentId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- None (Is a Parent Account) --</option>{parentAccounts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Address</label><input type="text" name="address" value={formData.address || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Phone Number</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
             case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
@@ -230,7 +232,7 @@ const ReportsSection = ({ clients, jobs, bills, inventory }) => {
     )
 }
 
-const CalendarSection = ({ jobs, openModal }) => {
+const CalendarSection = ({ jobs, tasks, openModal }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -249,17 +251,24 @@ const CalendarSection = ({ jobs, openModal }) => {
         calendarDays.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
     }
 
-    const jobsByDate = useMemo(() => {
+    const eventsByDate = useMemo(() => {
         const map = {};
         jobs.forEach(job => {
             const jobDate = new Date(job.date).toISOString().split('T')[0];
             if (!map[jobDate]) {
                 map[jobDate] = [];
             }
-            map[jobDate].push(job);
+            map[jobDate].push({ ...job, type: 'job' });
+        });
+        tasks.forEach(task => {
+            const taskDate = new Date(task.date).toISOString().split('T')[0];
+            if (!map[taskDate]) {
+                map[taskDate] = [];
+            }
+            map[taskDate].push({ ...task, type: 'task' });
         });
         return map;
-    }, [jobs]);
+    }, [jobs, tasks]);
 
     const handlePrevMonth = () => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -279,11 +288,11 @@ const CalendarSection = ({ jobs, openModal }) => {
             <div className="grid grid-cols-7 gap-1 text-center">
                 {daysOfWeek.map(day => <div key={day} className="font-bold text-sm text-slate-500 dark:text-slate-400 py-2">{day}</div>)}
                 {calendarDays.map((day, index) => (
-                    <div key={index} className={`h-32 border border-slate-200 dark:border-slate-700 rounded-md p-1 overflow-y-auto ${day ? '' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
+                    <div key={index} className={`h-32 border border-slate-200 dark:border-slate-700 rounded-md p-1 overflow-y-auto ${day ? 'cursor-pointer' : 'bg-slate-50 dark:bg-slate-800/50'}`} onClick={() => day && openModal('job', { date: day.toISOString().split('T')[0] })}>
                         {day && <span className="text-xs font-semibold">{day.getDate()}</span>}
-                        {day && jobsByDate[day.toISOString().split('T')[0]]?.map(job => (
-                            <div key={job.id} onClick={() => openModal('job', job)} className="text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 rounded p-1 mt-1 cursor-pointer hover:bg-cyan-200 dark:hover:bg-cyan-900">
-                                {job.name}
+                        {day && eventsByDate[day.toISOString().split('T')[0]]?.map(event => (
+                            <div key={event.id} onClick={(e) => { e.stopPropagation(); openModal(event.type, event); }} className={`text-xs rounded p-1 mt-1 hover:opacity-80 ${event.type === 'job' ? 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200'}`}>
+                                {event.name || event.title}
                             </div>
                         ))}
                     </div>
@@ -304,6 +313,7 @@ const App = () => {
     const [incomes, setIncomes] = useState([]);
     const [weeklyCosts, setWeeklyCosts] = useState([]);
     const [jobs, setJobs] = useState([]);
+    const [tasks, setTasks] = useState([]);
     const [goals, setGoals] = useState([]);
     const [clients, setClients] = useState([]);
     const [inventory, setInventory] = useState([]);
@@ -373,6 +383,7 @@ const App = () => {
                     INITIAL_INCOME.forEach(item => batch.set(doc(collection(db, ...basePath, 'incomes')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_WEEKLY_COSTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'weeklyCosts')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_JOBS.forEach(item => batch.set(doc(collection(db, ...basePath, 'jobs')), {...item, createdAt: serverTimestamp()}));
+                    INITIAL_TASKS.forEach(item => batch.set(doc(collection(db, ...basePath, 'tasks')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_GOALS.forEach(item => batch.set(doc(collection(db, ...basePath, 'goals')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_CLIENTS.forEach(item => batch.set(doc(collection(db, ...basePath, 'clients')), {...item, createdAt: serverTimestamp()}));
                     INITIAL_INVENTORY.forEach(item => batch.set(doc(collection(db, ...basePath, 'inventory')), {...item, createdAt: serverTimestamp()}));
@@ -393,7 +404,7 @@ const App = () => {
 
     useEffect(() => {
         if (!userId) return;
-        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles, maintenanceLogs: setMaintenanceLogs };
+        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, tasks: setTasks, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles, maintenanceLogs: setMaintenanceLogs };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
                 setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -510,7 +521,7 @@ const App = () => {
     
     const handleSave = async (itemData, file) => {
         if (!userId) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
@@ -540,7 +551,7 @@ const App = () => {
 
     const handleDelete = async (type, id) => {
         if (!userId || !window.confirm("Delete this item?")) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
         const collectionName = collectionNameMap[type];
         await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
     };
@@ -930,7 +941,7 @@ const App = () => {
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
-                    {activeSection === 'calendar' && <CalendarSection jobs={jobs} openModal={openModal} />}
+                    {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}
                     {activeSection === 'goals' && renderGoalsSection()}
