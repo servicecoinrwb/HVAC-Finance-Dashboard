@@ -694,7 +694,7 @@ const App = () => {
 
     const handleBulkDelete = async (type, ids) => {
         if (!userId || !ids.length || !window.confirm(`Delete ${ids.length} selected items?`)) return;
-        const collectionNameMap = { inventory: 'inventory' };
+        const collectionNameMap = { inventory: 'inventory', invoice: 'invoices' };
         const collectionName = collectionNameMap[type];
         if (!collectionName) {
             alert("Invalid bulk delete type.");
@@ -988,7 +988,7 @@ const App = () => {
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
-                    {activeSection === 'invoices' && renderManagementSection('Invoices', sortedData, invoiceColumns, 'invoice')}
+                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}
                     {activeSection === 'goals' && renderGoalsSection()}
