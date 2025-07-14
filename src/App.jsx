@@ -230,6 +230,69 @@ const ReportsSection = ({ clients, jobs, bills, inventory }) => {
     )
 }
 
+const CalendarSection = ({ jobs, openModal }) => {
+    const [currentDate, setCurrentDate] = useState(new Date());
+
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    const totalDays = lastDayOfMonth.getDate();
+
+    const calendarDays = [];
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        calendarDays.push(null);
+    }
+    for (let i = 1; i <= totalDays; i++) {
+        calendarDays.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+    }
+
+    const jobsByDate = useMemo(() => {
+        const map = {};
+        jobs.forEach(job => {
+            const jobDate = new Date(job.date).toISOString().split('T')[0];
+            if (!map[jobDate]) {
+                map[jobDate] = [];
+            }
+            map[jobDate].push(job);
+        });
+        return map;
+    }, [jobs]);
+
+    const handlePrevMonth = () => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><ChevronLeft /></button>
+                <h2 className="text-xl font-bold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
+                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><ChevronRight /></button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center">
+                {daysOfWeek.map(day => <div key={day} className="font-bold text-sm text-slate-500 dark:text-slate-400 py-2">{day}</div>)}
+                {calendarDays.map((day, index) => (
+                    <div key={index} className={`h-32 border border-slate-200 dark:border-slate-700 rounded-md p-1 overflow-y-auto ${day ? '' : 'bg-slate-50 dark:bg-slate-800/50'}`}>
+                        {day && <span className="text-xs font-semibold">{day.getDate()}</span>}
+                        {day && jobsByDate[day.toISOString().split('T')[0]]?.map(job => (
+                            <div key={job.id} onClick={() => openModal('job', job)} className="text-xs bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200 rounded p-1 mt-1 cursor-pointer hover:bg-cyan-200 dark:hover:bg-cyan-900">
+                                {job.name}
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 // --- Main Application Component ---
 const App = () => {
@@ -852,6 +915,7 @@ const App = () => {
                 <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
                     <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
                     <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Reports</button>
+                    <button onClick={() => setActiveSection('calendar')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'calendar' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Calendar</button>
                     <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L Statement</button>
                     <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Forecast</button>
                     <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Goals</button>
@@ -866,6 +930,7 @@ const App = () => {
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
+                    {activeSection === 'calendar' && <CalendarSection jobs={jobs} openModal={openModal} />}
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}
                     {activeSection === 'goals' && renderGoalsSection()}
