@@ -4,14 +4,15 @@ import { DollarSign, PlusCircle, Edit, Trash2, Info, ChevronDown } from 'lucide-
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
 
 const TAX_RATE_PRESETS = {
-    'single': 15,
-    'jointly': 12,
-    'hoh': 14,
+    'single-member-llc': 20,
+    's-corp': 20,
+    'c-corp': 21,
+    'partnership': 20,
 };
 
 const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
-    const [taxRate, setTaxRate] = useState(15);
-    const [filingStatus, setFilingStatus] = useState('single');
+    const [taxRate, setTaxRate] = useState(20);
+    const [filingStatus, setFilingStatus] = useState('single-member-llc');
     const [period, setPeriod] = useState('quarterly');
     const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -102,10 +103,14 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                             onChange={(e) => setFilingStatus(e.target.value)}
                             className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
                         >
-                            <option value="single">Single</option>
-                            <option value="jointly">Married Filing Jointly</option>
-                            <option value="hoh">Head of Household</option>
+                            <option value="single-member-llc">Single-Member LLC</option>
+                            <option value="s-corp">S-Corporation</option>
+                            <option value="c-corp">C-Corporation</option>
+                            <option value="partnership">Partnership</option>
                         </select>
+                         {(filingStatus === 'llc' || filingStatus === 'single-member-llc') && (
+                            <p className="text-xs text-slate-500 mt-1">LLC tax rates vary. Consult a tax professional.</p>
+                        )}
                     </div>
                      <div>
                         <label htmlFor="taxRate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Estimated Tax Rate (%)</label>
