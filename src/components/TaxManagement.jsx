@@ -137,7 +137,13 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                     <StatCard title="Estimated Tax Liability" value={`$${pnlData.estimatedTax.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<DollarSign />} color="orange" 
                         subtext={pnlData.netProfit <= 0 ? "No tax on negative profit" : ""}
                     />
-                    <StatCard title="Remaining Liability" value={`$${remainingLiability.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<DollarSign />} color={remainingLiability >= 0 ? "red" : "green"} />
+                    <StatCard 
+                        title="Overpayment / (Underpayment)" 
+                        value={`${remainingLiability < 0 ? '-' : ''}$${Math.abs(remainingLiability).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
+                        icon={<DollarSign />} 
+                        color={remainingLiability < 0 ? "green" : "red"} 
+                        subtext={remainingLiability < 0 ? "You have overpaid" : "Remaining balance due"}
+                    />
                 </div>
                 
                 <div className="mt-4">
