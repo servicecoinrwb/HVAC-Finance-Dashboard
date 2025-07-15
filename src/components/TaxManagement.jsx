@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { StatCard } from './StatCard'; 
-import { DollarSign, PlusCircle, Edit, Trash2, Info } from 'lucide-react';
+import { DollarSign, PlusCircle, Edit, Trash2, Info, ChevronDown } from 'lucide-react';
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
 
 const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
     const [taxRate, setTaxRate] = useState(15); // Default tax rate of 15%
     const [period, setPeriod] = useState('quarterly');
+    const [showBreakdown, setShowBreakdown] = useState(false);
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -55,7 +56,7 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
         const netProfit = grossProfit - periodOperatingExpenses;
         const estimatedTax = netProfit > 0 ? netProfit * (taxRate / 100) : 0;
         
-        return { netProfit, estimatedTax };
+        return { netProfit, estimatedTax, grossProfit, periodOperatingExpenses };
     }, [jobs, bills, weeklyCosts, taxRate, dateRange]);
 
     const totalPaidThisPeriod = useMemo(() => {
@@ -109,6 +110,22 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                     />
                     <StatCard title="Remaining Liability" value={`$${remainingLiability.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<DollarSign />} color={remainingLiability >= 0 ? "red" : "green"} />
                 </div>
+                
+                <div className="mt-4">
+                    <button onClick={() => setShowBreakdown(!showBreakdown)} className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:underline">
+                        Show Calculation Breakdown <ChevronDown className={`transition-transform ${showBreakdown ? 'rotate-180' : ''}`} size={16} />
+                    </button>
+                    {showBreakdown && (
+                        <div className="mt-2 p-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-sm space-y-2 animate-fade-in">
+                            <div className="flex justify-between"><span>Gross Profit (from Jobs):</span> <span className="font-mono">${pnlData.grossProfit.toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span>- Est. Operating Expenses:</span> <span className="font-mono">${pnlData.periodOperatingExpenses.toFixed(2)}</span></div>
+                            <hr className="border-slate-300 dark:border-slate-600"/>
+                            <div className="flex justify-between font-bold"><span>= Estimated Net Profit:</span> <span className="font-mono">${pnlData.netProfit.toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span>x Tax Rate ({taxRate}%):</span> <span className="font-mono">${pnlData.estimatedTax.toFixed(2)}</span></div>
+                        </div>
+                    )}
+                </div>
+
                  {pnlData.netProfit <= 0 && (
                     <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/50 border border-blue-400 dark:border-blue-700 text-blue-800 dark:text-blue-200 rounded-lg flex items-center gap-3">
                         <Info size={20} />
