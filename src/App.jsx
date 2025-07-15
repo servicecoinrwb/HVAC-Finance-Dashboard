@@ -7,6 +7,11 @@ import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, Ca
 import { usePlaidLink } from 'react-plaid-link';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
+// Import Components
+import TaxManagement from './components/TaxManagement';
+import { StatCard } from './components/StatCard';
+
+
 // --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_API_KEY,
@@ -57,7 +62,6 @@ const BILL_CATEGORIES = ["Software", "Fuel", "Vehicle", "Insurance", "Marketing"
 
 // --- Helper Components ---
 const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4 relative border dark:border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
-const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</h3> <div className={`text-${color}-500 dark:text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-slate-800 dark:text-white mt-2">{value}</p> {subtext && <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">{subtext}</p>} </div> </div>);
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
 const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }) => {
@@ -666,7 +670,7 @@ const App = () => {
 
         const nextMonthDate = new Date(dateRange.start);
         nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
-        const nextMonthYear = nextMonthDate.getFullYear() + '-' + String(nextMonthDate.getMonth() + 1).padStart(2, '0');
+        const nextMonthYear = nextMonthDate.getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
 
         const recurringBills = bills.filter(b => b.isRecurring);
         const recurringIncomes = incomes.filter(i => i.isRecurring);
