@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { StatCard } from './StatCard'; 
-import { DollarSign, PlusCircle, Edit, Trash2, Info, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'lucide-react';
+import { DollarSign, PlusCircle, Edit, Trash2, Info } from 'lucide-react';
+import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
 
 const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
     const [taxRate, setTaxRate] = useState(15); // Default tax rate of 15%
