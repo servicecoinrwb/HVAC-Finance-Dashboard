@@ -1,12 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { StatCard } from './StatCard'; 
 import { DollarSign, PlusCircle, Edit, Trash2, Info, ChevronDown } from 'lucide-react';
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
 
+const TAX_RATE_PRESETS = {
+    'single': 15,
+    'jointly': 12,
+    'hoh': 14,
+};
+
 const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
-    const [taxRate, setTaxRate] = useState(15); // Default tax rate of 15%
+    const [taxRate, setTaxRate] = useState(15);
+    const [filingStatus, setFilingStatus] = useState('single');
     const [period, setPeriod] = useState('quarterly');
     const [showBreakdown, setShowBreakdown] = useState(false);
+
+    useEffect(() => {
+        setTaxRate(TAX_RATE_PRESETS[filingStatus]);
+    }, [filingStatus]);
 
     const dateRange = useMemo(() => {
         const now = new Date();
@@ -82,8 +93,21 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
         <div className="space-y-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Tax Estimation</h3>
-                <div className="flex flex-col md:flex-row gap-6 items-center">
-                    <div className="flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                    <div>
+                        <label htmlFor="filingStatus" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Filing Status</label>
+                        <select
+                            id="filingStatus"
+                            value={filingStatus}
+                            onChange={(e) => setFilingStatus(e.target.value)}
+                            className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
+                        >
+                            <option value="single">Single</option>
+                            <option value="jointly">Married Filing Jointly</option>
+                            <option value="hoh">Head of Household</option>
+                        </select>
+                    </div>
+                     <div>
                         <label htmlFor="taxRate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Estimated Tax Rate (%)</label>
                         <input
                             id="taxRate"
@@ -93,7 +117,7 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                             className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
                         />
                     </div>
-                    <div className="flex-1">
+                    <div>
                          <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Estimation Period</label>
                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
                                <button onClick={() => setPeriod('weekly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'weekly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Weekly</button>
