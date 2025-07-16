@@ -18,6 +18,7 @@ import { InvoiceManagement } from './components/InvoiceManagement';
 import { ClientManagement } from './components/ClientManagement';
 import { VehicleManagement } from './components/VehicleManagement';
 import { InventoryManagement } from './components/InventoryManagement';
+import { ReportsSection } from './components/ReportsSection';
 
 
 // --- Firebase Configuration ---
@@ -71,149 +72,6 @@ const BILL_CATEGORIES = ["Software", "Fuel", "Vehicle", "Insurance", "Marketing"
 // --- Helper Components ---
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
 
-const AlertsPanel = ({ bills, paidStatus, onClose }) => {
-    const upcomingBills = useMemo(() => {
-        const today = new Date();
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(today.getDate() + 3);
-
-        return bills.filter(bill => {
-            if (paidStatus[bill.id]) return false;
-            const dueDate = new Date(today.getFullYear(), today.getMonth(), bill.dueDay);
-            return dueDate >= today && dueDate <= threeDaysFromNow;
-        });
-    }, [bills, paidStatus]);
-
-    if (upcomingBills.length === 0) return null;
-
-    return (
-        <div className="bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
-            <div className="flex items-center">
-                <Bell size={20} className="mr-3" />
-                <div>
-                    <strong className="font-bold">Upcoming Bills!</strong>
-                    <ul className="list-disc list-inside mt-1">
-                        {upcomingBills.map(bill => (
-                            <li key={bill.id}>{bill.name} is due on day {bill.dueDay}.</li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-            <button onClick={onClose} className="absolute top-0 bottom-0 right-0 px-4 py-3">
-                <X size={18} />
-            </button>
-        </div>
-    );
-};
-
-const ReportsSection = ({ clients, jobs, bills, inventory }) => {
-    const clientProfitability = useMemo(() => {
-        return clients.map(client => {
-            const clientJobs = jobs.filter(job => job.clientId === client.id);
-            const totalRevenue = clientJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
-            const totalCost = clientJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
-            return {
-                name: client.name,
-                netProfit: totalRevenue - totalCost,
-            };
-        }).sort((a,b) => b.netProfit - a.netProfit);
-    }, [clients, jobs]);
-
-    const trendData = useMemo(() => {
-        const dataByMonth = {};
-        const twelveMonthsAgo = new Date();
-        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-
-        jobs.forEach(job => {
-            if(job.date && new Date(job.date) > twelveMonthsAgo) {
-                const month = new Date(job.date).toISOString().slice(0, 7);
-                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
-                dataByMonth[month].revenue += job.revenue || 0;
-            }
-        });
-
-        bills.forEach(bill => {
-             const createdAt = bill.createdAt?.toDate ? bill.createdAt.toDate() : new Date();
-             if(createdAt > twelveMonthsAgo) {
-                const month = createdAt.toISOString().slice(0,7);
-                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
-                dataByMonth[month].expenses += bill.amount || 0;
-             }
-        });
-
-        return Object.keys(dataByMonth).map(month => ({
-            month,
-            Revenue: dataByMonth[month].revenue,
-            Expenses: dataByMonth[month].expenses,
-        })).sort((a,b) => a.month.localeCompare(b.month));
-    }, [jobs, bills]);
-
-    const inventoryValue = useMemo(() => {
-        return inventory.map(item => ({
-            name: item.name,
-            totalValue: (item.quantity || 0) * (item.cost || 0)
-        })).sort((a,b) => b.totalValue - a.totalValue);
-    }, [inventory]);
-
-    return (
-        <div className="space-y-8">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Revenue vs. Expenses Trend (Last 12 Months)</h3>
-                 <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={trendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="month" stroke="#64748b" />
-                        <YAxis stroke="#64748b" tickFormatter={(value) => `$${(value/1000)}k`} />
-                        <Tooltip contentStyle={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} formatter={(value) => `$${value.toLocaleString()}`} />
-                        <Legend />
-                        <Bar dataKey="Revenue" fill="#22c55e" />
-                        <Bar dataKey="Expenses" fill="#ef4444" />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Client Profitability</h3>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
-                            <tr><th className="p-3">Client</th><th className="p-3 text-right">Net Profit</th></tr>
-                        </thead>
-                        <tbody>
-                            {clientProfitability.map(client => (
-                                <tr key={client.name} className="border-b border-slate-200 dark:border-slate-700/50">
-                                    <td className="p-3 font-medium">{client.name}</td>
-                                    <td className={`p-3 text-right font-mono ${client.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>${client.netProfit.toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Inventory Value</h3>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
-                            <tr><th className="p-3">Item</th><th className="p-3 text-center">Quantity</th><th className="p-3 text-right">Total Value</th></tr>
-                        </thead>
-                        <tbody>
-                            {inventoryValue.map(item => (
-                                <tr key={item.name} className="border-b border-slate-200 dark:border-slate-700/50">
-                                    <td className="p-3 font-medium">{item.name}</td>
-                                    <td className="p-3 text-center">{inventory.find(i => i.name === item.name)?.quantity}</td>
-                                    <td className="p-3 text-right font-mono">${item.totalValue.toFixed(2)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-
-// --- Main Application Component ---
 const App = () => {
     const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -242,7 +100,6 @@ const App = () => {
     const [dateRange, setDateRange] = useState({start: new Date(), end: new Date()});
     const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
-    const [expandedVehicle, setExpandedVehicle] = useState(null);
     const [theme, setTheme] = useState('dark');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
@@ -925,3 +782,5 @@ const App = () => {
         </div>
     );
 };
+
+export default App;
