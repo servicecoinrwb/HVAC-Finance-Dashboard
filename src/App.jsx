@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
 // Import Components
+import Auth from './components/Auth';
 import TaxManagement from './components/TaxManagement';
+import CalendarSection from './components/CalendarSection';
 import { StatCard } from './components/StatCard';
+import { ItemFormModal } from './components/ItemFormModal';
+import { Modal } from './components/Modal';
 
 
 // --- Firebase Configuration ---
@@ -61,45 +65,7 @@ const BILL_CATEGORIES = ["Software", "Fuel", "Vehicle", "Insurance", "Marketing"
 
 
 // --- Helper Components ---
-const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4 relative border dark:border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
 const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
-
-const ItemFormModal = ({ item, type, onSave, onClose, debts, clients, vehicles }) => {
-    const [formData, setFormData] = useState({});
-    const [fileToUpload, setFileToUpload] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
-
-    useEffect(() => {
-        const defaults = { bill: { name: '', amount: 0, dueDay: 1, isAutoPay: false, category: 'General', notes: '', attachmentURL: null, isRecurring: false, vehicleId: '' }, debt: { name: '', totalAmount: 0, paidAmount: 0, interestRate: 0, notes: '' }, income: { name: '', amount: 0, type: 'monthly', notes: '', isRecurring: false }, weekly: { name: '', amount: 0, notes: '' }, job: { name: '', revenue: 0, materialCost: 0, laborCost: 0, notes: '', date: new Date().toISOString().split('T')[0], clientId: '' }, task: { title: '', date: new Date().toISOString().split('T')[0], notes: '', isComplete: false }, invoice: { billTo: '', customer: '', jobNo: '', completedOn: '', invNum: '', terms: '', net: 0, dueDate: '', status: '', grandTotal: 0 }, taxPayment: { date: new Date().toISOString().split('T')[0], amount: 0, notes: '' }, goal: { name: '', type: 'revenue', targetValue: 50000, deadline: '', targetId: '' }, client: { name: '', address: '', phone: '', email: '', parentId: ''}, inventory: { name: '', quantity: 0, cost: 0 }, vehicle: { name: '', make: '', model: '', year: '', vin: '', licensePlate: '', currentMileage: 0 }, maintenanceLog: { date: new Date().toISOString().split('T')[0], mileage: '', workPerformed: '', cost: 0, notes: '', vehicleId: item?.vehicleId || '' } };
-        setFormData(item || defaults[type]);
-    }, [item, type]);
-
-    const handleChange = (e) => { const { name, value, type, checked } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || 0 : value) })); };
-    const handleFileChange = (e) => { if (e.target.files[0]) { setFileToUpload(e.target.files[0]); } };
-    
-    const handleSubmit = async (e) => { e.preventDefault(); setIsSaving(true); await onSave(formData, fileToUpload); setIsSaving(false); };
-
-    const renderFields = () => {
-        const parentAccounts = clients.filter(c => !c.parentId);
-        switch (type) {
-            case 'bill': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Bill Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Due Day</label><input type="number" name="dueDay" min="1" max="31" value={formData.dueDay || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Category</label><input list="bill-categories" type="text" name="category" value={formData.category || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /><datalist id="bill-categories">{BILL_CATEGORIES.map(cat => <option key={cat} value={cat} />)}</datalist></div> {formData.category === 'Vehicle' && <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Assign to Vehicle</label><select name="vehicleId" value={formData.vehicleId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- Select Vehicle --</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></div>} <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="2" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Attach Receipt (Optional)</label><input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/></div> <div className="flex justify-between items-center"><div className="flex items-center"><input type="checkbox" id="isAutoPay" name="isAutoPay" checked={formData.isAutoPay || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isAutoPay" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Enabled for Autopay</label></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Is Recurring?</label></div></div> </>;
-            case 'invoice': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Bill To</label><input type="text" name="billTo" value={formData.billTo || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Customer</label><input type="text" name="customer" value={formData.customer || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Grand Total</label><input type="number" name="grandTotal" value={formData.grandTotal || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Status</label><input type="text" name="status" value={formData.status || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div></>;
-            case 'taxPayment': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Payment Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Amount Paid</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes (e.g., Q2 Federal)</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div></>;
-            case 'debt': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Debt Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Amount</label><input type="number" name="totalAmount" value={formData.totalAmount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Paid Amount</label><input type="number" name="paidAmount" value={formData.paidAmount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Interest Rate (%)</label><input type="number" name="interestRate" value={formData.interestRate || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div></>;
-            case 'income': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Income Source</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div><div className="flex items-center"><input type="checkbox" id="isRecurring" name="isRecurring" checked={formData.isRecurring || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isRecurring" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Is Recurring?</label></div></>;
-            case 'weekly': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Weekly Amount</label><input type="number" name="amount" value={formData.amount || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div></>;
-            case 'job': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Job Name/Client</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Link to Client Location</label><select name="clientId" value={formData.clientId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white">{parentAccounts.map(p => <optgroup key={p.id} label={p.name}>{clients.filter(c => c.parentId === p.id || c.id === p.id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}</select></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Job Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div> <div className="grid grid-cols-3 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Revenue</label><input type="number" name="revenue" value={formData.revenue || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Material Cost</label><input type="number" name="materialCost" value={formData.materialCost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Labor Cost</label><input type="number" name="laborCost" value={formData.laborCost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div></>;
-            case 'task': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Task Title</label><input type="text" name="title" value={formData.title || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notes</label><textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div><div className="flex items-center"><input type="checkbox" id="isComplete" name="isComplete" checked={formData.isComplete || false} onChange={handleChange} className="h-4 w-4 rounded" /><label htmlFor="isComplete" className="ml-2 text-sm text-slate-600 dark:text-slate-300">Is Complete?</label></div></>;
-            case 'goal': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Goal Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Goal Type</label><select name="type" value={formData.type || 'revenue'} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="revenue">Revenue</option><option value="debt">Debt Payoff</option></select></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Deadline</label><input type="date" name="deadline" value={formData.deadline || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> {formData.type === 'revenue' && <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Target Revenue ($)</label><input type="number" name="targetValue" value={formData.targetValue || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div>} {formData.type === 'debt' && <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Select Debt to Pay Off</label><select name="targetId" value={formData.targetId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- Select a Debt --</option>{debts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>} </>;
-            case 'client': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Client/Location Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Parent Account (Optional)</label><select name="parentId" value={formData.parentId || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"><option value="">-- None (Is a Parent Account) --</option>{parentAccounts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Address</label><input type="text" name="address" value={formData.address || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Phone Number</label><input type="tel" name="phone" value={formData.phone || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Email</label><input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
-            case 'inventory': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Item Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Quantity</label><input type="number" name="quantity" value={formData.quantity || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost per Item</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
-            case 'vehicle': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Vehicle Name</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Year</label><input type="text" name="year" value={formData.year || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Model</label><input type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">VIN #</label><input type="text" name="vin" value={formData.vin || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">License Plate</label><input type="text" name="licensePlate" value={formData.licensePlate || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> </>;
-            case 'maintenanceLog': return <> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" required /></div> <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Mileage</label><input type="number" name="mileage" value={formData.mileage || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div><div><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cost</label><input type="number" name="cost" value={formData.cost || ''} onChange={handleChange} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white" /></div></div> <div className="mb-4"><label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Work Performed</label><textarea name="workPerformed" value={formData.workPerformed || ''} onChange={handleChange} rows="3" className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"></textarea></div> </>;
-            default: return <p>This form is not yet implemented.</p>;
-        }
-    };
-    return ( <Modal onClose={onClose}><form onSubmit={handleSubmit}><h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}</h2>{renderFields()}<div className="flex justify-end gap-3 mt-6"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-white">Cancel</button><button type="submit" disabled={isSaving} className="px-4 py-2 rounded-md bg-cyan-600 flex items-center gap-2 disabled:bg-slate-500 text-white">{isSaving ? 'Saving...' : <><Save size={16} /> Save</>}</button></div></form></Modal> );
-};
 
 const AlertsPanel = ({ bills, paidStatus, onClose }) => {
     const upcomingBills = useMemo(() => {
@@ -242,80 +208,6 @@ const ReportsSection = ({ clients, jobs, bills, inventory }) => {
     )
 }
 
-const CalendarSection = ({ jobs, tasks, openModal }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
-
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const firstDayOfWeek = firstDayOfMonth.getDay();
-    const totalDays = lastDayOfMonth.getDate();
-
-    const calendarDays = [];
-    for (let i = 0; i < firstDayOfWeek; i++) {
-        calendarDays.push(null);
-    }
-    for (let i = 1; i <= totalDays; i++) {
-        calendarDays.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
-    }
-
-    const eventsByDate = useMemo(() => {
-        const map = {};
-        jobs.forEach(job => {
-            const jobDate = new Date(job.date).toISOString().split('T')[0];
-            if (!map[jobDate]) {
-                map[jobDate] = [];
-            }
-            map[jobDate].push({ ...job, type: 'job' });
-        });
-        tasks.forEach(task => {
-            const taskDate = new Date(task.date).toISOString().split('T')[0];
-            if (!map[taskDate]) {
-                map[taskDate] = [];
-            }
-            map[taskDate].push({ ...task, type: 'task' });
-        });
-        return map;
-    }, [jobs, tasks]);
-
-    const handlePrevMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-    };
-
-    const handleNextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-    };
-
-    return (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><ChevronLeft /></button>
-                <h2 className="text-xl font-bold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
-                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><ChevronRight /></button>
-            </div>
-             <div className="flex justify-end gap-2 mb-4">
-                <button onClick={() => openModal('task')} className="flex items-center gap-2 text-sm bg-amber-500 hover:bg-amber-400 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add Task</button>
-                <button onClick={() => openModal('job')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add Job</button>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center">
-                {daysOfWeek.map(day => <div key={day} className="font-bold text-sm text-slate-500 dark:text-slate-400 py-2">{day}</div>)}
-                {calendarDays.map((day, index) => (
-                    <div key={index} className={`h-32 border border-slate-200 dark:border-slate-700 rounded-md p-1 overflow-y-auto ${day ? 'cursor-pointer' : 'bg-slate-50 dark:bg-slate-800/50'}`} onClick={() => day && openModal('task', { date: day.toISOString().split('T')[0] })}>
-                        {day && <span className="text-xs font-semibold">{day.getDate()}</span>}
-                        {day && eventsByDate[day.toISOString().split('T')[0]]?.map(event => (
-                            <div key={event.id} onClick={(e) => { e.stopPropagation(); openModal(event.type, event); }} className={`text-xs rounded p-1 mt-1 hover:opacity-80 ${event.type === 'job' ? 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-800 dark:text-cyan-200' : 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200'}`}>
-                                {event.name || event.title}
-                            </div>
-                        ))}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 
 // --- Main Application Component ---
 const App = () => {
@@ -361,8 +253,10 @@ const App = () => {
     }, []);
 
     useEffect(() => {
-        generateLinkToken();
-    }, [generateLinkToken]);
+        if (userId) { // Only generate token if user is logged in
+            generateLinkToken();
+        }
+    }, [userId, generateLinkToken]);
     
     const onSuccess = useCallback((public_token, metadata) => {
         fetch('http://localhost:8000/api/exchange_public_token', {
@@ -441,7 +335,7 @@ const App = () => {
                     setIsSeeding(false);
                 }
             } else {
-                signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
+                setUserId(null);
             }
             setIsLoading(false);
         });
@@ -718,7 +612,11 @@ const App = () => {
     };
 
 
-    if (isLoading || isSeeding) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
+    if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
+    
+    if (!userId) {
+        return <Auth setUserId={setUserId} />;
+    }
 
     const renderDashboard = () => (
         <>
@@ -974,6 +872,9 @@ const App = () => {
                                <button onClick={() => setReportingPeriod('yearly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Yearly</button>
                            </div>
                         </div>
+                        <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm bg-slate-600 hover:bg-slate-500 text-white font-semibold px-3 py-2 rounded-md transition-colors">
+                            <LogOut size={16} /> Logout
+                        </button>
                     </div>
                 </header>
                 <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
