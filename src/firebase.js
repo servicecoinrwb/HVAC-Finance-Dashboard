@@ -1,0 +1,10 @@
+// --- Firebase Configuration ---
+const firebaseConfig = {
+  apiKey: "AIzaSyAlev0GFpv3rzRYCJaMALOqlPwaowNfynI",
+  authDomain: "hvac-finance-dashboard.firebaseapp.com",
+  projectId: "hvac-finance-dashboard",
+  storageBucket: "hvac-finance-dashboard.firebasestorage.app",
+  messagingSenderId: "917610618621",
+  appId: "1:917610618621:web:83c621d154c5f62c9be894",
+  measurementId: "G-JKQB4XCVHG"
+};
