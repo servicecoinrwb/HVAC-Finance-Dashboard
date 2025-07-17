@@ -4,9 +4,9 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { usePlaidLink } from 'react-plaid-link';
-import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
+import { LogOut, Sun, Moon, Link as LinkIcon } from 'lucide-react';
 
-// Import Components
+// Import All Components
 import Auth from './components/Auth';
 import TaxManagement from './components/TaxManagement';
 import CalendarSection from './components/CalendarSection';
@@ -20,7 +20,7 @@ import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
 import { Modal } from './components/Modal';
-import { ForecastSection } from './components/Forecast';
+import { ForecastSection } from './components/ForecastSection';
 import { PnLStatement } from './components/PnLStatement';
 import { ManagementSection } from './components/ManagementSection';
 import { GoalsSection } from './components/GoalsSection';
@@ -464,7 +464,7 @@ const App = () => {
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
     
     if (!userId) {
-        return <Auth setUserId={setUserId} />;
+        return <Auth />;
     }
 
     const renderDashboard = () => (
