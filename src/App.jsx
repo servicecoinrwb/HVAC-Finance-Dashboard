@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { usePlaidLink } from 'react-plaid-link';
-import { LogOut, Sun, Moon, Link as LinkIcon } from 'lucide-react';
+import { LogOut, Sun, Moon, Link as LinkIcon, Percent, TrendingUp, Target, Banknote, ArrowDown, DollarSign, AlertTriangle } from 'lucide-react';
 
 // Import All Components
 import Auth from './components/Auth';
@@ -19,7 +19,6 @@ import { InventoryManagement } from './components/InventoryManagement';
 import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
-import { Modal } from './components/Modal';
 import { ForecastSection } from './components/ForecastSection';
 import { PnLStatement } from './components/PnLStatement';
 import { ManagementSection } from './components/ManagementSection';
