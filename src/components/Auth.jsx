@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { DollarSign } from 'lucide-react';
 
-const Auth = ({ setUserId }) => {
+const Auth = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -22,7 +22,6 @@ const Auth = ({ setUserId }) => {
             } else {
                 await createUserWithEmailAndPassword(auth, email, password);
             }
-            // The onAuthStateChanged listener in App.jsx will handle setting the user ID
         } catch (err) {
             setError(err.message);
         } finally {
