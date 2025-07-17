@@ -1,3 +1,4 @@
+import Auth from './components/Auth.jsx';
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 

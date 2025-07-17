@@ -1,3 +1,4 @@
+import Auth from './components/Auth.jsx';
 import React, { useState, useMemo, useEffect } from 'react';
 import { StatCard } from './StatCard'; 
 import { DollarSign, PlusCircle, Edit, Trash2, Info, ChevronDown } from 'lucide-react';
