@@ -6,18 +6,6 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon, Info } from 'lucide-react';
-    const Auth = () => {
-  return (
-    <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
-      <div className="p-6 rounded-xl bg-slate-800 text-center">
-        <h1 className="text-2xl font-bold mb-2">Login Required</h1>
-        <p>This app requires authentication. You are not logged in.</p>
-      </div>
-    </div>
-  );
-};
-
-
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -36,14 +24,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-
-  import { getAuth, signInAnonymously } from "firebase/auth";
-
-const auth = getAuth();
-signInAnonymously(auth)
-  .then(() => console.log("Signed in anonymously"))
-  .catch((error) => console.error("Anon login error:", error));
-
 
 // --- Initial Data (Seed for first-time use) ---
 const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null, isRecurring: true }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null, isRecurring: true }, { name: "GM Financial Black Truck", amount: 1307.20, dueDay: 6, isAutoPay: false, category: "Vehicle", notes: "", vehicleId: "1" }];
@@ -700,7 +680,7 @@ const App = () => {
 
     const generateLinkToken = useCallback(async () => {
         // IMPORTANT: In a real application, this URL should be your live server's address
-        const response = await fetch('http://144.202.20.114:8000/api/create_link_token', {
+        const response = await fetch('https://144.202.20.114:8000/api/create_link_token', {
             method: 'POST',
         });
         const data = await response.json();
@@ -709,13 +689,13 @@ const App = () => {
 
     useEffect(() => {
         if (userId) { // Only generate token if user is logged in
-            generateLinkToken();
+            // generateLinkToken(); // Temporarily disabled to prevent fetch errors on deploy
         }
     }, [userId, generateLinkToken]);
     
     const onSuccess = useCallback((public_token, metadata) => {
         // IMPORTANT: In a real application, this URL should be your live server's address
-        fetch('http://144.202.20.114:8000/api/exchange_public_token', {
+        fetch('https://144.202.20.114:8000/api/exchange_public_token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
