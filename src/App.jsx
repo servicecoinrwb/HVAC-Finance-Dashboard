@@ -3,6 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
@@ -20,6 +21,8 @@ import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
 import { Modal } from './components/Modal';
+import { ForecastSection } from './components/Forecast';
+import { PnLStatement } from './components/PnLStatement';
 
 
 // --- Firebase Configuration ---
@@ -102,7 +105,8 @@ const App = () => {
     const [linkToken, setLinkToken] = useState(null);
 
     const generateLinkToken = useCallback(async () => {
-        const response = await fetch('http://localhost:8000/api/create_link_token', {
+        // IMPORTANT: In a real application, this URL should be your live server's address
+        const response = await fetch('http://144.202.20.114:8000/api/create_link_token', {
             method: 'POST',
         });
         const data = await response.json();
@@ -114,9 +118,10 @@ const App = () => {
             generateLinkToken();
         }
     }, [userId, generateLinkToken]);
-    
+
     const onSuccess = useCallback((public_token, metadata) => {
-        fetch('http://localhost:8000/api/exchange_public_token', {
+        // IMPORTANT: In a real application, this URL should be your live server's address
+        fetch('http://144.202.20.114:8000/api/exchange_public_token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -244,35 +249,6 @@ const App = () => {
         return { revenue, cogs, grossProfit, operatingExpenses, netProfit, estimatedTax, netProfitAfterTax };
     }, [filteredJobs, bills, weeklyCosts]);
 
-    const forecastData = useMemo(() => {
-        const forecast = [
-            { name: 'Next 30 Days', Inflow: 0, Outflow: 0 },
-            { name: 'Next 60 Days', Inflow: 0, Outflow: 0 },
-            { name: 'Next 90 Days', Inflow: 0, Outflow: 0 },
-        ];
-        
-        const now = new Date();
-        
-        const recurringOutflow = bills.filter(b => b.isRecurring).reduce((acc, b) => acc + b.amount, 0) + (weeklyCosts.reduce((acc, c) => acc + c.amount, 0) * 4.33);
-
-        forecast[0].Outflow = recurringOutflow;
-        forecast[1].Outflow = recurringOutflow * 2;
-        forecast[2].Outflow = recurringOutflow * 3;
-
-        invoices.forEach(invoice => {
-            if (invoice.status !== 'Paid' && invoice.dueDate) {
-                const dueDate = new Date(invoice.dueDate);
-                const daysUntilDue = (dueDate - now) / (1000 * 60 * 60 * 24);
-                if (daysUntilDue <= 30) forecast[0].Inflow += invoice.grandTotal;
-                if (daysUntilDue <= 60) forecast[1].Inflow += invoice.grandTotal;
-                if (daysUntilDue <= 90) forecast[2].Inflow += invoice.grandTotal;
-            }
-        });
-
-        return forecast.map(f => ({...f, 'Net Change': f.Inflow - f.Outflow}));
-
-    }, [invoices, bills, weeklyCosts]);
-
     const goalsWithProgress = useMemo(() => {
         return goals.map(goal => {
             let progress = 0;
@@ -288,6 +264,8 @@ const App = () => {
             return { ...goal, progress: Math.min(progress, 100) };
         });
     }, [goals, debts, jobs]);
+        return { revenue, cogs, grossProfit };
+    }, [filteredJobs]);
 
     const expenseByCategory = useMemo(() => {
         const categories = bills.reduce((acc, bill) => {
@@ -301,8 +279,9 @@ const App = () => {
 
     const sortedData = useMemo(() => {
         const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress, clients, inventory, vehicles, invoices };
+        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices };
         let activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
-        
+
         if(searchTerm) {
             activeData = activeData.filter(item => 
                 Object.values(item).some(val => 
@@ -325,6 +304,7 @@ const App = () => {
         const snowball = [...outstandingDebts].sort((a, b) => a.remaining - b.remaining);
         return { avalanche, snowball };
     }, [debts]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
 
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
@@ -334,7 +314,7 @@ const App = () => {
         await updateDoc(doc(db, 'artifacts', appId, 'users', userId, 'invoices', invoiceId), { status: newStatus });
     };
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
-    
+
     const handleSave = async (itemData, file) => {
         if (!userId) return;
         const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
@@ -342,7 +322,7 @@ const App = () => {
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
         const dataToSave = {...itemData, modifiedAt: serverTimestamp()};
-        
+
         if (file) {
             console.log("Uploading file:", file.name);
             const storageRef = ref(storage, `receipts/${userId}/${Date.now()}-${file.name}`);
@@ -371,7 +351,7 @@ const App = () => {
         const collectionName = collectionNameMap[type];
         await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
     };
-    
+
     const handleExportCSV = (data, sectionName) => {
         if (!data.length) return;
         const headers = Object.keys(data[0]);
@@ -444,7 +424,7 @@ const App = () => {
 
         const recurringBills = bills.filter(b => b.isRecurring);
         const recurringIncomes = incomes.filter(i => i.isRecurring);
-        
+
         const batch = writeBatch(db);
 
         recurringBills.forEach(bill => {
@@ -489,7 +469,7 @@ const App = () => {
 
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
-    
+
     if (!userId) {
         return <Auth setUserId={setUserId} />;
     }
@@ -686,32 +666,6 @@ const App = () => {
             </div>
         </div>
     );
-
-    const renderForecastSection = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Cash Flow Forecast</h3>
-            <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
-                <input 
-                    type="number"
-                    value={currentBankBalance}
-                    onChange={(e) => setCurrentBankBalance(parseFloat(e.target.value) || 0)}
-                    className="w-full max-w-xs bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
-                />
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">This forecast projects your balance based on recurring income and expenses.</p>
-            <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={forecastData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#64748b" />
-                    <YAxis stroke="#64748b" tickFormatter={(value) => `$${(value/1000)}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} />
-                    <Legend />
-                    <Line type="monotone" dataKey="balance" stroke="#0891b2" strokeWidth={2} activeDot={{ r: 8 }} />
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
-    );
     
     const renderReportsSection = () => (
         <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />
@@ -777,7 +731,8 @@ const App = () => {
                     {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && renderPnLStatement()}
-                    {activeSection === 'forecast' && renderForecastSection()}
+                    {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
+                    {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={setCurrentBankBalance} />}
                     {activeSection === 'goals' && renderGoalsSection()}
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
                     {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
