@@ -644,6 +644,7 @@ const IncentiveCalculator = () => {
         </div>
     );
 };
+
 const App = () => {
     const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
