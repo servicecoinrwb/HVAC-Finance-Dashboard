@@ -257,7 +257,7 @@ const App = () => {
 
     const sortedData = useMemo(() => {
         const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices };
-        let activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
+        let activeData = dataMap[activeSection] || [];
         
         if(searchTerm) {
             activeData = activeData.filter(item => 
@@ -281,6 +281,22 @@ const App = () => {
         const snowball = [...outstandingDebts].sort((a, b) => a.remaining - b.remaining);
         return { avalanche, snowball };
     }, [debts]);
+
+    const goalsWithProgress = useMemo(() => {
+        return goals.map(goal => {
+            let progress = 0;
+            if (goal.type === 'debt') {
+                const debt = debts.find(d => d.id === goal.targetId);
+                if (debt) {
+                    progress = (debt.paidAmount / debt.totalAmount) * 100;
+                }
+            } else if (goal.type === 'revenue') {
+                const currentRevenue = jobs.reduce((acc, j) => acc + (j.revenue || 0), 0);
+                progress = (currentRevenue / goal.targetValue) * 100;
+            }
+            return { ...goal, progress: Math.min(progress, 100) };
+        });
+    }, [goals, debts, jobs]);
 
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
