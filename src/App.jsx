@@ -1,29 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
-import { LogOut, Sun, Moon, Link as LinkIcon, Percent, TrendingUp, Target, Banknote, ArrowDown, DollarSign, AlertTriangle } from 'lucide-react';
-
-// Import All Components
-import Auth from './components/Auth';
-import TaxManagement from './components/TaxManagement';
-import CalendarSection from './components/CalendarSection';
-import { StatCard } from './components/StatCard';
-import { ItemFormModal } from './components/ItemFormModal';
-import { InvoiceManagement } from './components/InvoiceManagement';
-import { ClientManagement } from './components/ClientManagement';
-import { VehicleManagement } from './components/VehicleManagement';
-import { InventoryManagement } from './components/InventoryManagement';
-import { ReportsSection } from './components/ReportsSection';
-import { AlertsPanel } from './components/AlertsPanel';
-import { ActivePieChart } from './components/ActivePieChart';
-import { ForecastSection } from './components/ForecastSection';
-import { PnLStatement } from './components/PnLStatement';
-import { ManagementSection } from './components/ManagementSection';
-import { GoalsSection } from './components/GoalsSection';
-import IncentiveCalculator from './components/IncentiveCalculator';
+import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon, Info } from 'lucide-react';
 
 
 // --- Firebase Configuration ---
@@ -71,6 +53,598 @@ const INITIAL_MAINTENANCE_LOGS = [
     { vehicleId: "11", date: "2023-09-20", mileage: 10008, workPerformed: "Oil Change", cost: 50.00, notes: "PF66 oil filter 6 quarts 5w30 full synthetic" },
     { vehicleId: "11", date: "2025-02-11", mileage: 19024, workPerformed: "Oil Change / air filter", cost: 143.17, notes: "valvoline oil shop" }
 ];
+const BILL_CATEGORIES = ["Software", "Fuel", "Vehicle", "Insurance", "Marketing", "Supplies", "Overhead", "Payroll", "Taxes", "Utilities", "General"];
+
+
+// --- Helper Components ---
+const Modal = ({ children, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"> <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4 relative border dark:border-slate-700"> <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"> <X size={24} /> </button> <div className="p-6">{children}</div> </div> </div>);
+const StatCard = ({ title, value, icon, color, subtext }) => ( <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg flex flex-col justify-between"> <div className="flex items-center justify-between"> <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</h3> <div className={`text-${color}-500 dark:text-${color}-400`}>{icon}</div> </div> <div> <p className="text-3xl font-bold text-slate-800 dark:text-white mt-2">{value}</p> {subtext && <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">{subtext}</p>} </div> </div>);
+const ActivePieChart = ({ data, onSliceClick }) => { const [activeIndex, setActiveIndex] = useState(0); const onPieEnter = useCallback((_, index) => { setActiveIndex(index); }, [setActiveIndex]); const renderActiveShape = (props) => { const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props; return ( <g className="cursor-pointer" onClick={() => onSliceClick(payload.name)}> <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} className="font-bold text-lg"> {payload.name} </text> <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} /> </g> ); }; return ( <ResponsiveContainer width="100%" height={300}> <PieChart> <Tooltip contentStyle={{ backgroundColor: '#334155', border: '1px solid #475569', borderRadius: '0.5rem' }} labelStyle={{ color: '#cbd5e1' }} itemStyle={{ color: '#f1f5f9' }} formatter={(value) => `$${value.toFixed(2)}`} /> <Pie activeIndex={activeIndex} activeShape={renderActiveShape} data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={90} fill="#8884d8" dataKey="value" onMouseEnter={onPieEnter} onClick={(data) => onSliceClick(data.name)} > {data.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.color} /> ))} </Pie> </PieChart> </ResponsiveContainer> );};
+const AlertsPanel = ({ bills, paidStatus, onClose }) => {
+    const upcomingBills = useMemo(() => {
+        const today = new Date();
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(today.getDate() + 3);
+
+        return bills.filter(bill => {
+            if (paidStatus[bill.id]) return false;
+            const dueDate = new Date(today.getFullYear(), today.getMonth(), bill.dueDay);
+            return dueDate >= today && dueDate <= threeDaysFromNow;
+        });
+    }, [bills, paidStatus]);
+
+    if (upcomingBills.length === 0) return null;
+
+    return (
+        <div className="bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <div className="flex items-center">
+                <Bell size={20} className="mr-3" />
+                <div>
+                    <strong className="font-bold">Upcoming Bills!</strong>
+                    <ul className="list-disc list-inside mt-1">
+                        {upcomingBills.map(bill => (
+                            <li key={bill.id}>{bill.name} is due on day {bill.dueDay}.</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+            <button onClick={onClose} className="absolute top-0 bottom-0 right-0 px-4 py-3">
+                <X size={18} />
+            </button>
+        </div>
+    );
+};
+const ReportsSection = ({ clients, jobs, bills, inventory }) => {
+    const clientProfitability = useMemo(() => {
+        return clients.map(client => {
+            const clientJobs = jobs.filter(job => job.clientId === client.id);
+            const totalRevenue = clientJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
+            const totalCost = clientJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
+            return {
+                name: client.name,
+                netProfit: totalRevenue - totalCost,
+            };
+        }).sort((a,b) => b.netProfit - a.netProfit);
+    }, [clients, jobs]);
+
+    const trendData = useMemo(() => {
+        const dataByMonth = {};
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+        jobs.forEach(job => {
+            if(job.date && new Date(job.date) > twelveMonthsAgo) {
+                const month = new Date(job.date).toISOString().slice(0, 7);
+                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
+                dataByMonth[month].revenue += job.revenue || 0;
+            }
+        });
+
+        bills.forEach(bill => {
+             const createdAt = bill.createdAt?.toDate ? bill.createdAt.toDate() : new Date();
+             if(createdAt > twelveMonthsAgo) {
+                const month = createdAt.toISOString().slice(0,7);
+                if(!dataByMonth[month]) dataByMonth[month] = { revenue: 0, expenses: 0 };
+                dataByMonth[month].expenses += bill.amount || 0;
+             }
+        });
+
+        return Object.keys(dataByMonth).map(month => ({
+            month,
+            Revenue: dataByMonth[month].revenue,
+            Expenses: dataByMonth[month].expenses,
+        })).sort((a,b) => a.month.localeCompare(b.month));
+    }, [jobs, bills]);
+
+    const inventoryValue = useMemo(() => {
+        return inventory.map(item => ({
+            name: item.name,
+            totalValue: (item.quantity || 0) * (item.cost || 0)
+        })).sort((a,b) => b.totalValue - a.totalValue);
+    }, [inventory]);
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Revenue vs. Expenses Trend (Last 12 Months)</h3>
+                 <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={trendData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" stroke="#64748b" />
+                        <YAxis stroke="#64748b" tickFormatter={(value) => `$${(value/1000)}k`} />
+                        <Tooltip contentStyle={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} formatter={(value) => `$${value.toLocaleString()}`} />
+                        <Legend />
+                        <Bar dataKey="Revenue" fill="#22c55e" />
+                        <Bar dataKey="Expenses" fill="#ef4444" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Client Profitability</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                            <tr><th className="p-3">Client</th><th className="p-3 text-right">Net Profit</th></tr>
+                        </thead>
+                        <tbody>
+                            {clientProfitability.map(client => (
+                                <tr key={client.name} className="border-b border-slate-200 dark:border-slate-700/50">
+                                    <td className="p-3 font-medium">{client.name}</td>
+                                    <td className={`p-3 text-right font-mono ${client.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>${client.netProfit.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Inventory Value</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                            <tr><th className="p-3">Item</th><th className="p-3 text-center">Quantity</th><th className="p-3 text-right">Total Value</th></tr>
+                        </thead>
+                        <tbody>
+                            {inventoryValue.map(item => (
+                                <tr key={item.name} className="border-b border-slate-200 dark:border-slate-700/50">
+                                    <td className="p-3 font-medium">{item.name}</td>
+                                    <td className="p-3 text-center">{inventory.find(i => i.name === item.name)?.quantity}</td>
+                                    <td className="p-3 text-right font-mono">${item.totalValue.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    )
+};
+const ForecastSection = ({ invoices, bills, weeklyCosts, currentBankBalance, setCurrentBankBalance }) => {
+
+    const forecastData = useMemo(() => {
+        const forecast = [
+            { name: 'Next 30 Days', Inflow: 0, Outflow: 0 },
+            { name: 'Next 60 Days', Inflow: 0, Outflow: 0 },
+            { name: 'Next 90 Days', Inflow: 0, Outflow: 0 },
+        ];
+        
+        const now = new Date();
+        
+        const recurringOutflow = bills.filter(b => b.isRecurring).reduce((acc, b) => acc + b.amount, 0) + (weeklyCosts.reduce((acc, c) => acc + c.amount, 0) * 4.33);
+
+        forecast[0].Outflow = recurringOutflow;
+        forecast[1].Outflow = recurringOutflow * 2;
+        forecast[2].Outflow = recurringOutflow * 3;
+
+        invoices.forEach(invoice => {
+            if (invoice.status !== 'Paid' && invoice.dueDate) {
+                try {
+                    const dueDate = new Date(invoice.dueDate);
+                    if (isNaN(dueDate.getTime())) {
+                        // Invalid date format in invoice, skip it
+                        return;
+                    }
+                    const daysUntilDue = (dueDate - now) / (1000 * 60 * 60 * 24);
+
+                    if (daysUntilDue <= 30) forecast[0].Inflow += invoice.grandTotal || 0;
+                    if (daysUntilDue <= 60) forecast[1].Inflow += invoice.grandTotal || 0;
+                    if (daysUntilDue <= 90) forecast[2].Inflow += invoice.grandTotal || 0;
+                } catch (e) {
+                    console.error("Error parsing due date for invoice:", invoice, e);
+                }
+            }
+        });
+
+        return forecast.map(f => ({...f, 'Net Change': f.Inflow - f.Outflow, 'Projected Balance': currentBankBalance + f.Inflow - f.Outflow }));
+
+    }, [invoices, bills, weeklyCosts, currentBankBalance]);
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Smarter Cash Flow Forecast</h3>
+            <div className="mb-6">
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
+                <input 
+                    type="number"
+                    value={currentBankBalance}
+                    onChange={(e) => setCurrentBankBalance(parseFloat(e.target.value) || 0)}
+                    className="w-full max-w-xs bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
+                />
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">This forecast projects your future bank balance based on unpaid invoices and recurring expenses.</p>
+            <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={forecastData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" stroke="#64748b" />
+                    <YAxis stroke="#64748b" tickFormatter={(value) => `$${(value/1000)}k`} />
+                    <Tooltip formatter={(value) => `$${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} />
+                    <Legend />
+                    <Line type="monotone" dataKey="Projected Balance" stroke="#8884d8" strokeWidth={2} activeDot={{ r: 8 }} />
+                    <Line type="monotone" dataKey="Inflow" stroke="#22c55e" />
+                    <Line type="monotone" dataKey="Outflow" stroke="#ef4444" />
+                </LineChart>
+            </ResponsiveContainer>
+        </div>
+    );
+};
+const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRange }) => {
+
+    const pnlData = useMemo(() => {
+        const filteredJobs = jobs.filter(job => {
+            if (!job.date) return false;
+            const jobDate = new Date(job.date);
+            return jobDate >= dateRange.start && jobDate <= dateRange.end;
+        });
+
+        const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
+        const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
+        const grossProfit = revenue - cogs;
+
+        const periodExpenseFactor = (dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24 * 30.44);
+        
+        const expensesByCategory = bills.reduce((acc, bill) => {
+            const category = bill.category || 'Uncategorized';
+            acc[category] = (acc[category] || 0) + bill.amount;
+            return acc;
+        }, {});
+
+        const weeklyCostsTotal = weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * periodExpenseFactor;
+        if(weeklyCostsTotal > 0) {
+            expensesByCategory['Weekly & Misc'] = (expensesByCategory['Weekly & Misc'] || 0) + weeklyCostsTotal;
+        }
+
+        const operatingExpenses = Object.values(expensesByCategory).reduce((acc, val) => acc + val, 0);
+        
+        const netProfit = grossProfit - operatingExpenses;
+        
+        const grossProfitMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+        const netProfitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+        return { 
+            revenue, 
+            cogs, 
+            grossProfit, 
+            operatingExpenses, 
+            expensesByCategory,
+            netProfit, 
+            grossProfitMargin,
+            netProfitMargin
+        };
+    }, [jobs, bills, weeklyCosts, dateRange]);
+
+    const formatPeriod = () => {
+        const options = { month: 'long', year: 'numeric' };
+        if (reportingPeriod === 'monthly') {
+            return `For the Month of ${dateRange.start.toLocaleString('default', options)}`;
+        }
+        if (reportingPeriod === 'quarterly') {
+            const endOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+            return `For the Quarter Ending ${dateRange.end.toLocaleDateString('default', endOptions)}`;
+        }
+        if (reportingPeriod === 'yearly') {
+            return `For the Year ${dateRange.start.getFullYear()}`;
+        }
+        return '';
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Profit & Loss Statement</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">{formatPeriod()}</p>
+            
+            <div className="space-y-2 text-sm">
+                {/* Revenue Section */}
+                <div className="flex justify-between items-center p-3 font-semibold">
+                    <span>Total Revenue</span>
+                    <span className="font-mono">${pnlData.revenue.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 pl-8">
+                    <span className="text-slate-600 dark:text-slate-400">Cost of Goods Sold (COGS)</span>
+                    <span className="font-mono">(${pnlData.cogs.toFixed(2)})</span>
+                </div>
+                <hr className="border-slate-200 dark:border-slate-700 my-2"/>
+
+                {/* Gross Profit Section */}
+                <div className="flex justify-between items-center p-3 font-bold text-lg">
+                    <span>Gross Profit</span>
+                    <span className="font-mono">${pnlData.grossProfit.toFixed(2)}</span>
+                </div>
+                 <div className="flex justify-between items-center p-1 pl-8 text-xs text-slate-500">
+                    <span>Gross Profit Margin</span>
+                    <span className="font-mono">{pnlData.grossProfitMargin.toFixed(1)}%</span>
+                </div>
+                <hr className="border-slate-200 dark:border-slate-700 my-2"/>
+
+                {/* Operating Expenses Section */}
+                <div className="p-3 font-semibold">
+                    <span>Operating Expenses</span>
+                </div>
+                {Object.entries(pnlData.expensesByCategory).map(([category, amount]) => (
+                     <div key={category} className="flex justify-between items-center p-1 pl-8">
+                        <span className="text-slate-600 dark:text-slate-400">{category}</span>
+                        <span className="font-mono">(${amount.toFixed(2)})</span>
+                    </div>
+                ))}
+                 <div className="flex justify-between items-center p-3 pl-8 font-semibold">
+                    <span>Total Operating Expenses</span>
+                    <span className="font-mono">(${pnlData.operatingExpenses.toFixed(2)})</span>
+                </div>
+                <hr className="border-slate-300 dark:border-slate-600 my-2 border-2"/>
+
+                {/* Net Profit Section */}
+                <div className="flex justify-between items-center p-3 font-bold text-xl" style={{ color: pnlData.netProfit >= 0 ? '#22c55e' : '#ef4444' }}>
+                    <span>Net Profit</span>
+                    <span className="font-mono">
+                        {pnlData.netProfit < 0 ? `-$${Math.abs(pnlData.netProfit).toFixed(2)}` : `$${pnlData.netProfit.toFixed(2)}`}
+                    </span>
+                </div>
+                 <div className="flex justify-between items-center p-1 pl-8 text-xs text-slate-500">
+                    <span>Net Profit Margin</span>
+                    <span className="font-mono">{pnlData.netProfitMargin.toFixed(1)}%</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+const ManagementSection = ({ title, data, columns, type, searchTerm, setSearchTerm, handleImportCSV, handleExportCSV, openModal, handleDelete, debtPayoffStrategies }) => {
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
+                    {(type === 'client' || type === 'job' || type === 'inventory' || type === 'invoice') && <>
+                        <input type="file" id={`csv-importer-${type}`} className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], type)} />
+                        <label htmlFor={`csv-importer-${type}`} className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
+                    </>}
+                    <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                    <button onClick={() => openModal(type)} className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New</button>
+                </div>
+            </div>
+            {type === 'debt' && debtPayoffStrategies && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div>
+                        <h4 className="font-bold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Avalanche Method</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the highest interest rate first to save the most money over time.</p>
+                        <ol className="list-decimal list-inside space-y-1 text-sm">
+                            {debtPayoffStrategies.avalanche.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">({d.interestRate}%)</span></li>)}
+                        </ol>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-green-600 dark:text-green-400 mb-2">Snowball Method</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the smallest balance first for quick wins and motivation.</p>
+                        <ol className="list-decimal list-inside space-y-1 text-sm">
+                            {debtPayoffStrategies.snowball.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">(${(d.totalAmount - d.paidAmount).toFixed(2)})</span></li>)}
+                        </ol>
+                    </div>
+                </div>
+            )}
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                            {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
+                            <th className="p-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                        {data.map(item => (
+                            <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
+                                {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
+                                <td className="p-3 text-center">
+                                    <button onClick={() => openModal(type, item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete(type, item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+const GoalsSection = ({ goalsWithProgress, openModal }) => {
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+             <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Financial Goals</h3>
+                <button onClick={() => openModal('goal')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Goal</button>
+            </div>
+            <div className="space-y-6">
+                {goalsWithProgress.map(goal => (
+                    <div key={goal.id}>
+                        <div className="flex justify-between items-end mb-1">
+                            <span className="font-semibold">{goal.name}</span>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">{goal.progress.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4">
+                            <div className="bg-green-500 h-4 rounded-full" style={{ width: `${goal.progress}%` }}></div>
+                        </div>
+                        <div className="flex justify-between items-end mt-1 text-xs text-slate-500 dark:text-slate-500">
+                            <span>Target: {goal.type === 'debt' ? 'Pay Off' : `$${goal.targetValue.toLocaleString()}`}</span>
+                            <span>Deadline: {goal.deadline}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+const IncentiveCalculator = () => {
+    // State for Percent-based calculator
+    const [percentBrackets, setPercentBrackets] = useState([
+        { min: 10000, max: Infinity, rate: 10.0 },
+        { min: 8000, max: 9999, rate: 8.0 },
+        { min: 5000, max: 7999, rate: 5.0 },
+        { min: 3500, max: 4999, rate: 3.0 },
+        { min: 0, max: 3499, rate: 1.5 },
+    ]);
+    const [actualSalesPercent, setActualSalesPercent] = useState(0);
+
+    // State for Hourly-based calculator
+    const [hourlyBrackets, setHourlyBrackets] = useState([
+        { min: 10000, max: Infinity, bonus: 10.0 },
+        { min: 8000, max: 9999, bonus: 8.0 },
+        { min: 5000, max: 7999, bonus: 5.0 },
+        { min: 3500, max: 4999, bonus: 2.0 },
+        { min: 0, max: 3499, bonus: 0 },
+    ]);
+    const [actualSalesHourly, setActualSalesHourly] = useState(0);
+    const [hoursWorked, setHoursWorked] = useState(0);
+
+    const handlePercentBracketChange = (index, field, value) => {
+        const newBrackets = [...percentBrackets];
+        newBrackets[index][field] = parseFloat(value) || 0;
+        setPercentBrackets(newBrackets);
+    };
+
+    const handleHourlyBracketChange = (index, field, value) => {
+        const newBrackets = [...hourlyBrackets];
+        newBrackets[index][field] = parseFloat(value) || 0;
+        setHourlyBrackets(newBrackets);
+    };
+
+    const calculatedPercentBonus = useMemo(() => {
+        const bracket = percentBrackets.find(b => actualSalesPercent >= b.min && actualSalesPercent <= b.max);
+        if (!bracket) return 0;
+        return (actualSalesPercent * (bracket.rate / 100));
+    }, [actualSalesPercent, percentBrackets]);
+
+    const calculatedHourlyBonus = useMemo(() => {
+        const bracket = hourlyBrackets.find(b => actualSalesHourly >= b.min && actualSalesHourly <= b.max);
+        if (!bracket || !hoursWorked) return 0;
+        return hoursWorked * bracket.bonus;
+    }, [actualSalesHourly, hoursWorked, hourlyBrackets]);
+
+    return (
+        <div className="space-y-8">
+            {/* Percent Incentive Calculator */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Percent Incentive Calculator</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Bonus Bracket Table */}
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2">Bonus Brackets</h4>
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase">
+                                <tr>
+                                    <th className="p-2">Sales Bracket</th>
+                                    <th className="p-2">% Scale</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {percentBrackets.map((bracket, index) => (
+                                    <tr key={index} className="border-b border-slate-200 dark:border-slate-700">
+                                        <td className="p-2 font-mono bg-blue-100 dark:bg-blue-900/50">
+                                            ${bracket.min.toLocaleString()}{bracket.max === Infinity ? '+' : ` - $${bracket.max.toLocaleString()}`}
+                                        </td>
+                                        <td className="p-2 bg-blue-100 dark:bg-blue-900/50">
+                                            <input 
+                                                type="number"
+                                                value={bracket.rate}
+                                                onChange={(e) => handlePercentBracketChange(index, 'rate', e.target.value)}
+                                                className="w-20 bg-transparent text-right font-mono"
+                                            /> %
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {/* Calculation Section */}
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2">Bonus Calculation</h4>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Actual Sales</label>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input 
+                                        type="number"
+                                        value={actualSalesPercent}
+                                        onChange={(e) => setActualSalesPercent(parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-yellow-100 dark:bg-yellow-800/50 pl-10 p-2 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                            <div className="bg-slate-100 dark:bg-slate-700/50 p-4 rounded-lg text-center">
+                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Estimated Bonus</p>
+                                <p className="text-3xl font-bold text-green-500">${calculatedPercentBonus.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Hourly Incentive Calculator */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Hourly Incentive Calculator</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Bonus Bracket Table */}
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2">Bonus Brackets</h4>
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase">
+                                <tr>
+                                    <th className="p-2">Sales Bracket</th>
+                                    <th className="p-2">Bonus per Hour</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {hourlyBrackets.map((bracket, index) => (
+                                    <tr key={index} className="border-b border-slate-200 dark:border-slate-700">
+                                        <td className="p-2 font-mono bg-blue-100 dark:bg-blue-900/50">
+                                            ${bracket.min.toLocaleString()}{bracket.max === Infinity ? '+' : ` - $${bracket.max.toLocaleString()}`}
+                                        </td>
+                                        <td className="p-2 bg-blue-100 dark:bg-blue-900/50">
+                                            $ <input 
+                                                type="number"
+                                                value={bracket.bonus}
+                                                onChange={(e) => handleHourlyBracketChange(index, 'bonus', e.target.value)}
+                                                className="w-20 bg-transparent text-right font-mono"
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {/* Calculation Section */}
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2">Bonus Calculation</h4>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Actual Sales</label>
+                                 <div className="relative">
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input 
+                                        type="number"
+                                        value={actualSalesHourly}
+                                        onChange={(e) => setActualSalesHourly(parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-yellow-100 dark:bg-yellow-800/50 pl-10 p-2 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Hours Worked</label>
+                                <input 
+                                    type="number"
+                                    value={hoursWorked}
+                                    onChange={(e) => setHoursWorked(parseFloat(e.target.value) || 0)}
+                                    className="w-full bg-yellow-100 dark:bg-yellow-800/50 p-2 rounded-md"
+                                />
+                            </div>
+                            <div className="bg-slate-100 dark:bg-slate-700/50 p-4 rounded-lg text-center">
+                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Estimated Bonus</p>
+                                <p className="text-3xl font-bold text-green-500">${calculatedHourlyBonus.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const App = () => {
     const [userId, setUserId] = useState(null);
