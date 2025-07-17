@@ -6,6 +6,17 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon, Info } from 'lucide-react';
+    const Auth = () => {
+  return (
+    <div className="h-screen flex items-center justify-center bg-slate-900 text-white">
+      <div className="p-6 rounded-xl bg-slate-800 text-center">
+        <h1 className="text-2xl font-bold mb-2">Login Required</h1>
+        <p>This app requires authentication. You are not logged in.</p>
+      </div>
+    </div>
+  );
+};
+
 
 
 // --- Firebase Configuration ---
