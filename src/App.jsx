@@ -3,7 +3,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
@@ -23,6 +22,8 @@ import { ActivePieChart } from './components/ActivePieChart';
 import { Modal } from './components/Modal';
 import { ForecastSection } from './components/Forecast';
 import { PnLStatement } from './components/PnLStatement';
+import { ManagementSection } from './components/ManagementSection';
+import { GoalsSection } from './components/GoalsSection';
 
 
 // --- Firebase Configuration ---
@@ -274,6 +275,13 @@ const App = () => {
         });
     }, [filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
 
+    const debtPayoffStrategies = useMemo(() => {
+        const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
+        const avalanche = [...outstandingDebts].sort((a, b) => b.interestRate - a.interestRate);
+        const snowball = [...outstandingDebts].sort((a, b) => a.remaining - b.remaining);
+        return { avalanche, snowball };
+    }, [debts]);
+
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
     const handleToggleInvoicePaid = async (invoiceId, currentStatus) => {
@@ -507,63 +515,13 @@ const App = () => {
         </>
     );
 
-    const renderManagementSection = (title, data, columns, type) => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
-                    {(type === 'client' || type === 'job' || type === 'inventory' || type === 'invoice') && <>
-                        <input type="file" id="csv-importer" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], type)} />
-                        <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
-                    </>}
-                    <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
-                </div>
-            </div>
-            {type === 'debt' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div>
-                        <h4 className="font-bold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Avalanche Method</h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the highest interest rate first to save the most money over time.</p>
-                        <ol className="list-decimal list-inside space-y-1 text-sm">
-                            {debtPayoffStrategies.avalanche.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">({d.interestRate}%)</span></li>)}
-                        </ol>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-lg text-green-600 dark:text-green-400 mb-2">Snowball Method</h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the smallest balance first for quick wins and motivation.</p>
-                        <ol className="list-decimal list-inside space-y-1 text-sm">
-                            {debtPayoffStrategies.snowball.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">(${d.remaining.toFixed(2)})</span></li>)}
-                        </ol>
-                    </div>
-                </div>
-            )}
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
-                        <tr>
-                            {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
-                            <th className="p-3 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                        {data.map(item => (
-                            <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
-                                {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
-                                <td className="p-3 text-center">
-                                    <button onClick={() => openModal(type, item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                    <button onClick={() => handleDelete(type, item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <button onClick={() => openModal(type)} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold">
-                <PlusCircle size={18} /> Add New {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
-        </div>
-    );
+    const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
+    const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-600 dark:text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
+    const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-600 dark:text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
+    const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-600 dark:text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-600 dark:text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
+    const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
+    const invoiceColumns = [ { key: 'billTo', header: 'Bill To', render: item => <span className="font-medium">{item.billTo}</span> }, { key: 'customer', header: 'Customer', render: item => <span>{item.customer}</span> }, { key: 'grandTotal', header: 'Amount', className: 'text-right', render: item => <span className="font-mono">${(item.grandTotal || 0).toFixed(2)}</span> }, { key: 'status', header: 'Status', className: 'text-center', render: item => <span>{item.status}</span> }, ];
+    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
 
     return (
         <div className={`${theme} bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white min-h-screen font-sans`}>
@@ -618,14 +576,14 @@ const App = () => {
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
                     {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={setCurrentBankBalance} />}
-                    {activeSection === 'goals' && renderGoalsSection()}
+                    {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} />}
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
+                    {activeSection === 'jobs' && <ManagementSection title="Job Profitability" data={sortedData} columns={jobColumns} type="job" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
-                    {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
-                    {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
+                    {activeSection === 'debts' && <ManagementSection title="Debt Management" data={sortedData} columns={debtColumns} type="debt" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} debtPayoffStrategies={debtPayoffStrategies} />}
+                    {activeSection === 'incomes' && <ManagementSection title="Income Sources" data={sortedData} columns={incomeColumns} type="income" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'weeklyCosts' && <ManagementSection title="Recurring Weekly Costs" data={sortedData} columns={weeklyCostColumns} type="weekly" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
                 </main>
                 <footer className="text-center mt-8 py-4 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-sm text-slate-500 dark:text-slate-400">
