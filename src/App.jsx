@@ -22,6 +22,7 @@ import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
 import { Modal } from './components/Modal';
 import { ForecastSection } from './components/Forecast';
+import { PnLStatement } from './components/PnLStatement';
 
 
 // --- Firebase Configuration ---
@@ -240,29 +241,8 @@ const App = () => {
         const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
         const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
         const grossProfit = revenue - cogs;
-        const operatingExpenses = bills.reduce((acc, bill) => acc + bill.amount, 0) + (weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
-        const netProfit = grossProfit - operatingExpenses;
-        const taxRate = 0.06; // 6%
-        const estimatedTax = netProfit > 0 ? netProfit * taxRate : 0;
-        const netProfitAfterTax = netProfit - estimatedTax;
-        return { revenue, cogs, grossProfit, operatingExpenses, netProfit, estimatedTax, netProfitAfterTax };
-    }, [filteredJobs, bills, weeklyCosts]);
-
-    const goalsWithProgress = useMemo(() => {
-        return goals.map(goal => {
-            let progress = 0;
-            if (goal.type === 'debt') {
-                const debt = debts.find(d => d.id === goal.targetId);
-                if (debt) {
-                    progress = (debt.paidAmount / debt.totalAmount) * 100;
-                }
-            } else if (goal.type === 'revenue') {
-                const currentRevenue = jobs.reduce((acc, j) => acc + (j.revenue || 0), 0);
-                progress = (currentRevenue / goal.targetValue) * 100;
-            }
-            return { ...goal, progress: Math.min(progress, 100) };
-        });
-    }, [goals, debts, jobs]);
+        return { revenue, cogs, grossProfit };
+    }, [filteredJobs]);
 
     const expenseByCategory = useMemo(() => {
         const categories = bills.reduce((acc, bill) => {
@@ -275,7 +255,7 @@ const App = () => {
     }, [bills]);
 
     const sortedData = useMemo(() => {
-        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress, clients, inventory, vehicles, invoices };
+        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices };
         let activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
         
         if(searchTerm) {
@@ -292,14 +272,7 @@ const App = () => {
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
-    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
-
-    const debtPayoffStrategies = useMemo(() => {
-        const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
-        const avalanche = [...outstandingDebts].sort((a, b) => b.interestRate - a.interestRate);
-        const snowball = [...outstandingDebts].sort((a, b) => a.remaining - b.remaining);
-        return { avalanche, snowball };
-    }, [debts]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
 
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
@@ -592,88 +565,6 @@ const App = () => {
         </div>
     );
 
-    const renderPnLStatement = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Profit & Loss Statement</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">For {reportingPeriod === 'monthly' ? dateRange.start.toLocaleString('default', { month: 'long', year: 'numeric' }) : `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`}</p>
-            <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
-                    <span className="font-semibold">Total Revenue (from Jobs)</span>
-                    <span className="font-mono font-bold text-green-600 dark:text-green-400">${pnlData.revenue.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-600 dark:text-slate-400">Cost of Goods Sold (COGS)</span>
-                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.cogs.toFixed(2)})</span>
-                </div>
-                <hr className="border-slate-200 dark:border-slate-700"/>
-                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
-                    <span className="font-bold text-lg">Gross Profit</span>
-                    <span className="font-mono font-bold text-lg">${pnlData.grossProfit.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-600 dark:text-slate-400">Operating Expenses (Bills & Weekly)</span>
-                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
-                </div>
-                <hr className="border-slate-300 dark:border-slate-600 border-2"/>
-                <div className="flex justify-between items-center p-3 bg-slate-200 dark:bg-slate-900/50 rounded-lg">
-                    <span className="font-bold text-xl">Net Profit / (Loss) Before Tax</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-slate-800 dark:text-white' : 'text-red-500'}`}>
-                        {pnlData.netProfit < 0 && '('}${Math.abs(pnlData.netProfit).toFixed(2)}{pnlData.netProfit < 0 && ')'}
-                    </span>
-                </div>
-                 <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-600 dark:text-slate-400">Estimated Tax Liability (6%)</span>
-                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.estimatedTax.toFixed(2)})</span>
-                </div>
-                 <hr className="border-slate-300 dark:border-slate-600 border-2"/>
-                 <div className="flex justify-between items-center p-4 bg-slate-200 dark:bg-slate-900 rounded-lg">
-                    <span className="font-bold text-xl text-cyan-600 dark:text-cyan-400">Net Profit / (Loss) After Tax</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfitAfterTax >= 0 ? 'text-cyan-600 dark:text-cyan-400' : 'text-red-500'}`}>
-                        {pnlData.netProfitAfterTax < 0 && '('}${Math.abs(pnlData.netProfitAfterTax).toFixed(2)}{pnlData.netProfitAfterTax < 0 && ')'}
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderGoalsSection = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Financial Goals</h3>
-                <button onClick={() => openModal('goal')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Goal</button>
-            </div>
-            <div className="space-y-6">
-                {goalsWithProgress.map(goal => (
-                    <div key={goal.id}>
-                        <div className="flex justify-between items-end mb-1">
-                            <span className="font-semibold">{goal.name}</span>
-                            <span className="text-sm text-slate-500 dark:text-slate-400">{goal.progress.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4">
-                            <div className="bg-green-500 h-4 rounded-full" style={{ width: `${goal.progress}%` }}></div>
-                        </div>
-                        <div className="flex justify-between items-end mt-1 text-xs text-slate-500 dark:text-slate-500">
-                            <span>Target: {goal.type === 'debt' ? 'Pay Off' : `$${goal.targetValue.toLocaleString()}`}</span>
-                            <span>Deadline: {goal.deadline}</span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-    
-    const renderReportsSection = () => (
-        <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />
-    );
-
-    const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
-    const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-600 dark:text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
-    const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-600 dark:text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
-    const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-600 dark:text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-600 dark:text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
-    const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
-    const invoiceColumns = [ { key: 'billTo', header: 'Bill To', render: item => <span className="font-medium">{item.billTo}</span> }, { key: 'customer', header: 'Customer', render: item => <span>{item.customer}</span> }, { key: 'grandTotal', header: 'Amount', className: 'text-right', render: item => <span className="font-mono">${(item.grandTotal || 0).toFixed(2)}</span> }, { key: 'status', header: 'Status', className: 'text-center', render: item => <span>{item.status}</span> }, ];
-    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
-
     return (
         <div className={`${theme} bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white min-h-screen font-sans`}>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -725,7 +616,7 @@ const App = () => {
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
                     {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
-                    {activeSection === 'pnl' && renderPnLStatement()}
+                    {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
                     {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={setCurrentBankBalance} />}
                     {activeSection === 'goals' && renderGoalsSection()}
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
