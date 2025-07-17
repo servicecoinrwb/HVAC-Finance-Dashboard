@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { usePlaidLink } from 'react-plaid-link';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
@@ -13,7 +12,6 @@ import TaxManagement from './components/TaxManagement';
 import CalendarSection from './components/CalendarSection';
 import { StatCard } from './components/StatCard';
 import { ItemFormModal } from './components/ItemFormModal';
-import { Modal } from './components/Modal';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { ClientManagement } from './components/ClientManagement';
 import { VehicleManagement } from './components/VehicleManagement';
@@ -21,17 +19,17 @@ import { InventoryManagement } from './components/InventoryManagement';
 import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
+import { Modal } from './components/Modal';
 
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_API_KEY,
-  authDomain: process.env.REACT_APP_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_APP_ID,
-  measurementId: process.env.REACT_APP_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID
 };
 
 const appId = 'hvac-finance-dashboard';
@@ -49,7 +47,7 @@ const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly
 const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
 const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit.", date: new Date().toISOString(), clientId: "1" }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract.", date: new Date().toISOString(), clientId: "2" }];
 const INITIAL_TASKS = [ { title: "Follow up with Johnson about quote", date: new Date().toISOString().split('T')[0], notes: "Sent quote last week", isComplete: false }, { title: "Order filters for Downtown Restaurant", date: new Date().toISOString().split('T')[0], notes: "Need 10x 20x25x1 filters", isComplete: true }];
-const INITIAL_INVOICES = [ { billTo: "Badawi", customer: "Southern Algeria #00547", jobNo: "1548875887", completedOn: "6/14/2024", invNum: "", terms: "Net 45", net: 1291.00, dueDate: "6/14/2024", status: "", grandTotal: 1291.00 }];
+const INITIAL_INVOICES = [ { billTo: "Badawi", customer: "Southern Algeria #00547", jobNo: "1548875887", completedOn: "6/14/2024", invNum: "", terms: "Net 45", net: 1291.00, dueDate: "6/14/2024", status: "Unpaid", grandTotal: 1291.00 }];
 const INITIAL_TAX_PAYMENTS = [{ date: new Date().toISOString().split('T')[0], amount: 500, notes: "Q2 Estimated Payment" }];
 const INITIAL_GOALS = [ { name: "Pay off Chase Card", type: "debt", targetId: "Chase Card", targetValue: 0, deadline: "2025-12-31" }, { name: "Achieve $50k Job Revenue", type: "revenue", targetValue: 50000, deadline: "2025-12-31" }];
 const INITIAL_CLIENTS = [ {id: "1", name: "John Johnson", address: "123 Main St, Anytown, USA", phone: "555-1234", email: "john@example.com"}, {id: "3", name: "Restaurant Group Inc.", address: "789 Corp Blvd, Big City, USA", phone: "555-9999", email: "accounts@restaurantgroup.com"}, {id: "2", name: "Downtown Restaurant", address: "456 Oak Ave, Anytown, USA", phone: "555-5678", email: "contact@downtownrestaurant.com", parentId: "3"}];
@@ -69,8 +67,6 @@ const INITIAL_MAINTENANCE_LOGS = [
     { vehicleId: "11", date: "2023-09-20", mileage: 10008, workPerformed: "Oil Change", cost: 50.00, notes: "PF66 oil filter 6 quarts 5w30 full synthetic" },
     { vehicleId: "11", date: "2025-02-11", mileage: 19024, workPerformed: "Oil Change / air filter", cost: 143.17, notes: "valvoline oil shop" }
 ];
-const BILL_CATEGORIES = ["Software", "Fuel", "Vehicle", "Insurance", "Marketing", "Supplies", "Overhead", "Payroll", "Taxes", "Utilities", "General"];
-
 
 const App = () => {
     const [userId, setUserId] = useState(null);
@@ -249,19 +245,33 @@ const App = () => {
     }, [filteredJobs, bills, weeklyCosts]);
 
     const forecastData = useMemo(() => {
-        const recurringIncome = incomes.filter(i => i.isRecurring).reduce((acc, i) => acc + i.amount, 0);
-        const recurringBills = bills.filter(b => b.isRecurring).reduce((acc, b) => acc + b.amount, 0);
-        const weeklyCostsTotal = weeklyCosts.reduce((acc, c) => acc + c.amount, 0);
-        const netMonthlyRecurring = recurringIncome - recurringBills - (weeklyCostsTotal * 4.33);
-
         const forecast = [
-            { month: 'Current', balance: currentBankBalance },
-            { month: '+1 Month', balance: currentBankBalance + netMonthlyRecurring },
-            { month: '+3 Months', balance: currentBankBalance + (netMonthlyRecurring * 3) },
-            { month: '+6 Months', balance: currentBankBalance + (netMonthlyRecurring * 6) },
+            { name: 'Next 30 Days', Inflow: 0, Outflow: 0 },
+            { name: 'Next 60 Days', Inflow: 0, Outflow: 0 },
+            { name: 'Next 90 Days', Inflow: 0, Outflow: 0 },
         ];
-        return forecast;
-    }, [incomes, bills, weeklyCosts, currentBankBalance]);
+        
+        const now = new Date();
+        
+        const recurringOutflow = bills.filter(b => b.isRecurring).reduce((acc, b) => acc + b.amount, 0) + (weeklyCosts.reduce((acc, c) => acc + c.amount, 0) * 4.33);
+
+        forecast[0].Outflow = recurringOutflow;
+        forecast[1].Outflow = recurringOutflow * 2;
+        forecast[2].Outflow = recurringOutflow * 3;
+
+        invoices.forEach(invoice => {
+            if (invoice.status !== 'Paid' && invoice.dueDate) {
+                const dueDate = new Date(invoice.dueDate);
+                const daysUntilDue = (dueDate - now) / (1000 * 60 * 60 * 24);
+                if (daysUntilDue <= 30) forecast[0].Inflow += invoice.grandTotal;
+                if (daysUntilDue <= 60) forecast[1].Inflow += invoice.grandTotal;
+                if (daysUntilDue <= 90) forecast[2].Inflow += invoice.grandTotal;
+            }
+        });
+
+        return forecast.map(f => ({...f, 'Net Change': f.Inflow - f.Outflow}));
+
+    }, [invoices, bills, weeklyCosts]);
 
     const goalsWithProgress = useMemo(() => {
         return goals.map(goal => {
@@ -318,6 +328,11 @@ const App = () => {
 
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
+    const handleToggleInvoicePaid = async (invoiceId, currentStatus) => {
+        if (!userId) return;
+        const newStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+        await updateDoc(doc(db, 'artifacts', appId, 'users', userId, 'invoices', invoiceId), { status: newStatus });
+    };
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
     
     const handleSave = async (itemData, file) => {
@@ -674,7 +689,7 @@ const App = () => {
 
     const renderForecastSection = () => (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Cash Flow Forecast</h3>
+            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Cash Flow Forecast</h3>
             <div className="mb-6">
                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
                 <input 
@@ -759,7 +774,7 @@ const App = () => {
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
-                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
+                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && renderPnLStatement()}
                     {activeSection === 'forecast' && renderForecastSection()}

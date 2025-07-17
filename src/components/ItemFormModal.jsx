@@ -1,4 +1,3 @@
-import Auth from './Auth.jsx';
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Save } from 'lucide-react';

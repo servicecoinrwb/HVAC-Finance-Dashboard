@@ -1,4 +1,3 @@
-import Auth from './Auth.jsx';
 import React, { useMemo } from 'react';
 import { Upload, FileText, PlusCircle, Edit, Trash2, CheckCircle, Circle } from 'lucide-react';
 

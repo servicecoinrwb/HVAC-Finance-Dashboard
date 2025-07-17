@@ -1,4 +1,4 @@
-import Auth from './Auth.jsx'; // Corrected path// import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 
 const CalendarSection = ({ jobs, tasks, openModal }) => {

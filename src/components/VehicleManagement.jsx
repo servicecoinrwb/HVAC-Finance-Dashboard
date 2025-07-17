@@ -1,4 +1,3 @@
-import Auth from './Auth.jsx';
 import React, { useState, useMemo } from 'react';
 import { Car, PlusCircle, Edit, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 
