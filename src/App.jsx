@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+// FIX: Added createUserWithEmailAndPassword and updateProfile for sign-up functionality
+import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, LineChart, Line } from 'recharts';
 import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, ChevronDown, ChevronUp, Circle, DollarSign, Edit, FileText, Home, Inbox, LogOut, MessageSquare, Paperclip, PlusCircle, RefreshCw, Save, Target, Trash2, TrendingUp, Upload, User, Users, X, Car, Building, BarChart2, Sun, Moon, Percent, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 
 // --- Firebase Configuration ---
-// FIX: Replaced import.meta.env with placeholder values.
 // The user needs to replace these with their actual Firebase project configuration.
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
@@ -30,6 +30,8 @@ const storage = getStorage(app);
 // To resolve build errors, all components have been moved into this single file.
 
 const Auth = ({ auth, setUserId }) => {
+  const [isLoginView, setIsLoginView] = useState(true); // To toggle between Login and Sign Up
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -43,22 +45,63 @@ const Auth = ({ auth, setUserId }) => {
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged in App will handle the rest
     } catch (err) {
       console.error("Login failed:", err);
       setError("Login failed. Please check your credentials.");
     }
   };
 
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!name || !email || !password) {
+        setError("Please fill out all fields.");
+        return;
+    }
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Set the user's display name
+        await updateProfile(userCredential.user, {
+            displayName: name
+        });
+        // onAuthStateChanged in App will now log the user in
+    } catch (err) {
+        console.error("Sign up failed:", err);
+        if (err.code === 'auth/email-already-in-use') {
+            setError("This email is already in use. Please log in.");
+        } else if (err.code === 'auth/weak-password') {
+            setError("Password should be at least 6 characters.");
+        }
+        else {
+            setError("Failed to create an account. Please try again.");
+        }
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
       <div className="w-full max-w-sm mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700">
-        <h2 className="text-2xl font-bold mb-6 text-center text-slate-800 dark:text-white">Dashboard Login</h2>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <h2 className="text-2xl font-bold mb-6 text-center text-slate-800 dark:text-white">
+            {isLoginView ? 'Dashboard Login' : 'Create an Account'}
+        </h2>
+        <form onSubmit={isLoginView ? handleLogin : handleSignUp} className="space-y-4">
+          {!isLoginView && (
+            <input value={name} onChange={e => setName(e.target.value)} type="text" placeholder="Your Name" className="block p-3 w-full border rounded-md bg-slate-100 dark:bg-slate-700" />
+          )}
           <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Email" className="block p-3 w-full border rounded-md bg-slate-100 dark:bg-slate-700" />
           <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" className="block p-3 w-full border rounded-md bg-slate-100 dark:bg-slate-700" />
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-          <button type="submit" className="mt-2 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-4 py-3 rounded-md">Login</button>
+          <button type="submit" className="mt-2 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-4 py-3 rounded-md">
+            {isLoginView ? 'Login' : 'Sign Up'}
+          </button>
         </form>
+        <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-6">
+            {isLoginView ? "Don't have an account?" : "Already have an account?"}
+            <button onClick={() => setIsLoginView(!isLoginView)} className="font-semibold text-cyan-600 dark:text-cyan-400 hover:underline ml-2">
+                {isLoginView ? 'Sign Up' : 'Login'}
+            </button>
+        </p>
       </div>
     </div>
   );
@@ -234,11 +277,6 @@ const App = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     
-    // FIX: Plaid functionality removed to prevent build errors.
-    // const [linkToken, setLinkToken] = useState(null);
-    // const generateLinkToken = useCallback...
-    // const { open, ready } = usePlaidLink...
-
     useEffect(() => {
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -437,8 +475,14 @@ const App = () => {
 
     const handleDelete = async (type, id) => {
         if (!userId || !window.confirm("Delete this item?")) return;
-        const collectionName = type + 's';
-        await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
+        // FIX: Use a map to prevent incorrect collection names (e.g., "inventorys")
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
+        const collectionName = collectionNameMap[type];
+        if (collectionName) {
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
+        } else {
+            console.error("Invalid type for deletion:", type);
+        }
     };
     
     const handleExportCSV = (data, sectionName) => {
@@ -479,26 +523,27 @@ const App = () => {
                 <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white">Monthly Bills</h3>
                     <div className="overflow-x-auto mt-4">
+                        {/* FIX: Restored the detailed and styled table for the dashboard */}
                         <table className="w-full text-left">
-                            <thead>
+                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
                                 <tr>
-                                    <th>Status</th>
-                                    <th>Name</th>
-                                    <th>Amount</th>
-                                    <th>Due Day</th>
-                                    <th>Actions</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
+                                    <th className="p-3 text-right cursor-pointer" onClick={() => handleSort('amount')}>Amount</th>
+                                    <th className="p-3 text-center cursor-pointer" onClick={() => handleSort('dueDay')}>Due Day</th>
+                                    <th className="p-3 text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {sortedData.map(bill => (
-                                    <tr key={bill.id}>
-                                        <td><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle />}</button></td>
-                                        <td>{bill.name}</td>
-                                        <td>${(bill.amount || 0).toFixed(2)}</td>
-                                        <td>{bill.dueDay}</td>
-                                        <td>
-                                            <button onClick={() => openModal('bill', bill)}><Edit size={16} /></button>
-                                            <button onClick={() => handleDelete('bill', bill.id)}><Trash2 size={16} /></button>
+                                    <tr key={bill.id} className={`border-b border-slate-200 dark:border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                        <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-400 dark:text-slate-600"/>}</button></td>
+                                        <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
+                                        <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
+                                        <td className="p-3 text-center">{bill.dueDay}</td>
+                                        <td className="p-3 text-center">
+                                            <button onClick={() => openModal('bill', bill)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                            <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -528,7 +573,6 @@ const App = () => {
                          <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800">
                             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                         </button>
-                        {/* Plaid button removed */}
                         <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm bg-slate-600 hover:bg-slate-500 text-white font-semibold px-3 py-2 rounded-md">
                             <LogOut size={16} /> Logout
                         </button>
@@ -544,7 +588,7 @@ const App = () => {
                 </main>
                 <footer className="text-center mt-8 py-4 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Powered by <a href="https://service.money/" target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-600">Service Coin</a>
+                        Powered by <a href="https://service.money/" target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-600 dark:text-cyan-400 hover:underline">Service Coin</a>
                     </p>
                 </footer>
             </div>
