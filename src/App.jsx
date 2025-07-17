@@ -9,12 +9,13 @@ import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, Chevron
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_API_KEY,
-  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_APP_ID
+  apiKey: "AIzaSyAlev0GFpv3rzRYCJaMALOqlPwaowNfynI",
+  authDomain: "hvac-finance-dashboard.firebaseapp.com",
+  projectId: "hvac-finance-dashboard",
+  storageBucket: "hvac-finance-dashboard.firebasestorage.app",
+  messagingSenderId: "917610618621",
+  appId: "1:917610618621:web:83c621d154c5f62c9be894",
+  measurementId: "G-JKQB4XCVHG"
 };
 
 const appId = 'hvac-finance-dashboard';
