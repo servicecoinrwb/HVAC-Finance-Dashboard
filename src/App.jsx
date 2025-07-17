@@ -10,12 +10,13 @@ import { AlertTriangle, ArrowDown, ArrowUp, Banknote, Bell, CheckCircle, Chevron
 // --- Firebase Configuration ---
 // The user needs to replace these with their actual Firebase project configuration.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAlev0GFpv3rzRYCJaMALOqlPwaowNfynI",
+  authDomain: "hvac-finance-dashboard.firebaseapp.com",
+  projectId: "hvac-finance-dashboard",
+  storageBucket: "hvac-finance-dashboard.firebasestorage.app",
+  messagingSenderId: "917610618621",
+  appId: "1:917610618621:web:83c621d154c5f62c9be894",
+  measurementId: "G-JKQB4XCVHG"
 };
 
 const appId = 'hvac-finance-dashboard';
