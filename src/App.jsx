@@ -20,6 +20,11 @@ import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
 import { Modal } from './components/Modal';
+import { ForecastSection } from './components/Forecast';
+import { PnLStatement } from './components/PnLStatement';
+import { ManagementSection } from './components/ManagementSection';
+import { GoalsSection } from './components/GoalsSection';
+import IncentiveCalculator from './components/IncentiveCalculator';
 
 
 // --- Firebase Configuration ---
@@ -102,7 +107,8 @@ const App = () => {
     const [linkToken, setLinkToken] = useState(null);
 
     const generateLinkToken = useCallback(async () => {
-        const response = await fetch('http://localhost:8000/api/create_link_token', {
+        // IMPORTANT: In a real application, this URL should be your live server's address
+        const response = await fetch('http://144.202.20.114:8000/api/create_link_token', {
             method: 'POST',
         });
         const data = await response.json();
@@ -116,7 +122,8 @@ const App = () => {
     }, [userId, generateLinkToken]);
     
     const onSuccess = useCallback((public_token, metadata) => {
-        fetch('http://localhost:8000/api/exchange_public_token', {
+        // IMPORTANT: In a real application, this URL should be your live server's address
+        fetch('http://144.202.20.114:8000/api/exchange_public_token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -236,42 +243,45 @@ const App = () => {
         const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
         const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
         const grossProfit = revenue - cogs;
-        const operatingExpenses = bills.reduce((acc, bill) => acc + bill.amount, 0) + (weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
-        const netProfit = grossProfit - operatingExpenses;
-        const taxRate = 0.06; // 6%
-        const estimatedTax = netProfit > 0 ? netProfit * taxRate : 0;
-        const netProfitAfterTax = netProfit - estimatedTax;
-        return { revenue, cogs, grossProfit, operatingExpenses, netProfit, estimatedTax, netProfitAfterTax };
-    }, [filteredJobs, bills, weeklyCosts]);
+        return { revenue, cogs, grossProfit };
+    }, [filteredJobs]);
 
-    const forecastData = useMemo(() => {
-        const forecast = [
-            { name: 'Next 30 Days', Inflow: 0, Outflow: 0 },
-            { name: 'Next 60 Days', Inflow: 0, Outflow: 0 },
-            { name: 'Next 90 Days', Inflow: 0, Outflow: 0 },
-        ];
+    const expenseByCategory = useMemo(() => {
+        const categories = bills.reduce((acc, bill) => {
+            const category = bill.category || 'Uncategorized';
+            acc[category] = (acc[category] || 0) + bill.amount;
+            return acc;
+        }, {});
+        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943', '#19D4FF'];
+        return Object.entries(categories).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })).sort((a, b) => b.value - a.value);
+    }, [bills]);
+
+    const sortedData = useMemo(() => {
+        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices };
+        let activeData = dataMap[activeSection] || [];
         
-        const now = new Date();
-        
-        const recurringOutflow = bills.filter(b => b.isRecurring).reduce((acc, b) => acc + b.amount, 0) + (weeklyCosts.reduce((acc, c) => acc + c.amount, 0) * 4.33);
+        if(searchTerm) {
+            activeData = activeData.filter(item => 
+                Object.values(item).some(val => 
+                    val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
+                )
+            );
+        }
 
-        forecast[0].Outflow = recurringOutflow;
-        forecast[1].Outflow = recurringOutflow * 2;
-        forecast[2].Outflow = recurringOutflow * 3;
-
-        invoices.forEach(invoice => {
-            if (invoice.status !== 'Paid' && invoice.dueDate) {
-                const dueDate = new Date(invoice.dueDate);
-                const daysUntilDue = (dueDate - now) / (1000 * 60 * 60 * 24);
-                if (daysUntilDue <= 30) forecast[0].Inflow += invoice.grandTotal;
-                if (daysUntilDue <= 60) forecast[1].Inflow += invoice.grandTotal;
-                if (daysUntilDue <= 90) forecast[2].Inflow += invoice.grandTotal;
-            }
+        return [...activeData].sort((a, b) => {
+            if (!sortConfig.key) return 0;
+            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
         });
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
 
-        return forecast.map(f => ({...f, 'Net Change': f.Inflow - f.Outflow}));
-
-    }, [invoices, bills, weeklyCosts]);
+    const debtPayoffStrategies = useMemo(() => {
+        const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
+        const avalanche = [...outstandingDebts].sort((a, b) => b.interestRate - a.interestRate);
+        const snowball = [...outstandingDebts].sort((a, b) => a.remaining - b.remaining);
+        return { avalanche, snowball };
+    }, [debts]);
 
     const goalsWithProgress = useMemo(() => {
         return goals.map(goal => {
@@ -288,43 +298,6 @@ const App = () => {
             return { ...goal, progress: Math.min(progress, 100) };
         });
     }, [goals, debts, jobs]);
-
-    const expenseByCategory = useMemo(() => {
-        const categories = bills.reduce((acc, bill) => {
-            const category = bill.category || 'Uncategorized';
-            acc[category] = (acc[category] || 0) + bill.amount;
-            return acc;
-        }, {});
-        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943', '#19D4FF'];
-        return Object.entries(categories).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })).sort((a, b) => b.value - a.value);
-    }, [bills]);
-
-    const sortedData = useMemo(() => {
-        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals: goalsWithProgress, clients, inventory, vehicles, invoices };
-        let activeData = dataMap[activeSection === 'dashboard' ? 'bills' : activeSection] || [];
-        
-        if(searchTerm) {
-            activeData = activeData.filter(item => 
-                Object.values(item).some(val => 
-                    val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
-                )
-            );
-        }
-
-        return [...activeData].sort((a, b) => {
-            if (!sortConfig.key) return 0;
-            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
-            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
-            return 0;
-        });
-    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goalsWithProgress, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
-
-    const debtPayoffStrategies = useMemo(() => {
-        const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
-        const avalanche = [...outstandingDebts].sort((a, b) => b.interestRate - a.interestRate);
-        const snowball = [...outstandingDebts].sort((a, b) => a.remaining - b.remaining);
-        return { avalanche, snowball };
-    }, [debts]);
 
     const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' }));
     const handleTogglePaid = async (billId) => { if (!userId) return; await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); };
@@ -559,172 +532,6 @@ const App = () => {
         </>
     );
 
-    const renderManagementSection = (title, data, columns, type) => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">{title}</h3>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-auto bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-sm text-slate-800 dark:text-white" />
-                    {(type === 'client' || type === 'job' || type === 'inventory' || type === 'invoice') && <>
-                        <input type="file" id="csv-importer" className="hidden" accept=".csv" onChange={e => handleImportCSV(e.target.files[0], type)} />
-                        <label htmlFor="csv-importer" className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors cursor-pointer"><Upload size={16} /> Import CSV</label>
-                    </>}
-                    <button onClick={() => handleExportCSV(data, type)} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
-                </div>
-            </div>
-            {type === 'debt' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div>
-                        <h4 className="font-bold text-lg text-cyan-600 dark:text-cyan-400 mb-2">Avalanche Method</h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the highest interest rate first to save the most money over time.</p>
-                        <ol className="list-decimal list-inside space-y-1 text-sm">
-                            {debtPayoffStrategies.avalanche.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">({d.interestRate}%)</span></li>)}
-                        </ol>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-lg text-green-600 dark:text-green-400 mb-2">Snowball Method</h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Pay off debts with the smallest balance first for quick wins and motivation.</p>
-                        <ol className="list-decimal list-inside space-y-1 text-sm">
-                            {debtPayoffStrategies.snowball.map(d => <li key={d.id}>{d.name} <span className="text-slate-500 dark:text-slate-400">(${d.remaining.toFixed(2)})</span></li>)}
-                        </ol>
-                    </div>
-                </div>
-            )}
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
-                        <tr>
-                            {columns.map(col => <th key={col.key} className={`p-3 ${col.className || ''}`}>{col.header}</th>)}
-                            <th className="p-3 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                        {data.map(item => (
-                            <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
-                                {columns.map(col => <td key={col.key} className={`p-3 ${col.className || ''}`}>{col.render(item)}</td>)}
-                                <td className="p-3 text-center">
-                                    <button onClick={() => openModal(type, item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                    <button onClick={() => handleDelete(type, item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <button onClick={() => openModal(type)} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold">
-                <PlusCircle size={18} /> Add New {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
-        </div>
-    );
-
-    const renderPnLStatement = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Profit & Loss Statement</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">For {reportingPeriod === 'monthly' ? dateRange.start.toLocaleString('default', { month: 'long', year: 'numeric' }) : `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`}</p>
-            <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
-                    <span className="font-semibold">Total Revenue (from Jobs)</span>
-                    <span className="font-mono font-bold text-green-600 dark:text-green-400">${pnlData.revenue.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-600 dark:text-slate-400">Cost of Goods Sold (COGS)</span>
-                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.cogs.toFixed(2)})</span>
-                </div>
-                <hr className="border-slate-200 dark:border-slate-700"/>
-                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
-                    <span className="font-bold text-lg">Gross Profit</span>
-                    <span className="font-mono font-bold text-lg">${pnlData.grossProfit.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-600 dark:text-slate-400">Operating Expenses (Bills & Weekly)</span>
-                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.operatingExpenses.toFixed(2)})</span>
-                </div>
-                <hr className="border-slate-300 dark:border-slate-600 border-2"/>
-                <div className="flex justify-between items-center p-3 bg-slate-200 dark:bg-slate-900/50 rounded-lg">
-                    <span className="font-bold text-xl">Net Profit / (Loss) Before Tax</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfit >= 0 ? 'text-slate-800 dark:text-white' : 'text-red-500'}`}>
-                        {pnlData.netProfit < 0 && '('}${Math.abs(pnlData.netProfit).toFixed(2)}{pnlData.netProfit < 0 && ')'}
-                    </span>
-                </div>
-                 <div className="flex justify-between items-center p-3 pl-8">
-                    <span className="text-slate-600 dark:text-slate-400">Estimated Tax Liability (6%)</span>
-                    <span className="font-mono text-orange-600 dark:text-orange-400">(${pnlData.estimatedTax.toFixed(2)})</span>
-                </div>
-                 <hr className="border-slate-300 dark:border-slate-600 border-2"/>
-                 <div className="flex justify-between items-center p-4 bg-slate-200 dark:bg-slate-900 rounded-lg">
-                    <span className="font-bold text-xl text-cyan-600 dark:text-cyan-400">Net Profit / (Loss) After Tax</span>
-                    <span className={`font-mono font-bold text-xl ${pnlData.netProfitAfterTax >= 0 ? 'text-cyan-600 dark:text-cyan-400' : 'text-red-500'}`}>
-                        {pnlData.netProfitAfterTax < 0 && '('}${Math.abs(pnlData.netProfitAfterTax).toFixed(2)}{pnlData.netProfitAfterTax < 0 && ')'}
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderGoalsSection = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Financial Goals</h3>
-                <button onClick={() => openModal('goal')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add New Goal</button>
-            </div>
-            <div className="space-y-6">
-                {goalsWithProgress.map(goal => (
-                    <div key={goal.id}>
-                        <div className="flex justify-between items-end mb-1">
-                            <span className="font-semibold">{goal.name}</span>
-                            <span className="text-sm text-slate-500 dark:text-slate-400">{goal.progress.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4">
-                            <div className="bg-green-500 h-4 rounded-full" style={{ width: `${goal.progress}%` }}></div>
-                        </div>
-                        <div className="flex justify-between items-end mt-1 text-xs text-slate-500 dark:text-slate-500">
-                            <span>Target: {goal.type === 'debt' ? 'Pay Off' : `$${goal.targetValue.toLocaleString()}`}</span>
-                            <span>Deadline: {goal.deadline}</span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    const renderForecastSection = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Cash Flow Forecast</h3>
-            <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Enter Current Bank Balance ($)</label>
-                <input 
-                    type="number"
-                    value={currentBankBalance}
-                    onChange={(e) => setCurrentBankBalance(parseFloat(e.target.value) || 0)}
-                    className="w-full max-w-xs bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-800 dark:text-white"
-                />
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">This forecast projects your balance based on recurring income and expenses.</p>
-            <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={forecastData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#64748b" />
-                    <YAxis stroke="#64748b" tickFormatter={(value) => `$${(value/1000)}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }} />
-                    <Legend />
-                    <Line type="monotone" dataKey="balance" stroke="#0891b2" strokeWidth={2} activeDot={{ r: 8 }} />
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
-    );
-    
-    const renderReportsSection = () => (
-        <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />
-    );
-
-    const debtColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'interestRate', header: 'Interest Rate', className: 'text-center', render: item => <span className="font-mono">{item.interestRate || 0}%</span> }, { key: 'total', header: 'Total Amount', className: 'text-right', render: item => <span className="font-mono">${(item.totalAmount || 0).toFixed(2)}</span> }, { key: 'paid', header: 'Paid Amount', className: 'text-right', render: item => <span className="font-mono">${(item.paidAmount || 0).toFixed(2)}</span> }, { key: 'remaining', header: 'Remaining', className: 'text-right font-bold', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${((item.totalAmount || 0) - (item.paidAmount || 0)).toFixed(2)}</span> }, { key: 'progress', header: 'Progress', render: item => { const progress = item.totalAmount > 0 ? ((item.paidAmount / item.totalAmount) * 100) : 0; return <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5"><div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div></div>; }}, ];
-    const incomeColumns = [ { key: 'name', header: 'Source', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-green-600 dark:text-green-400">${(item.amount || 0).toFixed(2)}</span> }, { key: 'type', header: 'Type', render: item => <span className="capitalize bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{item.type}</span> }, ];
-    const weeklyCostColumns = [ { key: 'name', header: 'Item', render: item => <span className="font-medium">{item.name}</span> }, { key: 'amount', header: 'Weekly Amount', className: 'text-right', render: item => <span className="font-mono font-bold text-red-600 dark:text-red-400">${(item.amount || 0).toFixed(2)}</span> }, ];
-    const jobColumns = [ { key: 'name', header: 'Job/Client', render: item => <span className="font-medium">{item.name}</span> }, { key: 'client', header: 'Client', render: item => <span>{clients.find(c => c.id === item.clientId)?.name || 'N/A'}</span> }, { key: 'revenue', header: 'Revenue', className: 'text-right', render: item => <span className="font-mono text-green-600 dark:text-green-400">${(item.revenue || 0).toFixed(2)}</span> }, { key: 'materialCost', header: 'Material Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.materialCost || 0).toFixed(2)}</span> }, { key: 'laborCost', header: 'Labor Cost', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(item.laborCost || 0).toFixed(2)}</span> }, { key: 'netProfit', header: 'Net Profit', className: 'text-right font-bold', render: item => <span className="font-mono text-cyan-600 dark:text-cyan-400">${((item.revenue || 0) - (item.materialCost || 0) - (item.laborCost || 0)).toFixed(2)}</span> }, ];
-    const clientColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'address', header: 'Address', render: item => <span>{item.address}</span> }, { key: 'phone', header: 'Phone', render: item => <span>{item.phone}</span> }, { key: 'email', header: 'Email', render: item => <span>{item.email}</span> }, ];
-    const invoiceColumns = [ { key: 'billTo', header: 'Bill To', render: item => <span className="font-medium">{item.billTo}</span> }, { key: 'customer', header: 'Customer', render: item => <span>{item.customer}</span> }, { key: 'grandTotal', header: 'Amount', className: 'text-right', render: item => <span className="font-mono">${(item.grandTotal || 0).toFixed(2)}</span> }, { key: 'status', header: 'Status', className: 'text-center', render: item => <span>{item.status}</span> }, ];
-    const vehicleColumns = [ { key: 'name', header: 'Name', render: item => <span className="font-medium">{item.name}</span> }, { key: 'model', header: 'Model', render: item => <span>{item.model}</span> }, { key: 'year', header: 'Year', render: item => <span>{item.year}</span> }, { key: 'totalExpenses', header: 'Total Expenses', className: 'text-right', render: item => <span className="font-mono text-orange-600 dark:text-orange-400">${(maintenanceLogs.filter(l => l.vehicleId === item.id).reduce((acc, l) => acc + l.cost, 0)).toFixed(2)}</span> }, ];
-
     return (
         <div className={`${theme} bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white min-h-screen font-sans`}>
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -762,6 +569,7 @@ const App = () => {
                     <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L Statement</button>
                     <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Forecast</button>
                     <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Goals</button>
+                    <button onClick={() => setActiveSection('incentives')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incentives' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Incentives</button>
                     <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Clients</button>
                     <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Jobs</button>
                     <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Vehicles</button>
@@ -776,16 +584,17 @@ const App = () => {
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
                     {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
-                    {activeSection === 'pnl' && renderPnLStatement()}
-                    {activeSection === 'forecast' && renderForecastSection()}
-                    {activeSection === 'goals' && renderGoalsSection()}
+                    {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
+                    {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={setCurrentBankBalance} />}
+                    {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} />}
+                    {activeSection === 'incentives' && <IncentiveCalculator />}
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'jobs' && renderManagementSection('Job Profitability', sortedData, jobColumns, 'job')}
+                    {activeSection === 'jobs' && <ManagementSection title="Job Profitability" data={sortedData} columns={jobColumns} type="job" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'debts' && renderManagementSection('Debt Management', sortedData, debtColumns, 'debt')}
-                    {activeSection === 'incomes' && renderManagementSection('Income Sources', sortedData, incomeColumns, 'income')}
-                    {activeSection === 'weeklyCosts' && renderManagementSection('Recurring Weekly Costs', sortedData, weeklyCostColumns, 'weekly')}
+                    {activeSection === 'debts' && <ManagementSection title="Debt Management" data={sortedData} columns={debtColumns} type="debt" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} debtPayoffStrategies={debtPayoffStrategies} />}
+                    {activeSection === 'incomes' && <ManagementSection title="Income Sources" data={sortedData} columns={incomeColumns} type="income" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'weeklyCosts' && <ManagementSection title="Recurring Weekly Costs" data={sortedData} columns={weeklyCostColumns} type="weekly" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
                 </main>
                 <footer className="text-center mt-8 py-4 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-sm text-slate-500 dark:text-slate-400">
