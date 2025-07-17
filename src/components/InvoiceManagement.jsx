@@ -1,8 +1,18 @@
 import React, { useMemo } from 'react';
-import { Upload, FileText, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Upload, FileText, PlusCircle, Edit, Trash2, CheckCircle, Circle } from 'lucide-react';
 
-export const InvoiceManagement = ({ invoices, openModal, handleDelete, handleBulkDelete, searchTerm, setSearchTerm, selectedIds, setSelectedIds, handleImportCSV, handleExportCSV }) => {
-    const invoiceColumns = [ { key: 'billTo', header: 'Bill To', render: item => <span className="font-medium">{item.billTo}</span> }, { key: 'customer', header: 'Customer', render: item => <span>{item.customer}</span> }, { key: 'grandTotal', header: 'Amount', className: 'text-right', render: item => <span className="font-mono">${(item.grandTotal || 0).toFixed(2)}</span> }, { key: 'status', header: 'Status', className: 'text-center', render: item => <span>{item.status}</span> }, ];
+export const InvoiceManagement = ({ invoices, openModal, handleDelete, handleBulkDelete, searchTerm, setSearchTerm, selectedIds, setSelectedIds, handleImportCSV, handleExportCSV, handleToggleInvoicePaid }) => {
+    const invoiceColumns = [ 
+        { key: 'status', header: 'Status', render: item => (
+            <button onClick={() => handleToggleInvoicePaid(item.id, item.status)}>
+                {item.status === 'Paid' ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-400 dark:text-slate-600" />}
+            </button>
+        )},
+        { key: 'billTo', header: 'Bill To', render: item => <span className={`font-medium ${item.status === 'Paid' ? 'line-through' : ''}`}>{item.billTo}</span> }, 
+        { key: 'customer', header: 'Customer', render: item => <span className={item.status === 'Paid' ? 'line-through' : ''}>{item.customer}</span> }, 
+        { key: 'grandTotal', header: 'Amount', className: 'text-right', render: item => <span className={`font-mono ${item.status === 'Paid' ? 'line-through' : ''}`}>${(item.grandTotal || 0).toFixed(2)}</span> }, 
+        { key: 'dueDate', header: 'Due Date', className: 'text-center', render: item => <span className={item.status === 'Paid' ? 'line-through' : ''}>{item.dueDate}</span> },
+    ];
     const filteredInvoices = useMemo(() => invoices.filter(i => (i.customer || '').toLowerCase().includes(searchTerm.toLowerCase()) || (i.billTo || '').toLowerCase().includes(searchTerm.toLowerCase())), [invoices, searchTerm]);
 
     const handleSelectAll = (e) => {
@@ -37,7 +47,7 @@ export const InvoiceManagement = ({ invoices, openModal, handleDelete, handleBul
                     </thead>
                     <tbody className="text-sm">
                         {filteredInvoices.map(item => (
-                            <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
+                            <tr key={item.id} className={`border-b border-slate-200 dark:border-slate-700/50 ${item.status === 'Paid' ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
                                 <td className="p-3"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => {
                                     setSelectedIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])
                                 }} /></td>
