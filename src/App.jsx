@@ -26,7 +26,6 @@ import { ManagementSection } from './components/ManagementSection';
 import { GoalsSection } from './components/GoalsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
 
-
 // --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_API_KEY,
@@ -73,7 +72,7 @@ const INITIAL_MAINTENANCE_LOGS = [
     { vehicleId: "11", date: "2025-02-11", mileage: 19024, workPerformed: "Oil Change / air filter", cost: 143.17, notes: "valvoline oil shop" }
 ];
 
-// --- Column Configurations ---
+// --- Column Configurations (CRITICAL: These must be defined before the App component) ---
 const jobColumns = [
     { key: 'name', label: 'Job Name', sortable: true },
     { key: 'revenue', label: 'Revenue', sortable: true, type: 'currency' },
@@ -138,63 +137,67 @@ const App = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [linkToken, setLinkToken] = useState(null);
 
-// Replace your existing generateLinkToken and onSuccess functions with these updated versions:
+    // Updated Plaid functions with HTTPS and error handling
+    const generateLinkToken = useCallback(async () => {
+        try {
+            // Changed from http:// to https:// to fix mixed content error
+            const response = await fetch('https://144.202.20.114:8000/api/create_link_token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            setLinkToken(data.link_token);
+        } catch (error) {
+            console.error('Error generating link token:', error);
+            console.log('Bank linking temporarily unavailable. Please try again later.');
+            setLinkToken(null);
+        }
+    }, []);
 
-const generateLinkToken = useCallback(async () => {
-    try {
+    const onSuccess = useCallback((public_token, metadata) => {
         // Changed from http:// to https:// to fix mixed content error
-        const response = await fetch('https://144.202.20.114:8000/api/create_link_token', {
+        fetch('https://144.202.20.114:8000/api/exchange_public_token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            body: JSON.stringify({ public_token }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Successfully linked bank account:', data);
+            alert('Bank account linked successfully!');
+        })
+        .catch(error => {
+            console.error('Error exchanging public token:', error);
+            alert('Failed to link bank account. Please try again.');
         });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setLinkToken(data.link_token);
-    } catch (error) {
-        console.error('Error generating link token:', error);
-        // Optionally show user-friendly error message
-        console.log('Bank linking temporarily unavailable. Please try again later.');
-        setLinkToken(null);
-    }
-}, []);
-
-const onSuccess = useCallback((public_token, metadata) => {
-    // Changed from http:// to https:// to fix mixed content error
-    fetch('https://144.202.20.114:8000/api/exchange_public_token', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ public_token }),
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Successfully linked bank account:', data);
-        // You might want to show a success message to the user here
-        alert('Bank account linked successfully!');
-    })
-    .catch(error => {
-        console.error('Error exchanging public token:', error);
-        alert('Failed to link bank account. Please try again.');
-    });
-}, []);
+    }, []);
 
     const { open, ready } = usePlaidLink({
         token: linkToken,
         onSuccess,
     });
 
+    // Rest of your component code continues exactly as before...
+    useEffect(() => {
+        if (userId) {
+            generateLinkToken();
+        }
+    }, [userId, generateLinkToken]);
+    
     useEffect(() => {
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -480,7 +483,7 @@ const onSuccess = useCallback((public_token, metadata) => {
 
         recurringBills.forEach(bill => {
             const newBill = { ...bill, createdAt: serverTimestamp(), notes: `Generated for ${nextMonthYear}` };
-            delete newBill.id; // Remove old ID
+            delete newBill.id;
             const docRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'bills'));
             batch.set(docRef, newBill);
         });
@@ -517,7 +520,6 @@ const onSuccess = useCallback((public_token, metadata) => {
         await batch.commit();
         setSelectedIds([]);
     };
-
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
     
