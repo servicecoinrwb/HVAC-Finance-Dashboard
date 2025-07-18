@@ -73,6 +73,38 @@ const INITIAL_MAINTENANCE_LOGS = [
     { vehicleId: "11", date: "2025-02-11", mileage: 19024, workPerformed: "Oil Change / air filter", cost: 143.17, notes: "valvoline oil shop" }
 ];
 
+// --- Column Configurations ---
+const jobColumns = [
+    { key: 'name', label: 'Job Name', sortable: true },
+    { key: 'revenue', label: 'Revenue', sortable: true, type: 'currency' },
+    { key: 'materialCost', label: 'Material Cost', sortable: true, type: 'currency' },
+    { key: 'laborCost', label: 'Labor Cost', sortable: true, type: 'currency' },
+    { key: 'date', label: 'Date', sortable: true, type: 'date' },
+    { key: 'notes', label: 'Notes', sortable: false }
+];
+
+const debtColumns = [
+    { key: 'name', label: 'Debt Name', sortable: true },
+    { key: 'totalAmount', label: 'Total Amount', sortable: true, type: 'currency' },
+    { key: 'paidAmount', label: 'Paid Amount', sortable: true, type: 'currency' },
+    { key: 'interestRate', label: 'Interest Rate', sortable: true, type: 'percentage' },
+    { key: 'notes', label: 'Notes', sortable: false }
+];
+
+const incomeColumns = [
+    { key: 'name', label: 'Income Source', sortable: true },
+    { key: 'amount', label: 'Amount', sortable: true, type: 'currency' },
+    { key: 'type', label: 'Type', sortable: true },
+    { key: 'isRecurring', label: 'Recurring', sortable: true, type: 'boolean' },
+    { key: 'notes', label: 'Notes', sortable: false }
+];
+
+const weeklyCostColumns = [
+    { key: 'name', label: 'Cost Name', sortable: true },
+    { key: 'amount', label: 'Weekly Amount', sortable: true, type: 'currency' },
+    { key: 'notes', label: 'Notes', sortable: false }
+];
+
 const App = () => {
     const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
