@@ -138,31 +138,57 @@ const App = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [linkToken, setLinkToken] = useState(null);
 
-    const generateLinkToken = useCallback(async () => {
-        // IMPORTANT: In a real application, this URL should be your live server's address
-        const response = await fetch('http://144.202.20.114:8000/api/create_link_token', {
-            method: 'POST',
-        });
-        const data = await response.json();
-        setLinkToken(data.link_token);
-    }, []);
+// Replace your existing generateLinkToken and onSuccess functions with these updated versions:
 
-    useEffect(() => {
-        if (userId) { // Only generate token if user is logged in
-            generateLinkToken();
-        }
-    }, [userId, generateLinkToken]);
-    
-    const onSuccess = useCallback((public_token, metadata) => {
-        // IMPORTANT: In a real application, this URL should be your live server's address
-        fetch('http://144.202.20.114:8000/api/exchange_public_token', {
+const generateLinkToken = useCallback(async () => {
+    try {
+        // Changed from http:// to https:// to fix mixed content error
+        const response = await fetch('https://144.202.20.114:8000/api/create_link_token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ public_token }),
         });
-    }, []);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setLinkToken(data.link_token);
+    } catch (error) {
+        console.error('Error generating link token:', error);
+        // Optionally show user-friendly error message
+        console.log('Bank linking temporarily unavailable. Please try again later.');
+        setLinkToken(null);
+    }
+}, []);
+
+const onSuccess = useCallback((public_token, metadata) => {
+    // Changed from http:// to https:// to fix mixed content error
+    fetch('https://144.202.20.114:8000/api/exchange_public_token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ public_token }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Successfully linked bank account:', data);
+        // You might want to show a success message to the user here
+        alert('Bank account linked successfully!');
+    })
+    .catch(error => {
+        console.error('Error exchanging public token:', error);
+        alert('Failed to link bank account. Please try again.');
+    });
+}, []);
 
     const { open, ready } = usePlaidLink({
         token: linkToken,
