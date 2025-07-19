@@ -14,7 +14,7 @@ import { StatCard } from './components/StatCard';
 import { ItemFormModal } from './components/ItemFormModal';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { ClientManagement } from './components/ClientManagement';
-import { VehicleManagement } from './components/VehicleManagement';
+import VehicleManagement from './components/VehicleManagement';
 import { InventoryManagement } from './components/InventoryManagement';
 import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
@@ -104,6 +104,36 @@ const weeklyCostColumns = [
     { key: 'notes', label: 'Notes', sortable: false }
 ];
 
+// CSV Import Button Component
+const CSVImportButton = ({ type, label, acceptTypes = ".csv" }) => {
+    const fileInputRef = React.useRef(null);
+
+    return (
+        <div className="inline-block">
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept={acceptTypes}
+                onChange={(e) => {
+                    if (e.target.files[0]) {
+                        // This will be connected to the handleEnhancedCSVImport function
+                        window.handleEnhancedCSVImport?.(e.target.files[0], type);
+                        e.target.value = ''; // Reset input
+                    }
+                }}
+                style={{ display: 'none' }}
+            />
+            <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
+            >
+                <Upload size={16} />
+                {label}
+            </button>
+        </div>
+    );
+};
+
 const App = () => {
     const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -136,6 +166,412 @@ const App = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [linkToken, setLinkToken] = useState(null);
+
+    // Enhanced CSV Integration State
+    const [csvImportData, setCsvImportData] = useState([]);
+    const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
+    const [csvMapping, setCsvMapping] = useState({});
+
+    // Enhanced CSV Import with Preview and Mapping
+    const handleEnhancedCSVImport = (file, type) => {
+        if (!file || !userId) {
+            alert("Please select a file and ensure you're logged in.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const text = event.target.result;
+                const lines = text.split('\n').filter(line => line.trim());
+                
+                if (lines.length < 2) {
+                    alert("CSV file must have at least a header row and one data row.");
+                    return;
+                }
+
+                // Parse CSV with better handling for quotes and commas
+                const parseCSVLine = (line) => {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.trim());
+                    return result;
+                };
+
+                const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, '').trim());
+                const data = lines.slice(1, 6).map(line => {
+                    const values = parseCSVLine(line);
+                    return headers.reduce((obj, header, index) => {
+                        let value = values[index] || '';
+                        value = value.replace(/"/g, '').trim();
+                        
+                        // Try to convert numbers
+                        if (value && !isNaN(value) && value !== '') {
+                            obj[header] = parseFloat(value);
+                        } else {
+                            obj[header] = value;
+                        }
+                        return obj;
+                    }, {});
+                });
+
+                console.log("CSV Headers:", headers);
+                console.log("CSV Data Preview:", data);
+
+                // Show preview with mapping options
+                setCsvPreview({
+                    show: true,
+                    data: data,
+                    headers: headers,
+                    type: type,
+                    fileName: file.name,
+                    fullData: lines.slice(1).map(line => {
+                        const values = parseCSVLine(line);
+                        return headers.reduce((obj, header, index) => {
+                            let value = values[index] || '';
+                            value = value.replace(/"/g, '').trim();
+                            
+                            if (value && !isNaN(value) && value !== '') {
+                                obj[header] = parseFloat(value);
+                            } else {
+                                obj[header] = value;
+                            }
+                            return obj;
+                        }, {});
+                    })
+                });
+
+                // Set default mapping based on type
+                setDefaultMapping(type, headers);
+
+            } catch (error) {
+                console.error("Error parsing CSV:", error);
+                alert("Error parsing CSV file. Please check the file format.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    // Make function available globally for the CSVImportButton
+    useEffect(() => {
+        window.handleEnhancedCSVImport = handleEnhancedCSVImport;
+        return () => {
+            delete window.handleEnhancedCSVImport;
+        };
+    }, [userId]);
+
+    // Set default field mapping based on import type
+    const setDefaultMapping = (type, headers) => {
+        const mappings = {
+            job: {
+                name: findBestMatch(headers, ['name', 'job name', 'jobname', 'title', 'job title', 'description']),
+                revenue: findBestMatch(headers, ['revenue', 'amount', 'total', 'price', 'cost', 'value']),
+                materialCost: findBestMatch(headers, ['material cost', 'materials', 'material', 'parts']),
+                laborCost: findBestMatch(headers, ['labor cost', 'labor', 'labour', 'work']),
+                date: findBestMatch(headers, ['date', 'created', 'completed', 'finish', 'done']),
+                notes: findBestMatch(headers, ['notes', 'description', 'comments', 'details']),
+                clientId: findBestMatch(headers, ['client', 'customer', 'customer id', 'client id'])
+            },
+            client: {
+                name: findBestMatch(headers, ['name', 'customer name', 'client name', 'company']),
+                address: findBestMatch(headers, ['address', 'location', 'street']),
+                phone: findBestMatch(headers, ['phone', 'telephone', 'mobile', 'contact']),
+                email: findBestMatch(headers, ['email', 'e-mail', 'mail'])
+            },
+            invoice: {
+                billTo: findBestMatch(headers, ['bill to', 'customer', 'client', 'name']),
+                customer: findBestMatch(headers, ['customer', 'client', 'company']),
+                jobNo: findBestMatch(headers, ['job no', 'job number', 'job id', 'reference']),
+                completedOn: findBestMatch(headers, ['completed', 'date', 'finish date']),
+                net: findBestMatch(headers, ['net', 'amount', 'total', 'subtotal']),
+                grandTotal: findBestMatch(headers, ['grand total', 'total', 'amount']),
+                status: findBestMatch(headers, ['status', 'paid', 'payment status'])
+            }
+        };
+
+        setCsvMapping(mappings[type] || {});
+    };
+
+    // Find best matching header for a field
+    const findBestMatch = (headers, searchTerms) => {
+        for (const term of searchTerms) {
+            const match = headers.find(h => h.toLowerCase().includes(term.toLowerCase()));
+            if (match) return match;
+        }
+        return headers[0] || ''; // Default to first header if no match
+    };
+
+    // Import CSV data after mapping confirmation
+    const confirmCSVImport = async () => {
+        if (!csvPreview.fullData.length) {
+            alert("No data to import.");
+            return;
+        }
+
+        const { type, fullData } = csvPreview;
+        
+        try {
+            console.log("Starting CSV import...", { type, count: fullData.length, mapping: csvMapping });
+
+            const collectionNameMap = { 
+                job: 'jobs', 
+                client: 'clients', 
+                invoice: 'invoices',
+                inventory: 'inventory'
+            };
+            
+            const collectionName = collectionNameMap[type];
+            if (!collectionName) {
+                alert("Invalid import type.");
+                return;
+            }
+
+            const batch = writeBatch(db);
+            const collectionRef = collection(db, 'artifacts', appId, 'users', userId, collectionName);
+            
+            let importedCount = 0;
+
+            fullData.forEach(row => {
+                // Map CSV data to your app's structure
+                const mappedItem = {};
+                
+                Object.entries(csvMapping).forEach(([appField, csvField]) => {
+                    if (csvField && row[csvField] !== undefined && row[csvField] !== '') {
+                        mappedItem[appField] = row[csvField];
+                    }
+                });
+
+                // Add required fields based on type
+                if (type === 'job') {
+                    mappedItem.date = mappedItem.date || new Date().toISOString();
+                    mappedItem.revenue = mappedItem.revenue || 0;
+                    mappedItem.materialCost = mappedItem.materialCost || 0;
+                    mappedItem.laborCost = mappedItem.laborCost || 0;
+                } else if (type === 'invoice') {
+                    mappedItem.status = mappedItem.status || 'Unpaid';
+                    mappedItem.net = mappedItem.net || 0;
+                    mappedItem.grandTotal = mappedItem.grandTotal || mappedItem.net || 0;
+                }
+
+                // Only import if we have essential data
+                if ((type === 'job' && mappedItem.name) || 
+                    (type === 'client' && mappedItem.name) || 
+                    (type === 'invoice' && (mappedItem.billTo || mappedItem.customer)) ||
+                    (type === 'inventory' && mappedItem.name)) {
+                    
+                    const docRef = doc(collectionRef);
+                    batch.set(docRef, {
+                        ...mappedItem,
+                        importedFrom: csvPreview.fileName,
+                        importedAt: serverTimestamp(),
+                        createdAt: serverTimestamp()
+                    });
+                    importedCount++;
+                }
+            });
+
+            if (importedCount === 0) {
+                alert("No valid records found to import. Please check your field mapping.");
+                return;
+            }
+
+            await batch.commit();
+            
+            console.log(`Successfully imported ${importedCount} records`);
+            alert(`Successfully imported ${importedCount} ${collectionName} from ${csvPreview.fileName}!`);
+            
+            // Close preview
+            setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' });
+            setCsvMapping({});
+
+        } catch (error) {
+            console.error("Error importing CSV:", error);
+            alert(`Failed to import CSV: ${error.message}`);
+        }
+    };
+
+    // Enhanced Export CSV with better formatting
+    const handleEnhancedExportCSV = (data, sectionName, customFields = null) => {
+        if (!data.length) {
+            alert("No data to export.");
+            return;
+        }
+
+        try {
+            // Use custom fields if provided, otherwise use all fields
+            const headers = customFields || Object.keys(data[0]).filter(key => 
+                !key.includes('createdAt') && !key.includes('modifiedAt') && key !== 'id'
+            );
+
+            // Create CSV content with proper escaping
+            const escapeCsvValue = (value) => {
+                if (value === null || value === undefined) return '';
+                const stringValue = String(value);
+                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                    return `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
+            };
+
+            const csvRows = [
+                headers.join(','), // Header row
+                ...data.map(item => 
+                    headers.map(header => escapeCsvValue(item[header])).join(',')
+                )
+            ];
+
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            // Create download link
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `hvac_${sectionName}_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            console.log(`Exported ${data.length} ${sectionName} records to CSV`);
+            alert(`Successfully exported ${data.length} ${sectionName} records!`);
+
+        } catch (error) {
+            console.error("Error exporting CSV:", error);
+            alert("Failed to export CSV: " + error.message);
+        }
+    };
+
+    // Export AppSheet Jobs as CSV Template
+    const exportAppSheetTemplate = () => {
+        const templateData = [
+            {
+                'Job Name': 'Sample HVAC Install',
+                'Revenue': 5000,
+                'Material Cost': 2000,
+                'Labor Cost': 1500,
+                'Date': '2025-01-15',
+                'Customer': 'Sample Customer',
+                'Notes': 'Sample job for import'
+            }
+        ];
+        
+        handleEnhancedExportCSV(templateData, 'appsheet_template', ['Job Name', 'Revenue', 'Material Cost', 'Labor Cost', 'Date', 'Customer', 'Notes']);
+    };
+
+    // CSV Preview and Mapping Component
+    const CSVPreviewModal = () => {
+        if (!csvPreview.show) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white dark:bg-slate-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
+                    <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+                                Import Preview: {csvPreview.fileName}
+                            </h2>
+                            <button
+                                onClick={() => setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' })}
+                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            Found {csvPreview.fullData?.length || 0} records. Showing first 5 for preview.
+                        </p>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto max-h-[60vh]">
+                        {/* Field Mapping Section */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3">
+                                Map CSV Fields to Your App
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {Object.keys(csvMapping).map(appField => (
+                                    <div key={appField} className="flex items-center gap-3">
+                                        <label className="w-24 text-sm font-medium text-slate-600 dark:text-slate-400">
+                                            {appField}:
+                                        </label>
+                                        <select
+                                            value={csvMapping[appField] || ''}
+                                            onChange={(e) => setCsvMapping(prev => ({ ...prev, [appField]: e.target.value }))}
+                                            className="flex-1 px-3 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                                        >
+                                            <option value="">-- Skip Field --</option>
+                                            {csvPreview.headers.map(header => (
+                                                <option key={header} value={header}>{header}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Data Preview */}
+                        <div>
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3">Data Preview</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm border border-slate-200 dark:border-slate-700">
+                                    <thead className="bg-slate-50 dark:bg-slate-700">
+                                        <tr>
+                                            {csvPreview.headers.map(header => (
+                                                <th key={header} className="p-2 text-left border-r border-slate-200 dark:border-slate-600">
+                                                    {header}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {csvPreview.data.map((row, index) => (
+                                            <tr key={index} className="border-t border-slate-200 dark:border-slate-700">
+                                                {csvPreview.headers.map(header => (
+                                                    <td key={header} className="p-2 border-r border-slate-200 dark:border-slate-600">
+                                                        {String(row[header] || '')}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                        <button
+                            onClick={() => setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' })}
+                            className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmCSVImport}
+                            className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
+                        >
+                            Import {csvPreview.fullData?.length || 0} Records
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // Updated Plaid functions with HTTPS and error handling
     const generateLinkToken = useCallback(async () => {
@@ -546,7 +982,10 @@ const App = () => {
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white">Monthly Bills</h3>
                         {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-500 dark:text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
-                        <button onClick={() => handleExportCSV(sortedData, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                        <div className="flex gap-2">
+                            <CSVImportButton type="bill" label="Import" />
+                            <button onClick={() => handleEnhancedExportCSV(sortedData, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export</button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
@@ -583,6 +1022,35 @@ const App = () => {
                 </div>
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700"><h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
+                    
+                    {/* AppSheet Integration Panel */}
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">AppSheet Integration</h3>
+                        <div className="space-y-3">
+                            <p className="text-sm text-slate-600 dark:text-slate-400">Import your AppSheet jobs and customer data easily with CSV files.</p>
+                            
+                            <div className="flex flex-wrap gap-2">
+                                <CSVImportButton type="job" label="Import Jobs" />
+                                <CSVImportButton type="client" label="Import Customers" />
+                                <CSVImportButton type="invoice" label="Import Invoices" />
+                            </div>
+                            
+                            <button
+                                onClick={exportAppSheetTemplate}
+                                className="w-full flex items-center justify-center gap-2 text-sm bg-purple-600 hover:bg-purple-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
+                            >
+                                <FileText size={16} />
+                                Download CSV Template
+                            </button>
+                            
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                <p>• Export data from AppSheet as CSV</p>
+                                <p>• Use Import buttons to map fields</p>
+                                <p>• Download template for reference</p>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Automations</h3>
                         <button onClick={handleGenerateRecurring} className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><RefreshCw size={16} /> Generate Next Month's Bills</button>
@@ -642,14 +1110,77 @@ const App = () => {
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
-                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
+                    {activeSection === 'invoices' && (
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Invoice Management</h2>
+                                <div className="flex flex-wrap gap-2">
+                                    <CSVImportButton type="invoice" label="Import Invoices" />
+                                    <button
+                                        onClick={() => handleEnhancedExportCSV(invoices, 'invoices', ['billTo', 'customer', 'jobNo', 'completedOn', 'net', 'grandTotal', 'status'])}
+                                        className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
+                                    >
+                                        <FileText size={16} />
+                                        Export Invoices
+                                    </button>
+                                    <button onClick={() => openModal('invoice')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors">
+                                        <PlusCircle size={18} />
+                                        Add Invoice
+                                    </button>
+                                </div>
+                            </div>
+                            <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />
+                        </div>
+                    )}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
                     {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={setCurrentBankBalance} />}
                     {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} />}
                     {activeSection === 'incentives' && <IncentiveCalculator />}
-                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'jobs' && <ManagementSection title="Job Profitability" data={sortedData} columns={jobColumns} type="job" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'clients' && (
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Client Management</h2>
+                                <div className="flex flex-wrap gap-2">
+                                    <CSVImportButton type="client" label="Import Clients" />
+                                    <button
+                                        onClick={() => handleEnhancedExportCSV(clients, 'clients', ['name', 'address', 'phone', 'email'])}
+                                        className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
+                                    >
+                                        <FileText size={16} />
+                                        Export Clients
+                                    </button>
+                                    <button onClick={() => openModal('client')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors">
+                                        <PlusCircle size={18} />
+                                        Add Client
+                                    </button>
+                                </div>
+                            </div>
+                            <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />
+                        </div>
+                    )}
+                    {activeSection === 'jobs' && (
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Jobs Management</h2>
+                                <div className="flex flex-wrap gap-2">
+                                    <CSVImportButton type="job" label="Import Jobs" />
+                                    <button
+                                        onClick={() => handleEnhancedExportCSV(jobs, 'jobs', ['name', 'revenue', 'materialCost', 'laborCost', 'date', 'notes', 'clientId'])}
+                                        className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
+                                    >
+                                        <FileText size={16} />
+                                        Export Jobs
+                                    </button>
+                                    <button onClick={() => openModal('job')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors">
+                                        <PlusCircle size={18} />
+                                        Add Job
+                                    </button>
+                                </div>
+                            </div>
+                            <ManagementSection title="Job Profitability" data={sortedData} columns={jobColumns} type="job" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />
+                        </div>
+                    )}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
                     {activeSection === 'debts' && <ManagementSection title="Debt Management" data={sortedData} columns={debtColumns} type="debt" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} debtPayoffStrategies={debtPayoffStrategies} />}
@@ -662,6 +1193,10 @@ const App = () => {
                     </p>
                 </footer>
             </div>
+            
+            {/* CSV Preview Modal */}
+            <CSVPreviewModal />
+            
             {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} debts={debts} clients={clients} vehicles={vehicles} />}
         </div>
     );
