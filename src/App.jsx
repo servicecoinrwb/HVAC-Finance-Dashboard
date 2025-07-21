@@ -14,16 +14,19 @@ import { StatCard } from './components/StatCard';
 import { ItemFormModal } from './components/ItemFormModal';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { ClientManagement } from './components/ClientManagement';
-import { VehicleManagement } from './components/VehicleManagement';
+import VehicleManagement from './components/VehicleManagement';
 import { InventoryManagement } from './components/InventoryManagement';
 import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
 import { ActivePieChart } from './components/ActivePieChart';
 import { Modal } from './components/Modal';
 import { ForecastSection } from './components/Forecast';
+import { JobsSection } from './components/Jobs';
 import { PnLStatement } from './components/PnLStatement';
-import { ManagementSection } from './components/ManagementSection';
+import { DebtManagement } from './components/DebtManagement';
+import { IncomeSourcesSection } from './components/IncomeSources';
 import { GoalsSection } from './components/GoalsSection';
+import { WeeklyCostsSection } from './components/WeeklyCostsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
 
 // --- Firebase Configuration ---
@@ -44,11 +47,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// --- Initial Data (Seed for first-time use) ---
+// --- Initial Data ---
 const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null, isRecurring: true }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null, isRecurring: true }, { name: "GM Financial Black Truck", amount: 1307.20, dueDay: 6, isAutoPay: false, category: "Vehicle", notes: "", vehicleId: "1" }];
-const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" },];
-const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false },];
-const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" },];
+const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" }];
+const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false }];
+const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" }];
 const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit.", date: new Date().toISOString(), clientId: "1" }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract.", date: new Date().toISOString(), clientId: "2" }];
 const INITIAL_TASKS = [ { title: "Follow up with Johnson about quote", date: new Date().toISOString().split('T')[0], notes: "Sent quote last week", isComplete: false }, { title: "Order filters for Downtown Restaurant", date: new Date().toISOString().split('T')[0], notes: "Need 10x 20x25x1 filters", isComplete: true }];
 const INITIAL_INVOICES = [ { billTo: "Badawi", customer: "Southern Algeria #00547", jobNo: "1548875887", completedOn: "6/14/2024", invNum: "", terms: "Net 45", net: 1291.00, dueDate: "6/14/2024", status: "Unpaid", grandTotal: 1291.00 }];
@@ -70,38 +73,6 @@ const INITIAL_MAINTENANCE_LOGS = [
     { vehicleId: "11", date: "2023-08-11", mileage: 9435, workPerformed: "LICENSE TABS", cost: 302.00, notes: "" },
     { vehicleId: "11", date: "2023-09-20", mileage: 10008, workPerformed: "Oil Change", cost: 50.00, notes: "PF66 oil filter 6 quarts 5w30 full synthetic" },
     { vehicleId: "11", date: "2025-02-11", mileage: 19024, workPerformed: "Oil Change / air filter", cost: 143.17, notes: "valvoline oil shop" }
-];
-
-// --- Column Configurations (CRITICAL: These must be defined before the App component) ---
-const jobColumns = [
-    { key: 'name', label: 'Job Name', sortable: true },
-    { key: 'revenue', label: 'Revenue', sortable: true, type: 'currency' },
-    { key: 'materialCost', label: 'Material Cost', sortable: true, type: 'currency' },
-    { key: 'laborCost', label: 'Labor Cost', sortable: true, type: 'currency' },
-    { key: 'date', label: 'Date', sortable: true, type: 'date' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
-
-const debtColumns = [
-    { key: 'name', label: 'Debt Name', sortable: true },
-    { key: 'totalAmount', label: 'Total Amount', sortable: true, type: 'currency' },
-    { key: 'paidAmount', label: 'Paid Amount', sortable: true, type: 'currency' },
-    { key: 'interestRate', label: 'Interest Rate', sortable: true, type: 'percentage' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
-
-const incomeColumns = [
-    { key: 'name', label: 'Income Source', sortable: true },
-    { key: 'amount', label: 'Amount', sortable: true, type: 'currency' },
-    { key: 'type', label: 'Type', sortable: true },
-    { key: 'isRecurring', label: 'Recurring', sortable: true, type: 'boolean' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
-
-const weeklyCostColumns = [
-    { key: 'name', label: 'Cost Name', sortable: true },
-    { key: 'amount', label: 'Weekly Amount', sortable: true, type: 'currency' },
-    { key: 'notes', label: 'Notes', sortable: false }
 ];
 
 const App = () => {
@@ -140,7 +111,6 @@ const App = () => {
     // Updated Plaid functions with HTTPS and error handling
     const generateLinkToken = useCallback(async () => {
         try {
-            // Changed from http:// to https:// to fix mixed content error
             const response = await fetch('https://144.202.20.114:8000/api/create_link_token', {
                 method: 'POST',
                 headers: {
@@ -156,13 +126,11 @@ const App = () => {
             setLinkToken(data.link_token);
         } catch (error) {
             console.error('Error generating link token:', error);
-            console.log('Bank linking temporarily unavailable. Please try again later.');
             setLinkToken(null);
         }
     }, []);
 
     const onSuccess = useCallback((public_token, metadata) => {
-        // Changed from http:// to https:// to fix mixed content error
         fetch('https://144.202.20.114:8000/api/exchange_public_token', {
             method: 'POST',
             headers: {
@@ -170,12 +138,7 @@ const App = () => {
             },
             body: JSON.stringify({ public_token }),
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             console.log('Successfully linked bank account:', data);
             alert('Bank account linked successfully!');
@@ -191,7 +154,6 @@ const App = () => {
         onSuccess,
     });
 
-    // Rest of your component code continues exactly as before...
     useEffect(() => {
         if (userId) {
             generateLinkToken();
@@ -236,7 +198,7 @@ const App = () => {
                 setUserId(user.uid);
                 const billsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'bills');
                 const billsSnapshot = await getDocs(billsRef);
-                if (billsSnapshot.empty) {
+                if (billsSnapshot.empty) { // Changed back to normal seeding
                     setIsSeeding(true);
                     console.log("No data found. Seeding initial data...");
                     const batch = writeBatch(db);
@@ -399,12 +361,59 @@ const App = () => {
         setEditingItem(null);
     };
 
-    const handleDelete = async (type, id) => {
-        if (!userId || !window.confirm("Delete this item?")) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
-        const collectionName = collectionNameMap[type];
-        await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
+   const handleDelete = async (type, id) => {
+    if (!userId || !window.confirm("Delete this item?")) return;
+    
+    const collectionNameMap = { 
+        bill: 'bills', 
+        debt: 'debts', 
+        income: 'incomes', 
+        weekly: 'weeklyCosts', 
+        job: 'jobs', 
+        task: 'tasks', 
+        invoice: 'invoices', 
+        taxPayment: 'taxPayments', 
+        goal: 'goals', 
+        client: 'clients', 
+        inventory: 'inventory', 
+        vehicle: 'vehicles', 
+        maintenanceLog: 'maintenanceLogs' 
     };
+    
+    const collectionName = collectionNameMap[type];
+    
+    // Special handling for vehicle deletion - also delete associated maintenance logs
+    if (type === 'vehicle') {
+        try {
+            // First, delete all maintenance logs for this vehicle
+            const vehicleMaintenanceLogs = maintenanceLogs.filter(log => log.vehicleId === id);
+            
+            // Use batch delete for efficiency
+            const batch = writeBatch(db);
+            
+            // Delete maintenance logs
+            vehicleMaintenanceLogs.forEach(log => {
+                const logRef = doc(db, 'artifacts', appId, 'users', userId, 'maintenanceLogs', log.id);
+                batch.delete(logRef);
+            });
+            
+            // Delete the vehicle
+            const vehicleRef = doc(db, 'artifacts', appId, 'users', userId, 'vehicles', id);
+            batch.delete(vehicleRef);
+            
+            await batch.commit();
+            
+            console.log(`Deleted vehicle and ${vehicleMaintenanceLogs.length} associated maintenance logs`);
+        } catch (error) {
+            console.error("Error deleting vehicle and maintenance logs:", error);
+            alert("Failed to delete vehicle. Please try again.");
+            return;
+        }
+    } else {
+        // Standard deletion for other items
+        await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
+    }
+};
     
     const handleExportCSV = (data, sectionName) => {
         if (!data.length) return;
@@ -527,70 +536,109 @@ const App = () => {
         return <Auth setUserId={setUserId} />;
     }
 
-    const renderDashboard = () => (
-        <>
-            {showAlerts && <AlertsPanel bills={bills} paidStatus={paidStatus} onClose={() => setShowAlerts(false)} />}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <StatCard title="Total Monthly Income" value={`$${totals.totalIncome.toLocaleString()}`} icon={<Banknote size={24} />} color="green" />
-                <StatCard title="Total Monthly Outflow" value={`$${totals.totalOutflow.toLocaleString()}`} icon={<ArrowDown size={24} />} color="red" />
-                <StatCard title="Projected Net" value={`$${totals.netCashFlow.toLocaleString()}`} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
-                <StatCard title="Outstanding Debt" value={`$${totals.totalDebt.toLocaleString()}`} icon={<AlertTriangle size={24} />} color="orange" />
-            </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <StatCard title="Gross Profit Margin" value={`${pnlData.revenue > 0 ? ((pnlData.grossProfit / pnlData.revenue) * 100).toFixed(1) : '0.0'}%`} icon={<Percent size={24} />} color="teal" subtext="For selected period"/>
-                <StatCard title="Avg. Job Revenue" value={`$${(pnlData.revenue / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<TrendingUp size={24} />} color="indigo" subtext={`${filteredJobs.length} jobs`}/>
-                <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">Monthly Bills</h3>
-                        {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-500 dark:text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
-                        <button onClick={() => handleExportCSV(sortedData, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
-                                <tr>
-                                    <th className="p-3">Status</th>
-                                    <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
-                                    <th className="p-3">Notes</th>
-                                    <th className="p-3">Receipt</th>
-                                    <th className="p-3 cursor-pointer text-right" onClick={() => handleSort('amount')}>Amount</th>
-                                    <th className="p-3 cursor-pointer text-center" onClick={() => handleSort('dueDay')}>Due Day</th>
-                                    <th className="p-3 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedData.map(bill => (
-                                    <tr key={bill.id} className={`border-b border-slate-200 dark:border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                                        <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-400 dark:text-slate-600" />}</button></td>
-                                        <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
-                                        <td className="p-3 text-center"> {bill.notes && <div className="group relative flex justify-center"><MessageSquare size={16} className="text-slate-500" /><span className="absolute top-[-30px] w-max scale-0 transition-all rounded bg-slate-700 p-2 text-xs text-white group-hover:scale-100">{bill.notes}</span></div>} </td>
-                                        <td className="p-3 text-center"> {bill.attachmentURL ? <a href={bill.attachmentURL} target="_blank" rel="noopener noreferrer"><Paperclip size={16} className="text-cyan-500 dark:text-cyan-400"/></a> : <Paperclip size={16} className="text-slate-400 dark:text-slate-600"/>} </td>
-                                        <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
-                                        <td className="p-3 text-center">{bill.dueDay}</td>
-                                        <td className="p-3 text-center">
-                                            <button onClick={() => openModal('bill', bill)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                            <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                                        </td>
+    // Add this temporary cleanup function
+const cleanupDuplicateVehicles = async () => {
+    if (!userId || !window.confirm("This will delete ALL vehicles and maintenance logs, then refresh the page to reseed with correct data. Continue?")) return;
+    
+    try {
+        console.log("Starting cleanup...");
+        
+        // Delete all vehicles
+        const vehicleBatch = writeBatch(db);
+        vehicles.forEach(vehicle => {
+            const vehicleRef = doc(db, 'artifacts', appId, 'users', userId, 'vehicles', vehicle.id);
+            vehicleBatch.delete(vehicleRef);
+        });
+        
+        // Delete all maintenance logs  
+        maintenanceLogs.forEach(log => {
+            const logRef = doc(db, 'artifacts', appId, 'users', userId, 'maintenanceLogs', log.id);
+            vehicleBatch.delete(logRef);
+        });
+        
+        await vehicleBatch.commit();
+        console.log("Cleanup completed. Refreshing page...");
+        
+        // Refresh the page to trigger fresh seeding
+        window.location.reload();
+        
+    } catch (error) {
+        console.error("Error during cleanup:", error);
+        alert("Cleanup failed. Please try again.");
+    }
+};
+
+    const renderDashboard = () => {
+        console.log('DEBUG: Bills array length:', bills.length);
+        console.log('DEBUG: Bills data:', bills);
+        console.log('DEBUG: Filtered bills length:', filteredBills.length);
+        console.log('DEBUG: Selected category:', selectedCategory);
+        
+        return (
+            <>
+                {showAlerts && <AlertsPanel bills={bills} paidStatus={paidStatus} onClose={() => setShowAlerts(false)} />}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <StatCard title="Total Monthly Income" value={`$${totals.totalIncome.toLocaleString()}`} icon={<Banknote size={24} />} color="green" />
+                    <StatCard title="Total Monthly Outflow" value={`$${totals.totalOutflow.toLocaleString()}`} icon={<ArrowDown size={24} />} color="red" />
+                    <StatCard title="Projected Net" value={`$${totals.netCashFlow.toLocaleString()}`} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
+                    <StatCard title="Outstanding Debt" value={`$${totals.totalDebt.toLocaleString()}`} icon={<AlertTriangle size={24} />} color="orange" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <StatCard title="Gross Profit Margin" value={`${pnlData.revenue > 0 ? ((pnlData.grossProfit / pnlData.revenue) * 100).toFixed(1) : '0.0'}%`} icon={<Percent size={24} />} color="teal" subtext="For selected period"/>
+                    <StatCard title="Avg. Job Revenue" value={`$${(pnlData.revenue / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<TrendingUp size={24} />} color="indigo" subtext={`${filteredJobs.length} jobs`}/>
+                    <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white">Monthly Bills</h3>
+                            {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-500 dark:text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
+                            <button onClick={() => handleExportCSV(filteredBills, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export to CSV</button>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
+                                        <th className="p-3">Notes</th>
+                                        <th className="p-3">Receipt</th>
+                                        <th className="p-3 cursor-pointer text-right" onClick={() => handleSort('amount')}>Amount</th>
+                                        <th className="p-3 cursor-pointer text-center" onClick={() => handleSort('dueDay')}>Due Day</th>
+                                        <th className="p-3 text-center">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {filteredBills.map(bill => (
+                                        <tr key={bill.id} className={`border-b border-slate-200 dark:border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                            <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-400 dark:text-slate-600" />}</button></td>
+                                            <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
+                                            <td className="p-3 text-center"> {bill.notes && <div className="group relative flex justify-center"><MessageSquare size={16} className="text-slate-500" /><span className="absolute top-[-30px] w-max scale-0 transition-all rounded bg-slate-700 p-2 text-xs text-white group-hover:scale-100">{bill.notes}</span></div>} </td>
+                                            <td className="p-3 text-center"> {bill.attachmentURL ? <a href={bill.attachmentURL} target="_blank" rel="noopener noreferrer"><Paperclip size={16} className="text-cyan-500 dark:text-cyan-400"/></a> : <Paperclip size={16} className="text-slate-400 dark:text-slate-600"/>} </td>
+                                            <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
+                                            <td className="p-3 text-center">{bill.dueDay}</td>
+                                            <td className="p-3 text-center">
+                                                <button onClick={() => openModal('bill', bill)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
+                                                <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
                     </div>
-                    <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
-                </div>
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700"><h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Automations</h3>
-                        <button onClick={handleGenerateRecurring} className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><RefreshCw size={16} /> Generate Next Month's Bills</button>
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700"><h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Automations</h3>
+                            <button onClick={handleGenerateRecurring} className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><RefreshCw size={16} /> Generate Next Month's Bills</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </>
-    );
+            </>
+        );
+    };
 
     return (
         <div className={`${theme} bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white min-h-screen font-sans`}>
@@ -601,11 +649,8 @@ const App = () => {
                         <p className="text-slate-500 dark:text-slate-400 mt-1">Monthly Money Management</p>
                     </div>
                     <div className="flex items-center gap-4">
-                         <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                        <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
                             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                        </button>
-                        <button onClick={() => open()} disabled={!ready} className="flex items-center gap-2 text-sm bg-purple-600 hover:bg-purple-500 text-white font-semibold px-3 py-2 rounded-md transition-colors disabled:opacity-50">
-                            <LinkIcon size={16} /> Link Bank Account
                         </button>
                         <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg">
                            <span className="text-sm font-semibold">Reporting Period:</span>
@@ -621,6 +666,7 @@ const App = () => {
                     </div>
                 </header>
                 <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
+                    <button onClick={cleanupDuplicateVehicles} className="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded text-sm">Cleanup Vehicles</button>
                     <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
                     <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Reports</button>
                     <button onClick={() => setActiveSection('calendar')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'calendar' ? 'text-white border-b-2 border-cyan-500' : 'text-slate-400 hover:text-white'}`}>Calendar</button>
@@ -649,12 +695,12 @@ const App = () => {
                     {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} />}
                     {activeSection === 'incentives' && <IncentiveCalculator />}
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'jobs' && <ManagementSection title="Job Profitability" data={sortedData} columns={jobColumns} type="job" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
-                    {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                    {activeSection === 'jobs' && <JobsSection jobs={jobs} clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
+                    {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} jobs={jobs} />}
                     {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'debts' && <ManagementSection title="Debt Management" data={sortedData} columns={debtColumns} type="debt" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} debtPayoffStrategies={debtPayoffStrategies} />}
-                    {activeSection === 'incomes' && <ManagementSection title="Income Sources" data={sortedData} columns={incomeColumns} type="income" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
-                    {activeSection === 'weeklyCosts' && <ManagementSection title="Recurring Weekly Costs" data={sortedData} columns={weeklyCostColumns} type="weekly" searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} debtPayoffStrategies={debtPayoffStrategies} />}
+                    {activeSection === 'incomes' && <IncomeSourcesSection incomes={incomes} openModal={openModal} handleDelete={handleDelete} />}
+                    {activeSection === 'weeklyCosts' && <WeeklyCostsSection weeklyCosts={weeklyCosts} openModal={openModal} handleDelete={handleDelete} />}
                 </main>
                 <footer className="text-center mt-8 py-4 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-sm text-slate-500 dark:text-slate-400">
