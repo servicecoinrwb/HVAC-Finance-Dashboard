@@ -1,7 +1,9 @@
 import React from 'react';
 import { PlusCircle, Edit, Trash2, FileText } from 'lucide-react';
+import { CSVImportButton } from './CSVImportButton'; // This was the missing import
 
-export const RecurringWorkSection = ({
+// You can make this a default export for easier importing
+const RecurringWorkSection = ({
   recurringWork,
   openModal,
   handleDelete,
@@ -9,11 +11,13 @@ export const RecurringWorkSection = ({
   searchTerm,
   setSearchTerm,
 }) => {
-  const filteredWork = recurringWork.filter(item =>
-    Object.values(item).some(val =>
-      String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
+  // Memoizing the filtered list prevents re-calculating on every render
+  const filteredWork = React.useMemo(() => 
+    recurringWork.filter(item =>
+      Object.values(item).some(val =>
+        String(val).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    ), [recurringWork, searchTerm]);
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -64,27 +68,38 @@ export const RecurringWorkSection = ({
             </tr>
           </thead>
           <tbody>
-            {filteredWork.map(item => (
-              <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200">
-                <td className="p-3 font-medium">{item.name}</td>
-                <td className="p-3">{item.clientId}</td>
-                <td className="p-3 text-right font-mono">${(item.revenue || 0).toFixed(2)}</td>
-                <td className="p-3">{item.frequency}</td>
-                <td className="p-3">{item.nextDueDate}</td>
-                <td className="p-3 text-sm text-slate-500">{item.notes}</td>
-                <td className="p-3 text-center">
-                  <button onClick={() => openModal('recurring', item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2">
-                    <Edit size={16} />
-                  </button>
-                  <button onClick={() => handleDelete('recurring', item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500">
-                    <Trash2 size={16} />
-                  </button>
+            {filteredWork.length > 0 ? (
+              filteredWork.map(item => (
+                <tr key={item.id} className="border-b border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="p-3 font-medium">{item.name}</td>
+                  <td className="p-3">{item.clientId}</td>
+                  <td className="p-3 text-right font-mono">${(item.revenue || 0).toFixed(2)}</td>
+                  <td className="p-3">{item.frequency}</td>
+                  <td className="p-3">{item.nextDueDate}</td>
+                  <td className="p-3 text-sm text-slate-500">{item.notes}</td>
+                  <td className="p-3 text-center">
+                    <button onClick={() => openModal('recurring', item)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDelete('recurring', item.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="p-6 text-center text-slate-500">
+                  No recurring work found.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
     </div>
   );
 };
+
+export default RecurringWorkSection; // Using default export
+```
