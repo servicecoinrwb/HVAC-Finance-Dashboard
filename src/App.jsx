@@ -367,7 +367,16 @@ const App = () => {
             alert("Failed to export CSV: " + error.message);
         }
     };
-    
+
+    const exportAppSheetTemplate = () => {
+        const templateData = [
+            {
+                'Job Name': 'Sample HVAC Install', 'Revenue': 5000, 'Material Cost': 2000, 'Labor Cost': 1500, 'Date': '2025-01-15', 'Customer': 'Sample Customer', 'Notes': 'Sample job for import'
+            }
+        ];
+        handleEnhancedExportCSV(templateData, 'appsheet_template', ['Job Name', 'Revenue', 'Material Cost', 'Labor Cost', 'Date', 'Customer', 'Notes']);
+    };
+
     useEffect(() => {
         document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
@@ -759,13 +768,13 @@ const App = () => {
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
                     {activeSection === 'valuation' && <ValuationCalculator />}
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
-                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleEnhancedExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
+                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedCSVImport} handleExportCSV={handleEnhancedExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
                     {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={handleUpdateCurrentBalance} />}
                     {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} onDeleteGoal={(goalId) => handleDelete('goal', goalId)} onEditGoal={(goal) => openModal('goal', goal)} />}
                     {activeSection === 'incentives' && <IncentiveCalculator userId={userId} db={db} appId={appId} />}
-                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleEnhancedExportCSV} handleBulkUpdate={(updates) => handleBulkUpdate('client', updates)} />}
+                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedCSVImport} handleExportCSV={handleEnhancedExportCSV} handleBulkUpdate={(updates) => handleBulkUpdate('client', updates)} />}
                     {activeSection === 'jobs' && <JobsSection jobs={jobs} clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
                     {activeSection === 'recurring' && <RecurringWorkSection recurringWork={sortedData} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={handleEnhancedExportCSV} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
