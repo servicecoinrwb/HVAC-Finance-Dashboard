@@ -20,6 +20,9 @@ export const RecurringWorkSection = ({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h2 className="text-xl font-bold text-slate-800 dark:text-white">Recurring Work Management</h2>
         <div className="flex flex-wrap gap-2">
+          
+          <CSVImportButton type="recurring" label="Import" />
+
           <button
             onClick={() => handleEnhancedExportCSV(recurringWork, 'recurring_work', ['name', 'clientId', 'revenue', 'frequency', 'nextDueDate', 'notes'])}
             className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"

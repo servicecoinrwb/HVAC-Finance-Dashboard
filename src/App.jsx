@@ -49,22 +49,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// --- Initial Data ---
-// --- NO INITIAL DATA - Companies add their own ---
-const INITIAL_BILLS = [];
-const INITIAL_DEBTS = [];
-const INITIAL_INCOME = [];
-const INITIAL_WEEKLY_COSTS = [];
-const INITIAL_JOBS = [];
-const INITIAL_TASKS = [];
-const INITIAL_INVOICES = [];
-const INITIAL_TAX_PAYMENTS = [];
-const INITIAL_GOALS = [];
-const INITIAL_CLIENTS = [];
-const INITIAL_INVENTORY = [];
-const INITIAL_VEHICLES = [];
-const INITIAL_MAINTENANCE_LOGS = [];
-
 // CSV Import Button Component
 const CSVImportButton = ({ type, label, acceptTypes = ".csv" }) => {
     const fileInputRef = React.useRef(null);
@@ -97,7 +81,6 @@ const CSVImportButton = ({ type, label, acceptTypes = ".csv" }) => {
 const App = () => {
     const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSeeding, setIsSeeding] = useState(false);
     const [bills, setBills] = useState([]);
     const [debts, setDebts] = useState([]);
     const [incomes, setIncomes] = useState([]);
@@ -126,195 +109,139 @@ const App = () => {
     const [theme, setTheme] = useState('dark');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
-
-    // Enhanced CSV Integration State
-    const [csvImportData, setCsvImportData] = useState([]);
     const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
     const [csvMapping, setCsvMapping] = useState({});
 
-    // Enhanced CSV Import with Preview and Mapping
     const handleEnhancedCSVImport = (file, type) => {
-        if (!file || !userId) {
-            alert("Please select a file and ensure you're logged in.");
-            return;
-        }
-
+        if (!file || !userId) return alert("Please select a file and ensure you're logged in.");
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const text = event.target.result;
                 const lines = text.split('\n').filter(line => line.trim());
-                
-                if (lines.length < 2) {
-                    alert("CSV file must have at least a header row and one data row.");
-                    return;
-                }
+                if (lines.length < 2) return alert("CSV file must have at least a header row and one data row.");
 
-                // Parse CSV with better handling for quotes and commas
                 const parseCSVLine = (line) => {
                     const result = [];
                     let current = '';
                     let inQuotes = false;
-                    
                     for (let i = 0; i < line.length; i++) {
                         const char = line[i];
-                        if (char === '"') {
-                            inQuotes = !inQuotes;
-                        } else if (char === ',' && !inQuotes) {
+                        if (char === '"') inQuotes = !inQuotes;
+                        else if (char === ',' && !inQuotes) {
                             result.push(current.trim());
                             current = '';
-                        } else {
-                            current += char;
-                        }
+                        } else current += char;
                     }
                     result.push(current.trim());
                     return result;
                 };
 
                 const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, '').trim());
-                const data = lines.slice(1, 6).map(line => {
+                const previewData = lines.slice(1, 6).map(line => {
                     const values = parseCSVLine(line);
                     return headers.reduce((obj, header, index) => {
                         let value = values[index] || '';
                         value = value.replace(/"/g, '').trim();
-                        
-                        // Try to convert numbers
-                        if (value && !isNaN(value) && value !== '') {
-                            obj[header] = parseFloat(value);
-                        } else {
-                            obj[header] = value;
-                        }
+                        obj[header] = (value && !isNaN(value) && value !== '') ? parseFloat(value) : value;
+                        return obj;
+                    }, {});
+                });
+                
+                const fullData = lines.slice(1).map(line => {
+                    const values = parseCSVLine(line);
+                     return headers.reduce((obj, header, index) => {
+                        let value = values[index] || '';
+                        value = value.replace(/"/g, '').trim();
+                        obj[header] = (value && !isNaN(value) && value !== '') ? parseFloat(value) : value;
                         return obj;
                     }, {});
                 });
 
-                console.log("CSV Headers:", headers);
-                console.log("CSV Data Preview:", data);
-
-                // Show preview with mapping options
-                setCsvPreview({
-                    show: true,
-                    data: data,
-                    headers: headers,
-                    type: type,
-                    fileName: file.name,
-                    fullData: lines.slice(1).map(line => {
-                        const values = parseCSVLine(line);
-                        return headers.reduce((obj, header, index) => {
-                            let value = values[index] || '';
-                            value = value.replace(/"/g, '').trim();
-                            
-                            if (value && !isNaN(value) && value !== '') {
-                                obj[header] = parseFloat(value);
-                            } else {
-                                obj[header] = value;
-                            }
-                            return obj;
-                        }, {});
-                    })
-                });
-
-                // Set default mapping based on type
+                setCsvPreview({ show: true, data: previewData, headers, type, fileName: file.name, fullData });
                 setDefaultMapping(type, headers);
-
             } catch (error) {
                 console.error("Error parsing CSV:", error);
-                alert("Error parsing CSV file. Please check the file format.");
+                alert("Error parsing CSV file.");
             }
         };
         reader.readAsText(file);
     };
 
-    // Make function available globally for the CSVImportButton
     useEffect(() => {
         window.handleEnhancedCSVImport = handleEnhancedCSVImport;
-        return () => {
-            delete window.handleEnhancedCSVImport;
-        };
+        return () => { delete window.handleEnhancedCSVImport; };
     }, [userId]);
 
-    // Set default field mapping based on import type
-    const setDefaultMapping = (type, headers) => {
-        const mappings = {
-            job: {
-                name: findBestMatch(headers, ['name', 'job name', 'jobname', 'title', 'job title', 'description']),
-                revenue: findBestMatch(headers, ['revenue', 'amount', 'total', 'price', 'cost', 'value']),
-                materialCost: findBestMatch(headers, ['material cost', 'materials', 'material', 'parts']),
-                laborCost: findBestMatch(headers, ['labor cost', 'labor', 'labour', 'work']),
-                date: findBestMatch(headers, ['date', 'created', 'completed', 'finish', 'done']),
-                notes: findBestMatch(headers, ['notes', 'description', 'comments', 'details']),
-                clientId: findBestMatch(headers, ['client', 'customer', 'customer id', 'client id'])
-            },
-            client: {
-                name: findBestMatch(headers, ['name', 'customer name', 'client name', 'company']),
-                address: findBestMatch(headers, ['address', 'location', 'street']),
-                phone: findBestMatch(headers, ['phone', 'telephone', 'mobile', 'contact']),
-                email: findBestMatch(headers, ['email', 'e-mail', 'mail'])
-            },
-            invoice: {
-                billTo: findBestMatch(headers, ['bill to', 'customer', 'client', 'name']),
-                customer: findBestMatch(headers, ['customer', 'client', 'company']),
-                jobNo: findBestMatch(headers, ['job no', 'job number', 'job id', 'reference']),
-                completedOn: findBestMatch(headers, ['completed', 'date', 'finish date']),
-                net: findBestMatch(headers, ['net', 'amount', 'total', 'subtotal']),
-                grandTotal: findBestMatch(headers, ['grand total', 'total', 'amount']),
-                status: findBestMatch(headers, ['status', 'paid', 'payment status'])
-            }
-        };
-
-        setCsvMapping(mappings[type] || {});
-    };
-
-    // Find best matching header for a field
     const findBestMatch = (headers, searchTerms) => {
         for (const term of searchTerms) {
             const match = headers.find(h => h.toLowerCase().includes(term.toLowerCase()));
             if (match) return match;
         }
-        return headers[0] || ''; // Default to first header if no match
+        return headers[0] || '';
     };
 
-    // Import CSV data after mapping confirmation
-    const confirmCSVImport = async () => {
-        if (!csvPreview.fullData.length) {
-            alert("No data to import.");
-            return;
-        }
-
-        const { type, fullData } = csvPreview;
-        
-        try {
-            console.log("Starting CSV import...", { type, count: fullData.length, mapping: csvMapping });
-
-            const collectionNameMap = { 
-                job: 'jobs', 
-                client: 'clients', 
-                invoice: 'invoices',
-                inventory: 'inventory'
-            };
-            
-            const collectionName = collectionNameMap[type];
-            if (!collectionName) {
-                alert("Invalid import type.");
-                return;
+    const setDefaultMapping = (type, headers) => {
+        const mappings = {
+            job: {
+                name: findBestMatch(headers, ['name', 'job name', 'title', 'description']),
+                revenue: findBestMatch(headers, ['revenue', 'amount', 'total', 'price']),
+                materialCost: findBestMatch(headers, ['material cost', 'materials']),
+                laborCost: findBestMatch(headers, ['labor cost', 'labor']),
+                date: findBestMatch(headers, ['date', 'completed']),
+                notes: findBestMatch(headers, ['notes', 'comments']),
+                clientId: findBestMatch(headers, ['client', 'customer id'])
+            },
+            client: {
+                name: findBestMatch(headers, ['name', 'customer name', 'company']),
+                address: findBestMatch(headers, ['address', 'location']),
+                phone: findBestMatch(headers, ['phone', 'contact']),
+                email: findBestMatch(headers, ['email'])
+            },
+            invoice: {
+                billTo: findBestMatch(headers, ['bill to', 'customer', 'client']),
+                customer: findBestMatch(headers, ['customer', 'company']),
+                jobNo: findBestMatch(headers, ['job no', 'job id']),
+                completedOn: findBestMatch(headers, ['completed', 'date']),
+                net: findBestMatch(headers, ['net', 'amount', 'subtotal']),
+                grandTotal: findBestMatch(headers, ['grand total', 'total']),
+                status: findBestMatch(headers, ['status', 'paid'])
+            },
+            recurring: {
+                name: findBestMatch(headers, ['name', 'work name', 'title']),
+                clientId: findBestMatch(headers, ['client id', 'customer id']),
+                revenue: findBestMatch(headers, ['revenue', 'amount', 'price']),
+                frequency: findBestMatch(headers, ['frequency', 'schedule']),
+                nextDueDate: findBestMatch(headers, ['next due', 'due date']),
+                notes: findBestMatch(headers, ['notes', 'details'])
             }
+        };
+        setCsvMapping(mappings[type] || {});
+    };
+
+    const confirmCSVImport = async () => {
+        if (!csvPreview.fullData.length) return alert("No data to import.");
+        const { type, fullData, fileName } = csvPreview;
+
+        try {
+            const collectionNameMap = {
+                job: 'jobs', client: 'clients', invoice: 'invoices', inventory: 'inventory', recurring: 'recurringWork'
+            };
+            const collectionName = collectionNameMap[type];
+            if (!collectionName) return alert("Invalid import type.");
 
             const batch = writeBatch(db);
             const collectionRef = collection(db, 'artifacts', appId, 'users', userId, collectionName);
-            
             let importedCount = 0;
 
             fullData.forEach(row => {
-                // Map CSV data to your app's structure
                 const mappedItem = {};
-                
                 Object.entries(csvMapping).forEach(([appField, csvField]) => {
                     if (csvField && row[csvField] !== undefined && row[csvField] !== '') {
                         mappedItem[appField] = row[csvField];
                     }
                 });
 
-                // Add required fields based on type
                 if (type === 'job') {
                     mappedItem.date = mappedItem.date || new Date().toISOString();
                     mappedItem.revenue = mappedItem.revenue || 0;
@@ -324,209 +251,83 @@ const App = () => {
                     mappedItem.status = mappedItem.status || 'Unpaid';
                     mappedItem.net = mappedItem.net || 0;
                     mappedItem.grandTotal = mappedItem.grandTotal || mappedItem.net || 0;
+                } else if (type === 'recurring') {
+                    mappedItem.revenue = mappedItem.revenue || 0;
+                    mappedItem.frequency = mappedItem.frequency || 'Monthly';
+                    mappedItem.nextDueDate = mappedItem.nextDueDate || new Date().toISOString().split('T')[0];
                 }
 
-                // Only import if we have essential data
-                if ((type === 'job' && mappedItem.name) || 
-                    (type === 'client' && mappedItem.name) || 
-                    (type === 'invoice' && (mappedItem.billTo || mappedItem.customer)) ||
-                    (type === 'inventory' && mappedItem.name)) {
-                    
+                const hasEssentialData = (type === 'job' && mappedItem.name) ||
+                                         (type === 'client' && mappedItem.name) ||
+                                         (type === 'invoice' && (mappedItem.billTo || mappedItem.customer)) ||
+                                         (type === 'inventory' && mappedItem.name) ||
+                                         (type === 'recurring' && mappedItem.name);
+
+                if (hasEssentialData) {
                     const docRef = doc(collectionRef);
-                    batch.set(docRef, {
-                        ...mappedItem,
-                        importedFrom: csvPreview.fileName,
-                        importedAt: serverTimestamp(),
-                        createdAt: serverTimestamp()
-                    });
+                    batch.set(docRef, { ...mappedItem, importedFrom: fileName, importedAt: serverTimestamp(), createdAt: serverTimestamp() });
                     importedCount++;
                 }
             });
 
-            if (importedCount === 0) {
-                alert("No valid records found to import. Please check your field mapping.");
-                return;
-            }
+            if (importedCount === 0) return alert("No valid records found to import.");
 
             await batch.commit();
-            
-            console.log(`Successfully imported ${importedCount} records`);
-            alert(`Successfully imported ${importedCount} ${collectionName} from ${csvPreview.fileName}!`);
-            
-            // Close preview
+            alert(`Successfully imported ${importedCount} ${collectionName} from ${fileName}!`);
             setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' });
             setCsvMapping({});
-
         } catch (error) {
             console.error("Error importing CSV:", error);
             alert(`Failed to import CSV: ${error.message}`);
         }
     };
 
-    // Enhanced Export CSV with better formatting
-    const handleEnhancedExportCSV = (data, sectionName, customFields = null) => {
-        if (!data.length) {
-            alert("No data to export.");
-            return;
-        }
-
-        try {
-            // Use custom fields if provided, otherwise use all fields
-            const headers = customFields || Object.keys(data[0]).filter(key => 
-                !key.includes('createdAt') && !key.includes('modifiedAt') && key !== 'id'
-            );
-
-            // Create CSV content with proper escaping
-            const escapeCsvValue = (value) => {
-                if (value === null || value === undefined) return '';
-                const stringValue = String(value);
-                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-                    return `"${stringValue.replace(/"/g, '""')}"`;
-                }
-                return stringValue;
-            };
-
-            const csvRows = [
-                headers.join(','), // Header row
-                ...data.map(item => 
-                    headers.map(header => escapeCsvValue(item[header])).join(',')
-                )
-            ];
-
-            const csvContent = csvRows.join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            
-            // Create download link
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `hvac_${sectionName}_${new Date().toISOString().split('T')[0]}.csv`);
-            link.style.visibility = 'hidden';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            console.log(`Exported ${data.length} ${sectionName} records to CSV`);
-            alert(`Successfully exported ${data.length} ${sectionName} records!`);
-
-        } catch (error) {
-            console.error("Error exporting CSV:", error);
-            alert("Failed to export CSV: " + error.message);
-        }
-    };
-
-    // Export AppSheet Jobs as CSV Template
-    const exportAppSheetTemplate = () => {
-        const templateData = [
-            {
-                'Job Name': 'Sample HVAC Install',
-                'Revenue': 5000,
-                'Material Cost': 2000,
-                'Labor Cost': 1500,
-                'Date': '2025-01-15',
-                'Customer': 'Sample Customer',
-                'Notes': 'Sample job for import'
-            }
-        ];
-        
-        handleEnhancedExportCSV(templateData, 'appsheet_template', ['Job Name', 'Revenue', 'Material Cost', 'Labor Cost', 'Date', 'Customer', 'Notes']);
-    };
-
-    // CSV Preview and Mapping Component
     const CSVPreviewModal = () => {
         if (!csvPreview.show) return null;
-
         return (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white dark:bg-slate-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                     <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                                Import Preview: {csvPreview.fileName}
-                            </h2>
-                            <button
-                                onClick={() => setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' })}
-                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                            >
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Import Preview: {csvPreview.fileName}</h2>
+                            <button onClick={() => setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' })} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                 <X size={24} />
                             </button>
                         </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                            Found {csvPreview.fullData?.length || 0} records. Showing first 5 for preview.
-                        </p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Found {csvPreview.fullData?.length || 0} records. Showing first 5 for preview.</p>
                     </div>
-
-                    <div className="p-6 overflow-y-auto max-h-[60vh]">
-                        {/* Field Mapping Section */}
+                    <div className="p-6 overflow-y-auto">
                         <div className="mb-6">
-                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3">
-                                Map CSV Fields to Your App
-                            </h3>
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3">Map CSV Fields</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {Object.keys(csvMapping).map(appField => (
                                     <div key={appField} className="flex items-center gap-3">
-                                        <label className="w-24 text-sm font-medium text-slate-600 dark:text-slate-400">
-                                            {appField}:
-                                        </label>
-                                        <select
-                                            value={csvMapping[appField] || ''}
-                                            onChange={(e) => setCsvMapping(prev => ({ ...prev, [appField]: e.target.value }))}
-                                            className="flex-1 px-3 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
-                                        >
+                                        <label className="w-24 text-sm font-medium text-slate-600 dark:text-slate-400">{appField}:</label>
+                                        <select value={csvMapping[appField] || ''} onChange={(e) => setCsvMapping(prev => ({ ...prev, [appField]: e.target.value }))} className="flex-1 px-3 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
                                             <option value="">-- Skip Field --</option>
-                                            {csvPreview.headers.map(header => (
-                                                <option key={header} value={header}>{header}</option>
-                                            ))}
+                                            {csvPreview.headers.map(header => (<option key={header} value={header}>{header}</option>))}
                                         </select>
                                     </div>
                                 ))}
                             </div>
                         </div>
-
-                        {/* Data Preview */}
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3">Data Preview</h3>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm border border-slate-200 dark:border-slate-700">
                                     <thead className="bg-slate-50 dark:bg-slate-700">
-                                        <tr>
-                                            {csvPreview.headers.map(header => (
-                                                <th key={header} className="p-2 text-left border-r border-slate-200 dark:border-slate-600">
-                                                    {header}
-                                                </th>
-                                            ))}
-                                        </tr>
+                                        <tr>{csvPreview.headers.map(header => (<th key={header} className="p-2 text-left border-r border-slate-200 dark:border-slate-600">{header}</th>))}</tr>
                                     </thead>
                                     <tbody>
-                                        {csvPreview.data.map((row, index) => (
-                                            <tr key={index} className="border-t border-slate-200 dark:border-slate-700">
-                                                {csvPreview.headers.map(header => (
-                                                    <td key={header} className="p-2 border-r border-slate-200 dark:border-slate-600">
-                                                        {String(row[header] || '')}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
+                                        {csvPreview.data.map((row, index) => (<tr key={index} className="border-t border-slate-200 dark:border-slate-700">{csvPreview.headers.map(header => (<td key={header} className="p-2 border-r border-slate-200 dark:border-slate-600">{String(row[header] || '')}</td>))}</tr>))}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
-
-                    <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                        <button
-                            onClick={() => setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' })}
-                            className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={confirmCSVImport}
-                            className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
-                        >
-                            Import {csvPreview.fullData?.length || 0} Records
-                        </button>
+                    <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 mt-auto">
+                        <button onClick={() => setCsvPreview({ show: false, data: [], headers: [], type: '', fileName: '' })} className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">Cancel</button>
+                        <button onClick={confirmCSVImport} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors">Import {csvPreview.fullData?.length || 0} Records</button>
                     </div>
                 </div>
             </div>
@@ -534,17 +335,10 @@ const App = () => {
     };
 
     useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
-    const toggleTheme = () => {
-        const newTheme = theme === 'light' ? 'dark' : 'light';
-        setTheme(newTheme);
-    };
+    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
     useEffect(() => {
         const now = new Date();
@@ -568,11 +362,8 @@ const App = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("User authenticated:", user.uid);
                 setUserId(user.uid);
-                console.log("✅ Clean start - Add your business data using the interface");
             } else {
-                console.log("User not authenticated");
                 setUserId(null);
             }
             setIsLoading(false);
@@ -582,21 +373,8 @@ const App = () => {
 
     useEffect(() => {
         if (!userId) return;
-        const collectionsToWatch = { 
-            bills: setBills, 
-            debts: setDebts, 
-            incomes: setIncomes, 
-            weeklyCosts: setWeeklyCosts, 
-            jobs: setJobs, 
-            tasks: setTasks, 
-            invoices: setInvoices, 
-            taxPayments: setTaxPayments, 
-            goals: setGoals, 
-            clients: setClients, 
-            inventory: setInventory, 
-            vehicles: setVehicles, 
-            maintenanceLogs: setMaintenanceLogs,
-            recurringWork: setRecurringWork 
+        const collectionsToWatch = {
+            bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, tasks: setTasks, invoices: setInvoices, taxPayments: setTaxPayments, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles, maintenanceLogs: setMaintenanceLogs, recurringWork: setRecurringWork
         };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
@@ -609,25 +387,11 @@ const App = () => {
         return () => { unsubscribers.forEach(unsub => unsub()); unsubPaidStatus(); };
     }, [userId, selectedMonthYear]);
 
-    // Listen for current balance changes from Firebase
     useEffect(() => {
         if (!userId) return;
-        
-        const unsubscribeBalance = onSnapshot(
-            doc(db, 'artifacts', appId, 'users', userId, 'settings', 'currentBalance'), 
-            (doc) => {
-                if (doc.exists()) {
-                    setCurrentBankBalance(doc.data().amount || 0);
-                } else {
-                    setCurrentBankBalance(0);
-                }
-            }, 
-            err => {
-                console.error("Error fetching current balance:", err);
-                setCurrentBankBalance(0);
-            }
-        );
-        
+        const unsubscribeBalance = onSnapshot(doc(db, 'artifacts', appId, 'users', userId, 'settings', 'currentBalance'), (doc) => {
+            setCurrentBankBalance(doc.exists() ? doc.data().amount || 0 : 0);
+        }, err => console.error("Error fetching current balance:", err));
         return () => unsubscribeBalance();
     }, [userId]);
 
@@ -668,29 +432,17 @@ const App = () => {
     }, [bills]);
 
     const sortedData = useMemo(() => {
-        const dataMap = { 
-            bills: filteredBills, 
-            debts, 
-            incomes, 
-            weeklyCosts, 
-            jobs, 
-            goals, 
-            clients, 
-            inventory, 
-            vehicles, 
-            invoices,
-            recurring: recurringWork
+        const dataMap = {
+            bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, recurring: recurringWork
         };
         let activeData = dataMap[activeSection] || [];
-        
-        if(searchTerm) {
+        if (searchTerm) {
             activeData = activeData.filter(item => 
                 Object.values(item).some(val => 
                     val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
                 )
             );
         }
-
         return [...activeData].sort((a, b) => {
             if (!sortConfig.key) return 0;
             if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -711,9 +463,7 @@ const App = () => {
             let progress = 0;
             if (goal.type === 'debt') {
                 const debt = debts.find(d => d.id === goal.targetId);
-                if (debt) {
-                    progress = (debt.paidAmount / debt.totalAmount) * 100;
-                }
+                if (debt) progress = (debt.paidAmount / debt.totalAmount) * 100;
             } else if (goal.type === 'revenue') {
                 const currentRevenue = jobs.reduce((acc, j) => acc + (j.revenue || 0), 0);
                 progress = (currentRevenue / goal.targetValue) * 100;
@@ -730,27 +480,13 @@ const App = () => {
         await updateDoc(doc(db, 'artifacts', appId, 'users', userId, 'invoices', invoiceId), { status: newStatus });
     };
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
-    
-    // Handle updating current balance in Firebase
+
     const handleUpdateCurrentBalance = async (newBalance) => {
-        if (!userId) {
-            alert("Please log in to update the balance.");
-            return;
-        }
-        
+        if (!userId) return alert("Please log in to update the balance.");
         try {
-            await setDoc(
-                doc(db, 'artifacts', appId, 'users', userId, 'settings', 'currentBalance'), 
-                { 
-                    amount: newBalance,
-                    updatedAt: serverTimestamp()
-                }, 
-                { merge: true }
-            );
-            
-            console.log("✅ Current balance updated to:", newBalance);
+            await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'settings', 'currentBalance'), { amount: newBalance, updatedAt: serverTimestamp() }, { merge: true });
         } catch (error) {
-            console.error("❌ Failed to update current balance:", error);
+            console.error("Failed to update current balance:", error);
             alert("Failed to update balance: " + error.message);
         }
     };
@@ -759,204 +495,49 @@ const App = () => {
         if (!userId) return;
         const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs', recurring: 'recurringWork' };
         const collectionName = collectionNameMap[modalType];
+        if (!collectionName) return alert("Invalid modal type for saving.");
+        
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
-
         const dataToSave = {...itemData, modifiedAt: serverTimestamp()};
         
         if (file) {
-            console.log("Uploading file:", file.name);
             const storageRef = ref(storage, `receipts/${userId}/${Date.now()}-${file.name}`);
             try {
                 await uploadBytes(storageRef, file);
                 dataToSave.attachmentURL = await getDownloadURL(storageRef);
             } catch (error) {
                 console.error("File upload failed:", error);
-                alert("File upload failed. Please try again.");
-                return;
+                return alert("File upload failed. Please try again.");
             }
         }
 
-        if (editingItem?.id) {
-            await updateDoc(doc(db, ...basePath, editingItem.id), dataToSave);
-        } else {
-            await addDoc(collection(db, ...basePath), {...dataToSave, createdAt: serverTimestamp()});
+        try {
+            if (editingItem?.id) {
+                await updateDoc(doc(db, ...basePath, editingItem.id), dataToSave);
+            } else {
+                await addDoc(collection(db, ...basePath), {...dataToSave, createdAt: serverTimestamp()});
+            }
+            setIsModalOpen(false);
+            setEditingItem(null);
+        } catch (error) {
+            console.error("Error saving item:", error);
+            alert("Failed to save item.");
         }
-        setIsModalOpen(false);
-        setEditingItem(null);
     };
 
     const handleDelete = async (type, id) => {
-        if (!userId) {
-            console.log("No user ID, cannot delete");
-            return;
-        }
+        if (!userId || !window.confirm("Delete this item?")) return;
         
-        if (!window.confirm("Delete this item?")) {
-            console.log("User cancelled deletion");
-            return;
-        }
-        
-        console.log(`Attempting to delete ${type} with id: ${id}`);
-        
-        const collectionNameMap = { 
-            bill: 'bills', 
-            debt: 'debts', 
-            income: 'incomes', 
-            weekly: 'weeklyCosts', 
-            job: 'jobs', 
-            task: 'tasks', 
-            invoice: 'invoices', 
-            taxPayment: 'taxPayments', 
-            goal: 'goals', 
-            client: 'clients', 
-            inventory: 'inventory', 
-            vehicle: 'vehicles', 
-            maintenanceLog: 'maintenanceLogs',
-            recurring: 'recurringWork' 
-        };
-        
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs', recurring: 'recurringWork' };
         const collectionName = collectionNameMap[type];
-        
-        if (!collectionName) {
-            console.error("Invalid type:", type);
-            alert("Invalid item type for deletion");
-            return;
-        }
-        
+        if (!collectionName) return alert("Invalid item type for deletion.");
+
         try {
-            const docPath = `artifacts/${appId}/users/${userId}/${collectionName}/${id}`;
-            console.log("Deleting document at path:", docPath);
-            
-            const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
-            await deleteDoc(docRef);
-            
-            console.log(`✅ Successfully deleted ${type} with id: ${id}`);
-            
-            setTimeout(() => {
-                console.log(`Deletion of ${type} completed`);
-            }, 100);
-            
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
         } catch (error) {
-            console.error(`❌ Error deleting ${type}:`, error);
+            console.error(`Error deleting ${type}:`, error);
             alert(`Failed to delete ${type}. Error: ${error.message}`);
         }
-    };
-
-    // Bulk update function for client management
-    const handleBulkUpdate = async (type, updates) => {
-        if (!userId || !updates.length) {
-            console.log("No user ID or no updates to process");
-            return;
-        }
-        
-        console.log(`Bulk updating ${updates.length} ${type}s`);
-        
-        const collectionNameMap = { 
-            bill: 'bills', 
-            debt: 'debts', 
-            income: 'incomes', 
-            weekly: 'weeklyCosts', 
-            job: 'jobs', 
-            task: 'tasks', 
-            invoice: 'invoices', 
-            taxPayment: 'taxPayments', 
-            goal: 'goals', 
-            client: 'clients', 
-            inventory: 'inventory', 
-            vehicle: 'vehicles', 
-            maintenanceLog: 'maintenanceLogs' 
-        };
-        
-        const collectionName = collectionNameMap[type];
-        
-        if (!collectionName) {
-            console.error("Invalid bulk update type:", type);
-            alert("Invalid item type for bulk update");
-            return;
-        }
-        
-        try {
-            const batch = writeBatch(db);
-            
-            updates.forEach(update => {
-                const { id, ...updateData } = update;
-                const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
-                batch.update(docRef, {
-                    ...updateData,
-                    modifiedAt: serverTimestamp()
-                });
-            });
-            
-            await batch.commit();
-            console.log(`✅ Successfully bulk updated ${updates.length} ${type}s`);
-            
-        } catch (error) {
-            console.error(`❌ Error bulk updating ${type}s:`, error);
-            alert(`Failed to bulk update ${type}s. Error: ${error.message}`);
-        }
-    };
-    
-    const handleExportCSV = (data, sectionName) => {
-        if (!data.length) return;
-        const headers = Object.keys(data[0]);
-        const rows = data.map(item => headers.map(header => {
-            const value = item[header];
-            if (typeof value === 'string' && value.includes(',')) return `"${value}"`;
-            return value;
-        }).join(','));
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `hvac_${sectionName}_${selectedMonthYear}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    const handleImportCSV = (file, type) => {
-        if (!file || !userId) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const text = event.target.result;
-            const lines = text.split('\n').filter(line => line);
-            const headers = lines[0].split(',').map(h => h.trim());
-            const data = lines.slice(1).map(line => {
-                const values = line.split(',').map(v => v.trim());
-                return headers.reduce((obj, header, index) => {
-                    const value = values[index];
-                    obj[header] = isNaN(value) || value === '' ? value : parseFloat(value);
-                    return obj;
-                }, {});
-            });
-
-            const collectionNameMap = { client: 'clients', job: 'jobs', inventory: 'inventory', invoice: 'invoices' };
-            const collectionName = collectionNameMap[type];
-            if (!collectionName) {
-                alert("Invalid import type.");
-                return;
-            }
-
-            const batch = writeBatch(db);
-            const collectionRef = collection(db, 'artifacts', appId, 'users', userId, collectionName);
-            data.forEach(item => {
-                const docRef = doc(collectionRef);
-                const sanitizedItem = Object.entries(item).reduce((acc, [key, value]) => {
-                    acc[key] = value === undefined ? null : value;
-                    return acc;
-                }, {});
-                batch.set(docRef, {...sanitizedItem, createdAt: serverTimestamp()});
-            });
-
-            try {
-                await batch.commit();
-                alert(`Successfully imported ${data.length} ${collectionName}!`);
-            } catch (error) {
-                console.error("Error importing CSV:", error);
-                alert("Failed to import CSV. Please check the console for errors.");
-            }
-        };
-        reader.readAsText(file);
     };
 
     const handleBulkDelete = async (type, ids) => {
@@ -964,73 +545,47 @@ const App = () => {
         
         const collectionNameMap = { inventory: 'inventory', invoice: 'invoices', client: 'clients', vehicle: 'vehicles' };
         const collectionName = collectionNameMap[type];
-        
-        if (!collectionName) {
-            alert("Invalid bulk delete type.");
-            return;
-        }
-        
+        if (!collectionName) return alert("Invalid bulk delete type.");
+
         try {
             const batch = writeBatch(db);
-            
             ids.forEach(id => {
-                const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
-                batch.delete(docRef);
-                
+                batch.delete(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
                 if (type === 'vehicle') {
-                    const vehicleMaintenanceLogs = maintenanceLogs.filter(log => log.vehicleId === id);
-                    vehicleMaintenanceLogs.forEach(log => {
-                        const logRef = doc(db, 'artifacts', appId, 'users', userId, 'maintenanceLogs', log.id);
-                        batch.delete(logRef);
-                    });
+                    const vehicleLogs = maintenanceLogs.filter(log => log.vehicleId === id);
+                    vehicleLogs.forEach(log => batch.delete(doc(db, 'artifacts', appId, 'users', userId, 'maintenanceLogs', log.id)));
                 }
             });
-            
             await batch.commit();
             setSelectedIds([]);
-            console.log(`Successfully deleted ${ids.length} ${type}s`);
         } catch (error) {
             console.error(`Error bulk deleting ${type}s:`, error);
             alert(`Failed to delete ${type}s. Please try again.`);
         }
     };
 
-    const deleteAllVehicles = async () => {
-        if (!userId || !window.confirm("Clear all your business data? This will remove everything and give you a fresh start.")) return;
+    const deleteAllData = async () => {
+        if (!userId || !window.confirm("Clear all your business data? This is irreversible.")) return;
         
         try {
-            console.log("Clearing all business data...");
-            
-            const collections = ['bills', 'debts', 'incomes', 'weeklyCosts', 'jobs', 'tasks', 'invoices', 'taxPayments', 'goals', 'clients', 'inventory', 'vehicles', 'maintenanceLogs', 'recurringWork', 'paidStatus', 'system', 'settings'];
-            
-            for (const collectionName of collections) {
+            const collectionsToDelete = ['bills', 'debts', 'incomes', 'weeklyCosts', 'jobs', 'tasks', 'invoices', 'taxPayments', 'goals', 'clients', 'inventory', 'vehicles', 'maintenanceLogs', 'recurringWork', 'paidStatus', 'system', 'settings'];
+            for (const collectionName of collectionsToDelete) {
                 const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, collectionName));
-                
-                if (snapshot.docs.length > 0) {
+                if (!snapshot.empty) {
                     const batch = writeBatch(db);
-                    snapshot.docs.forEach(docSnap => {
-                        batch.delete(docSnap.ref);
-                    });
-                    
+                    snapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
                     await batch.commit();
-                    console.log(`Cleared ${snapshot.docs.length} documents from ${collectionName}`);
                 }
             }
-            
-            console.log("✅ All business data cleared");
-            alert("All business data has been cleared. You now have a fresh start to add your own business information.");
-            
+            alert("All business data has been cleared.");
         } catch (error) {
-            console.error("❌ Failed to clear data:", error);
+            console.error("Failed to clear data:", error);
             alert("Failed to clear data: " + error.message);
         }
     };
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
-    
-    if (!userId) {
-        return <Auth setUserId={setUserId} />;
-    }
+    if (!userId) return <Auth setUserId={setUserId} />;
 
     const renderDashboard = () => (
         <>
@@ -1041,49 +596,30 @@ const App = () => {
                 <StatCard title="Projected Net" value={`$${totals.netCashFlow.toLocaleString()}`} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
                 <StatCard title="Outstanding Debt" value={`$${totals.totalDebt.toLocaleString()}`} icon={<AlertTriangle size={24} />} color="orange" />
             </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <StatCard title="Gross Profit Margin" value={`${pnlData.revenue > 0 ? ((pnlData.grossProfit / pnlData.revenue) * 100).toFixed(1) : '0.0'}%`} icon={<Percent size={24} />} color="teal" subtext="For selected period"/>
                 <StatCard title="Avg. Job Revenue" value={`$${(pnlData.revenue / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<TrendingUp size={24} />} color="indigo" subtext={`${filteredJobs.length} jobs`}/>
                 <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <EnhancedBillsSection 
-                    bills={bills}
-                    paidStatus={paidStatus}
-                    selectedCategory={selectedCategory}
-                    setSelectedCategory={setSelectedCategory}
-                    handleTogglePaid={handleTogglePaid}
-                    handleSort={handleSort}
-                    openModal={openModal}
-                    handleDelete={handleDelete}
-                    handleEnhancedExportCSV={handleEnhancedExportCSV}
-                />
+                <EnhancedBillsSection bills={bills} paidStatus={paidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={handleSort} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={handleEnhancedExportCSV} />
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
                         <ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} />
                     </div>
-                    
-                    {/* AppSheet Integration Panel */}
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">AppSheet Integration</h3>
                         <div className="space-y-3">
                             <p className="text-sm text-slate-600 dark:text-slate-400">Import your AppSheet jobs and customer data easily with CSV files.</p>
-                            
                             <div className="flex flex-wrap gap-2">
                                 <CSVImportButton type="job" label="Import Jobs" />
                                 <CSVImportButton type="client" label="Import Customers" />
                                 <CSVImportButton type="invoice" label="Import Invoices" />
                             </div>
-                            
-                            <button
-                                onClick={exportAppSheetTemplate}
-                                className="w-full flex items-center justify-center gap-2 text-sm bg-purple-600 hover:bg-purple-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                            >
-                                <FileText size={16} />
-                                Download CSV Template
+                            <button onClick={exportAppSheetTemplate} className="w-full flex items-center justify-center gap-2 text-sm bg-purple-600 hover:bg-purple-500 text-white font-semibold px-3 py-2 rounded-md transition-colors">
+                                <FileText size={16} /> Download CSV Template
                             </button>
-                            
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                                 <p>• Export data from AppSheet as CSV</p>
                                 <p>• Use Import buttons to map fields</p>
@@ -1091,28 +627,18 @@ const App = () => {
                             </div>
                         </div>
                     </div>
-                    
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Getting Started</h3>
                         <div className="space-y-4">
                             <div className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Welcome to Your Business Dashboard!</h4>
+                                <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Welcome!</h4>
                                 <div className="space-y-1">
-                                    <p>• <strong>Add Clients</strong> - Go to Clients section</p>
-                                    <p>• <strong>Add Vehicles</strong> - Go to Vehicles section</p>
-                                    <p>• <strong>Add Jobs</strong> - Go to Jobs section</p>
-                                    <p>• <strong>Track Bills</strong> - Add your monthly expenses</p>
-                                    <p>• <strong>Manage Inventory</strong> - Track your parts/supplies</p>
-                                    <p>• <strong>Create Invoices</strong> - Bill your customers</p>
+                                    <p>• Use the navigation tabs to add clients, jobs, vehicles, and more.</p>
+                                    <p>• Track your finances and business performance from the dashboard.</p>
                                 </div>
                             </div>
-                            
-                            <button 
-                                onClick={deleteAllVehicles} 
-                                className="w-full flex items-center justify-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                            >
-                                <Trash2 size={16} /> 
-                                Clear All Data (If Needed)
+                            <button onClick={deleteAllData} className="w-full flex items-center justify-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors">
+                                <Trash2 size={16} /> Clear All Data
                             </button>
                         </div>
                     </div>
@@ -1136,93 +662,40 @@ const App = () => {
                         <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg">
                            <span className="text-sm font-semibold">Period:</span>
                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
-                               <button 
-                                   onClick={() => setReportingPeriod('monthly')} 
-                                   className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'monthly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                               >
-                                   Monthly
-                               </button>
-                               <button 
-                                   onClick={() => setReportingPeriod('quarterly')} 
-                                   className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'quarterly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                               >
-                                   Quarterly
-                               </button>
-                               <button 
-                                   onClick={() => setReportingPeriod('yearly')} 
-                                   className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'yearly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                               >
-                                   Yearly
-                               </button>
+                               <button onClick={() => setReportingPeriod('monthly')} className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'monthly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Monthly</button>
+                               <button onClick={() => setReportingPeriod('quarterly')} className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'quarterly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Quarterly</button>
+                               <button onClick={() => setReportingPeriod('yearly')} className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'yearly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}>Yearly</button>
                            </div>
-                           
-                           {/* Date Navigation */}
                            <div className="flex items-center gap-2 ml-2">
-                               <button
-                                   onClick={() => {
-                                       const newStart = new Date(dateRange.start);
-                                       if (reportingPeriod === 'monthly') {
-                                           newStart.setMonth(newStart.getMonth() - 1);
-                                       } else if (reportingPeriod === 'quarterly') {
-                                           newStart.setMonth(newStart.getMonth() - 3);
-                                       } else {
-                                           newStart.setFullYear(newStart.getFullYear() - 1);
-                                       }
-                                       
-                                       let end;
-                                       if (reportingPeriod === 'monthly') {
-                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
-                                       } else if (reportingPeriod === 'quarterly') {
-                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 3, 0);
-                                       } else {
-                                           end = new Date(newStart.getFullYear(), 11, 31);
-                                       }
-                                       
-                                       setDateRange({ start: newStart, end });
-                                   }}
-                                   className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
-                                   title="Previous period"
-                               >
+                               <button onClick={() => {
+                                   const newStart = new Date(dateRange.start);
+                                   if (reportingPeriod === 'monthly') newStart.setMonth(newStart.getMonth() - 1);
+                                   else if (reportingPeriod === 'quarterly') newStart.setMonth(newStart.getMonth() - 3);
+                                   else newStart.setFullYear(newStart.getFullYear() - 1);
+                                   let end;
+                                   if (reportingPeriod === 'monthly') end = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
+                                   else if (reportingPeriod === 'quarterly') end = new Date(newStart.getFullYear(), newStart.getMonth() + 3, 0);
+                                   else end = new Date(newStart.getFullYear(), 11, 31);
+                                   setDateRange({ start: newStart, end });
+                               }} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors" title="Previous period">
                                    <ChevronLeft size={16} />
                                </button>
-                               
                                <span className="text-sm font-medium min-w-[120px] text-center">
-                                   {reportingPeriod === 'monthly' && 
-                                       dateRange.start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                                   }
-                                   {reportingPeriod === 'quarterly' && 
-                                       `Q${Math.ceil((dateRange.start.getMonth() + 1) / 3)} ${dateRange.start.getFullYear()}`
-                                   }
-                                   {reportingPeriod === 'yearly' && 
-                                       dateRange.start.getFullYear().toString()
-                                   }
+                                   {reportingPeriod === 'monthly' && dateRange.start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                   {reportingPeriod === 'quarterly' && `Q${Math.ceil((dateRange.start.getMonth() + 1) / 3)} ${dateRange.start.getFullYear()}`}
+                                   {reportingPeriod === 'yearly' && dateRange.start.getFullYear().toString()}
                                </span>
-                               
-                               <button
-                                   onClick={() => {
-                                       const newStart = new Date(dateRange.start);
-                                       if (reportingPeriod === 'monthly') {
-                                           newStart.setMonth(newStart.getMonth() + 1);
-                                       } else if (reportingPeriod === 'quarterly') {
-                                           newStart.setMonth(newStart.getMonth() + 3);
-                                       } else {
-                                           newStart.setFullYear(newStart.getFullYear() + 1);
-                                       }
-                                       
-                                       let end;
-                                       if (reportingPeriod === 'monthly') {
-                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
-                                       } else if (reportingPeriod === 'quarterly') {
-                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 3, 0);
-                                       } else {
-                                           end = new Date(newStart.getFullYear(), 11, 31);
-                                       }
-                                       
-                                       setDateRange({ start: newStart, end });
-                                   }}
-                                   className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
-                                   title="Next period"
-                               >
+                               <button onClick={() => {
+                                   const newStart = new Date(dateRange.start);
+                                   if (reportingPeriod === 'monthly') newStart.setMonth(newStart.getMonth() + 1);
+                                   else if (reportingPeriod === 'quarterly') newStart.setMonth(newStart.getMonth() + 3);
+                                   else newStart.setFullYear(newStart.getFullYear() + 1);
+                                   let end;
+                                   if (reportingPeriod === 'monthly') end = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
+                                   else if (reportingPeriod === 'quarterly') end = new Date(newStart.getFullYear(), newStart.getMonth() + 3, 0);
+                                   else end = new Date(newStart.getFullYear(), 11, 31);
+                                   setDateRange({ start: newStart, end });
+                               }} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors" title="Next period">
                                    <ChevronRight size={16} />
                                </button>
                            </div>
@@ -1237,129 +710,38 @@ const App = () => {
                     <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
                     <button onClick={() => setActiveSection('calendar')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'calendar' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Calendar</button>
                     <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
-                    <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Tax Management</button>
-                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L Statement</button>
-                    <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Forecast</button>
-                    <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Goals</button>
-                    <button onClick={() => setActiveSection('incentives')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incentives' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Incentives</button>
-                    <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
                     <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
                     <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
+                    <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
                     <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
-                    <button onClick={() => setActiveSection('valuation')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'valuation' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Business Valuation</button>
                     <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Inventory</button>
-                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Debt Management</button>
-                    <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Income Sources</button>
+                    <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Debt</button>
+                    <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Income</button>
                     <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Weekly Costs</button>
+                    <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Goals</button>
+                    <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L</button>
+                    <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Forecast</button>
+                    <button onClick={() => setActiveSection('valuation')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'valuation' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Valuation</button>
+                    <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Tax</button>
+                    <button onClick={() => setActiveSection('incentives')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incentives' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Incentives</button>
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
                     {activeSection === 'valuation' && <ValuationCalculator />}
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
-                    {activeSection === 'invoices' && (
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Invoice Management</h2>
-                                <div className="flex flex-wrap gap-2">
-                                    <CSVImportButton type="invoice" label="Import Invoices" />
-                                    <button
-                                        onClick={() => handleEnhancedExportCSV(invoices, 'invoices', ['billTo', 'customer', 'jobNo', 'completedOn', 'net', 'grandTotal', 'status'])}
-                                        className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                                    >
-                                        <FileText size={16} />
-                                        Export Invoices
-                                    </button>
-                                    <button onClick={() => openModal('invoice')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors">
-                                        <PlusCircle size={18} />
-                                        Add Invoice
-                                    </button>
-                                </div>
-                            </div>
-                            <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />
-                        </div>
-                    )}
+                    {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
                     {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={handleUpdateCurrentBalance} />}
-                    {activeSection === 'goals' && (
-                        <GoalsSection 
-                            goalsWithProgress={goalsWithProgress} 
-                            openModal={openModal}
-                            onDeleteGoal={(goalId) => handleDelete('goal', goalId)}
-                            onEditGoal={(goal) => openModal('goal', goal)}
-                        />
-                    )}
+                    {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} onDeleteGoal={(goalId) => handleDelete('goal', goalId)} onEditGoal={(goal) => openModal('goal', goal)} />}
                     {activeSection === 'incentives' && <IncentiveCalculator userId={userId} db={db} appId={appId} />}
-                    {activeSection === 'clients' && (
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Client Management</h2>
-                                <div className="flex flex-wrap gap-2">
-                                    <CSVImportButton type="client" label="Import Clients" />
-                                    <button
-                                        onClick={() => handleEnhancedExportCSV(clients, 'clients', ['name', 'address', 'phone', 'email'])}
-                                        className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                                    >
-                                        <FileText size={16} />
-                                        Export Clients
-                                    </button>
-                                    <button onClick={() => openModal('client')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors">
-                                        <PlusCircle size={18} />
-                                        Add Client
-                                    </button>
-                                </div>
-                            </div>
-                            <ClientManagement 
-                                clients={clients} 
-                                openModal={openModal} 
-                                handleDelete={handleDelete} 
-                                handleBulkDelete={handleBulkDelete} 
-                                selectedIds={selectedIds} 
-                                setSelectedIds={setSelectedIds} 
-                                searchTerm={searchTerm} 
-                                setSearchTerm={setSearchTerm} 
-                                handleImportCSV={handleImportCSV} 
-                                handleExportCSV={handleExportCSV}
-                                handleBulkUpdate={handleBulkUpdate}
-                            />
-                        </div>
-                    )}
-                    {activeSection === 'jobs' && (
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Jobs Management</h2>
-                                <div className="flex flex-wrap gap-2">
-                                    <CSVImportButton type="job" label="Import Jobs" />
-                                    <button
-                                        onClick={() => handleEnhancedExportCSV(jobs, 'jobs', ['name', 'revenue', 'materialCost', 'laborCost', 'date', 'notes', 'clientId'])}
-                                        className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                                    >
-                                        <FileText size={16} />
-                                        Export Jobs
-                                    </button>
-                                    <button onClick={() => openModal('job')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors">
-                                        <PlusCircle size={18} />
-                                        Add Job
-                                    </button>
-                                </div>
-                            </div>
-                            <JobsSection jobs={jobs} clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />
-                        </div>
-                    )}
-                    {activeSection === 'recurring' && (
-                        <RecurringWorkSection
-                            recurringWork={sortedData}
-                            openModal={openModal}
-                            handleDelete={handleDelete}
-                            handleEnhancedExportCSV={handleEnhancedExportCSV}
-                            searchTerm={searchTerm}
-                            setSearchTerm={setSearchTerm}
-                        />
-                    )}
+                    {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} handleBulkUpdate={(updates) => handleBulkUpdate('client', updates)} />}
+                    {activeSection === 'jobs' && <JobsSection jobs={jobs} clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                    {activeSection === 'recurring' && <RecurringWorkSection recurringWork={sortedData} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={handleEnhancedExportCSV} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                    {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}
-                    {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} debtPayoffStrategies={debtPayoffStrategies} />}
+                    {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                    {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} debtPayoffStrategies={debtPayoffStrategies} />}
                     {activeSection === 'incomes' && <IncomeSourcesSection incomes={incomes} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'weeklyCosts' && <WeeklyCostsSection weeklyCosts={weeklyCosts} openModal={openModal} handleDelete={handleDelete} />}
                 </main>
@@ -1369,10 +751,7 @@ const App = () => {
                     </p>
                 </footer>
             </div>
-            
-            {/* CSV Preview Modal */}
             <CSVPreviewModal />
-            
             {isModalOpen && <ItemFormModal item={editingItem} type={modalType} onSave={handleSave} onClose={() => setIsModalOpen(false)} debts={debts} clients={clients} vehicles={vehicles} />}
         </div>
     );
