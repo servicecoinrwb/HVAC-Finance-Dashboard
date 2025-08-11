@@ -29,7 +29,7 @@ import { GoalsSection } from './components/GoalsSection';
 import { WeeklyCostsSection } from './components/WeeklyCostsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
 import EnhancedBillsSection from './components/EnhancedBillsSection';
-import { RecurringWorkSection } from './components/RecurringWorkSection';
+import RecurringWorkSection from './components/RecurringWorkSection';
 import { CSVImportButton } from './components/CSVImportButton'; // Import the new component
 
 // --- Firebase Configuration ---
