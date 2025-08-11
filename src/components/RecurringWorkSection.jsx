@@ -102,4 +102,3 @@ const RecurringWorkSection = ({
 };
 
 export default RecurringWorkSection; // Using default export
-```
