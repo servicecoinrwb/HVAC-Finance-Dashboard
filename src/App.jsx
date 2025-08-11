@@ -14,6 +14,7 @@ import { ItemFormModal } from './components/ItemFormModal';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { ClientManagement } from './components/ClientManagement';
 import VehicleManagement from './components/VehicleManagement';
+import ValuationCalculator from './components/ValuationCalculator';
 import { InventoryManagement } from './components/InventoryManagement';
 import { ReportsSection } from './components/ReportsSection';
 import { AlertsPanel } from './components/AlertsPanel';
@@ -22,11 +23,13 @@ import { Modal } from './components/Modal';
 import { ForecastSection } from './components/Forecast';
 import { JobsSection } from './components/Jobs';
 import { PnLStatement } from './components/PnLStatement';
-import { DebtManagement } from './components/DebtManagement';
+import DebtManagement from './components/DebtManagement';
 import { IncomeSourcesSection } from './components/IncomeSources';
 import { GoalsSection } from './components/GoalsSection';
 import { WeeklyCostsSection } from './components/WeeklyCostsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
+import EnhancedBillsSection from './components/EnhancedBillsSection';
+import RecurringWorkSection from './components/RecurringWorkSection';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -47,56 +50,20 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // --- Initial Data ---
-const INITIAL_BILLS = [ { name: "Adobe", amount: 21.19, dueDay: 1, isAutoPay: true, category: "Software", notes: "", attachmentURL: null, isRecurring: true }, { name: "Rent", amount: 1600, dueDay: 1, isAutoPay: false, category: "Overhead", notes: "Landlord: John Smith", attachmentURL: null, isRecurring: true }, { name: "GM Financial Black Truck", amount: 1307.20, dueDay: 6, isAutoPay: false, category: "Vehicle", notes: "", vehicleId: "1" }];
-const INITIAL_DEBTS = [ { name: "Ondeck Credit", totalAmount: 7500, paidAmount: 0, interestRate: 12.5, notes: "" }, { name: "Chase Card", totalAmount: 33795.27, paidAmount: 2200, interestRate: 21.99, notes: "" }];
-const INITIAL_INCOME = [ { name: "NEST Early Pay", amount: 15000, type: "monthly", notes: "", isRecurring: true }, { name: "Job Revenue", amount: 5000, type: "monthly", notes: "", isRecurring: false }];
-const INITIAL_WEEKLY_COSTS = [ { name: "Projected Payroll", amount: 1800, notes: "" }, { name: "Fuel & Maintenance", amount: 450, notes: "" }];
-const INITIAL_JOBS = [ { name: "Johnson Residence A/C Install", revenue: 8500, materialCost: 3200, laborCost: 1500, notes: "Trane XV20i unit.", date: new Date().toISOString(), clientId: "1" }, { name: "Downtown Restaurant PM", revenue: 1200, materialCost: 150, laborCost: 400, notes: "Quarterly maintenance contract.", date: new Date().toISOString(), clientId: "2" }];
-const INITIAL_TASKS = [ { title: "Follow up with Johnson about quote", date: new Date().toISOString().split('T')[0], notes: "Sent quote last week", isComplete: false }, { title: "Order filters for Downtown Restaurant", date: new Date().toISOString().split('T')[0], notes: "Need 10x 20x25x1 filters", isComplete: true }];
-const INITIAL_INVOICES = [ { billTo: "Badawi", customer: "Southern Algeria #00547", jobNo: "1548875887", completedOn: "6/14/2024", invNum: "", terms: "Net 45", net: 1291.00, dueDate: "6/14/2024", status: "Unpaid", grandTotal: 1291.00 }];
-const INITIAL_TAX_PAYMENTS = [{ date: new Date().toISOString().split('T')[0], amount: 500, notes: "Q2 Estimated Payment" }];
-const INITIAL_GOALS = [ { name: "Pay off Chase Card", type: "debt", targetId: "Chase Card", targetValue: 0, deadline: "2025-12-31" }, { name: "Achieve $50k Job Revenue", type: "revenue", targetValue: 50000, deadline: "2025-12-31" }];
-const INITIAL_CLIENTS = [ {id: "1", name: "John Johnson", address: "123 Main St, Anytown, USA", phone: "555-1234", email: "john@example.com"}, {id: "3", name: "Restaurant Group Inc.", address: "789 Corp Blvd, Big City, USA", phone: "555-9999", email: "accounts@restaurantgroup.com"}, {id: "2", name: "Downtown Restaurant", address: "456 Oak Ave, Anytown, USA", phone: "555-5678", email: "contact@downtownrestaurant.com", parentId: "3"}];
-const INITIAL_INVENTORY = [ {name: "Standard 1-inch Filter", quantity: 50, cost: 5.50}, {name: "Capacitor 45/5 MFD", quantity: 15, cost: 25.00} ];
-const INITIAL_VEHICLES = [ 
-    {id: "7", name: "Jason's Truck", make: "FORD", model: "TRANSIT T250", year: "2020", vin: "1FTBR1C84LKA59065", licensePlate: "DD16326", currentMileage: 104071, status: "active"}, 
-    {id: "8", name: "Red Van", make: "FORD", model: "TRANSIT T250", year: "2020", vin: "1FTBR1C85LKA70866", licensePlate: "DD16337", currentMileage: 107046, status: "active"}, 
-    {id: "11", name: "GMC Sierra", make: "GMC", model: "SIERRA", year: "2022", vin: "3GTPUJEK7NG635190", licensePlate: "DF94421", currentMileage: 18811, status: "active"} 
-];
-// Remove maintenance logs for now
+// --- NO INITIAL DATA - Companies add their own ---
+const INITIAL_BILLS = [];
+const INITIAL_DEBTS = [];
+const INITIAL_INCOME = [];
+const INITIAL_WEEKLY_COSTS = [];
+const INITIAL_JOBS = [];
+const INITIAL_TASKS = [];
+const INITIAL_INVOICES = [];
+const INITIAL_TAX_PAYMENTS = [];
+const INITIAL_GOALS = [];
+const INITIAL_CLIENTS = [];
+const INITIAL_INVENTORY = [];
+const INITIAL_VEHICLES = [];
 const INITIAL_MAINTENANCE_LOGS = [];
-
-// --- Column Configurations ---
-const jobColumns = [
-    { key: 'name', label: 'Job Name', sortable: true },
-    { key: 'revenue', label: 'Revenue', sortable: true, type: 'currency' },
-    { key: 'materialCost', label: 'Material Cost', sortable: true, type: 'currency' },
-    { key: 'laborCost', label: 'Labor Cost', sortable: true, type: 'currency' },
-    { key: 'date', label: 'Date', sortable: true, type: 'date' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
-
-const debtColumns = [
-    { key: 'name', label: 'Debt Name', sortable: true },
-    { key: 'totalAmount', label: 'Total Amount', sortable: true, type: 'currency' },
-    { key: 'paidAmount', label: 'Paid Amount', sortable: true, type: 'currency' },
-    { key: 'interestRate', label: 'Interest Rate', sortable: true, type: 'percentage' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
-
-const incomeColumns = [
-    { key: 'name', label: 'Income Source', sortable: true },
-    { key: 'amount', label: 'Amount', sortable: true, type: 'currency' },
-    { key: 'type', label: 'Type', sortable: true },
-    { key: 'isRecurring', label: 'Recurring', sortable: true, type: 'boolean' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
-
-const weeklyCostColumns = [
-    { key: 'name', label: 'Cost Name', sortable: true },
-    { key: 'amount', label: 'Weekly Amount', sortable: true, type: 'currency' },
-    { key: 'notes', label: 'Notes', sortable: false }
-];
 
 // CSV Import Button Component
 const CSVImportButton = ({ type, label, acceptTypes = ".csv" }) => {
@@ -144,6 +111,7 @@ const App = () => {
     const [inventory, setInventory] = useState([]);
     const [vehicles, setVehicles] = useState([]);
     const [maintenanceLogs, setMaintenanceLogs] = useState([]);
+    const [recurringWork, setRecurringWork] = useState([]);
     const [paidStatus, setPaidStatus] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
@@ -151,7 +119,7 @@ const App = () => {
     const [sortConfig, setSortConfig] = useState({ key: 'dueDay', direction: 'ascending' });
     const [activeSection, setActiveSection] = useState('dashboard');
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const [currentBankBalance, setCurrentBankBalance] = useState(25000);
+    const [currentBankBalance, setCurrentBankBalance] = useState(0);
     const [dateRange, setDateRange] = useState({start: new Date(), end: new Date()});
     const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
@@ -598,136 +566,11 @@ const App = () => {
     const selectedMonthYear = useMemo(() => dateRange.start.getFullYear() + '-' + String(dateRange.start.getMonth() + 1).padStart(2, '0'), [dateRange]);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
                 console.log("User authenticated:", user.uid);
                 setUserId(user.uid);
-                
-                // Check multiple collections to see if ANY data exists (not just bills)
-                const billsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'bills');
-                const vehiclesRef = collection(db, 'artifacts', appId, 'users', user.uid, 'vehicles');
-                const clientsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'clients');
-                
-                const [billsSnapshot, vehiclesSnapshot, clientsSnapshot] = await Promise.all([
-                    getDocs(billsRef),
-                    getDocs(vehiclesRef), 
-                    getDocs(clientsRef)
-                ]);
-                
-                const hasAnyData = !billsSnapshot.empty || !vehiclesSnapshot.empty || !clientsSnapshot.empty;
-                
-                console.log("Data check:", {
-                    bills: billsSnapshot.docs.length,
-                    vehicles: vehiclesSnapshot.docs.length,
-                    clients: clientsSnapshot.docs.length,
-                    hasAnyData
-                });
-                
-                if (!hasAnyData) {
-                    setIsSeeding(true);
-                    console.log("No data found anywhere. Starting initial data seeding...");
-                    
-                    try {
-                        const batch = writeBatch(db);
-                        const basePath = ['artifacts', appId, 'users', user.uid];
-                        
-                        // Add a flag to prevent re-seeding
-                        const seedingFlagRef = doc(db, ...basePath, 'system', 'seeded');
-                        batch.set(seedingFlagRef, { 
-                            seededAt: serverTimestamp(),
-                            version: '1.0'
-                        });
-                        
-                        // Seed basic data (no maintenance logs for now)
-                        INITIAL_BILLS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'bills'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding bill ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_DEBTS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'debts'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding debt ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_INCOME.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'incomes'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding income ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_WEEKLY_COSTS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'weeklyCosts'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding weekly cost ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_JOBS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'jobs'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding job ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_TASKS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'tasks'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding task ${index + 1}:`, item.title);
-                        });
-                        
-                        INITIAL_INVOICES.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'invoices'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding invoice ${index + 1}:`, item.billTo);
-                        });
-                        
-                        INITIAL_TAX_PAYMENTS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'taxPayments'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding tax payment ${index + 1}`);
-                        });
-                        
-                        INITIAL_GOALS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'goals'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding goal ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_CLIENTS.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'clients'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding client ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_INVENTORY.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'inventory'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding inventory ${index + 1}:`, item.name);
-                        });
-                        
-                        INITIAL_VEHICLES.forEach((item, index) => {
-                            const docRef = doc(collection(db, ...basePath, 'vehicles'));
-                            batch.set(docRef, {...item, createdAt: serverTimestamp()});
-                            console.log(`Adding vehicle ${index + 1}:`, item.name);
-                        });
-                        
-                        // Set initial paid status
-                        const initialMonthYear = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
-                        const paidStatusRef = doc(db, ...basePath, 'paidStatus', initialMonthYear);
-                        batch.set(paidStatusRef, { status: {} });
-                        console.log("Adding initial paid status for:", initialMonthYear);
-                        
-                        await batch.commit();
-                        console.log("✅ Initial data seeded successfully");
-                        setIsSeeding(false);
-                    } catch (error) {
-                        console.error("❌ Error seeding initial data:", error);
-                        setIsSeeding(false);
-                        alert("Failed to seed initial data: " + error.message);
-                    }
-                } else {
-                    console.log("Data already exists, skipping seeding");
-                }
+                console.log("✅ Clean start - Add your business data using the interface");
             } else {
                 console.log("User not authenticated");
                 setUserId(null);
@@ -739,7 +582,22 @@ const App = () => {
 
     useEffect(() => {
         if (!userId) return;
-        const collectionsToWatch = { bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, jobs: setJobs, tasks: setTasks, invoices: setInvoices, taxPayments: setTaxPayments, goals: setGoals, clients: setClients, inventory: setInventory, vehicles: setVehicles, maintenanceLogs: setMaintenanceLogs };
+        const collectionsToWatch = { 
+            bills: setBills, 
+            debts: setDebts, 
+            incomes: setIncomes, 
+            weeklyCosts: setWeeklyCosts, 
+            jobs: setJobs, 
+            tasks: setTasks, 
+            invoices: setInvoices, 
+            taxPayments: setTaxPayments, 
+            goals: setGoals, 
+            clients: setClients, 
+            inventory: setInventory, 
+            vehicles: setVehicles, 
+            maintenanceLogs: setMaintenanceLogs,
+            recurringWork: setRecurringWork 
+        };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
                 setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -750,6 +608,28 @@ const App = () => {
         }, err => console.error("Error fetching paid status:", err));
         return () => { unsubscribers.forEach(unsub => unsub()); unsubPaidStatus(); };
     }, [userId, selectedMonthYear]);
+
+    // Listen for current balance changes from Firebase
+    useEffect(() => {
+        if (!userId) return;
+        
+        const unsubscribeBalance = onSnapshot(
+            doc(db, 'artifacts', appId, 'users', userId, 'settings', 'currentBalance'), 
+            (doc) => {
+                if (doc.exists()) {
+                    setCurrentBankBalance(doc.data().amount || 0);
+                } else {
+                    setCurrentBankBalance(0);
+                }
+            }, 
+            err => {
+                console.error("Error fetching current balance:", err);
+                setCurrentBankBalance(0);
+            }
+        );
+        
+        return () => unsubscribeBalance();
+    }, [userId]);
 
     const filteredJobs = useMemo(() => jobs.filter(job => {
         if (!job.date) return false;
@@ -788,7 +668,19 @@ const App = () => {
     }, [bills]);
 
     const sortedData = useMemo(() => {
-        const dataMap = { bills: filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices };
+        const dataMap = { 
+            bills: filteredBills, 
+            debts, 
+            incomes, 
+            weeklyCosts, 
+            jobs, 
+            goals, 
+            clients, 
+            inventory, 
+            vehicles, 
+            invoices,
+            recurring: recurringWork
+        };
         let activeData = dataMap[activeSection] || [];
         
         if(searchTerm) {
@@ -805,7 +697,7 @@ const App = () => {
             if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
             return 0;
         });
-    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, sortConfig, activeSection, searchTerm]);
+    }, [filteredBills, debts, incomes, weeklyCosts, jobs, goals, clients, inventory, vehicles, invoices, recurringWork, sortConfig, activeSection, searchTerm]);
 
     const debtPayoffStrategies = useMemo(() => {
         const outstandingDebts = debts.map(d => ({...d, remaining: d.totalAmount - d.paidAmount})).filter(d => d.remaining > 0);
@@ -839,9 +731,33 @@ const App = () => {
     };
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
     
+    // Handle updating current balance in Firebase
+    const handleUpdateCurrentBalance = async (newBalance) => {
+        if (!userId) {
+            alert("Please log in to update the balance.");
+            return;
+        }
+        
+        try {
+            await setDoc(
+                doc(db, 'artifacts', appId, 'users', userId, 'settings', 'currentBalance'), 
+                { 
+                    amount: newBalance,
+                    updatedAt: serverTimestamp()
+                }, 
+                { merge: true }
+            );
+            
+            console.log("✅ Current balance updated to:", newBalance);
+        } catch (error) {
+            console.error("❌ Failed to update current balance:", error);
+            alert("Failed to update balance: " + error.message);
+        }
+    };
+    
     const handleSave = async (itemData, file) => {
         if (!userId) return;
-        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs' };
+        const collectionNameMap = { bill: 'bills', debt: 'debts', income: 'incomes', weekly: 'weeklyCosts', job: 'jobs', task: 'tasks', invoice: 'invoices', taxPayment: 'taxPayments', goal: 'goals', client: 'clients', inventory: 'inventory', vehicle: 'vehicles', maintenanceLog: 'maintenanceLogs', recurring: 'recurringWork' };
         const collectionName = collectionNameMap[modalType];
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
 
@@ -869,63 +785,116 @@ const App = () => {
         setEditingItem(null);
     };
 
-   const handleDelete = async (type, id) => {
-    if (!userId) {
-        console.log("No user ID, cannot delete");
-        return;
-    }
-    
-    if (!window.confirm("Delete this item?")) {
-        console.log("User cancelled deletion");
-        return;
-    }
-    
-    console.log(`Attempting to delete ${type} with id: ${id}`);
-    
-    const collectionNameMap = { 
-        bill: 'bills', 
-        debt: 'debts', 
-        income: 'incomes', 
-        weekly: 'weeklyCosts', 
-        job: 'jobs', 
-        task: 'tasks', 
-        invoice: 'invoices', 
-        taxPayment: 'taxPayments', 
-        goal: 'goals', 
-        client: 'clients', 
-        inventory: 'inventory', 
-        vehicle: 'vehicles', 
-        maintenanceLog: 'maintenanceLogs' 
+    const handleDelete = async (type, id) => {
+        if (!userId) {
+            console.log("No user ID, cannot delete");
+            return;
+        }
+        
+        if (!window.confirm("Delete this item?")) {
+            console.log("User cancelled deletion");
+            return;
+        }
+        
+        console.log(`Attempting to delete ${type} with id: ${id}`);
+        
+        const collectionNameMap = { 
+            bill: 'bills', 
+            debt: 'debts', 
+            income: 'incomes', 
+            weekly: 'weeklyCosts', 
+            job: 'jobs', 
+            task: 'tasks', 
+            invoice: 'invoices', 
+            taxPayment: 'taxPayments', 
+            goal: 'goals', 
+            client: 'clients', 
+            inventory: 'inventory', 
+            vehicle: 'vehicles', 
+            maintenanceLog: 'maintenanceLogs',
+            recurring: 'recurringWork' 
+        };
+        
+        const collectionName = collectionNameMap[type];
+        
+        if (!collectionName) {
+            console.error("Invalid type:", type);
+            alert("Invalid item type for deletion");
+            return;
+        }
+        
+        try {
+            const docPath = `artifacts/${appId}/users/${userId}/${collectionName}/${id}`;
+            console.log("Deleting document at path:", docPath);
+            
+            const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
+            await deleteDoc(docRef);
+            
+            console.log(`✅ Successfully deleted ${type} with id: ${id}`);
+            
+            setTimeout(() => {
+                console.log(`Deletion of ${type} completed`);
+            }, 100);
+            
+        } catch (error) {
+            console.error(`❌ Error deleting ${type}:`, error);
+            alert(`Failed to delete ${type}. Error: ${error.message}`);
+        }
     };
-    
-    const collectionName = collectionNameMap[type];
-    
-    if (!collectionName) {
-        console.error("Invalid type:", type);
-        alert("Invalid item type for deletion");
-        return;
-    }
-    
-    try {
-        const docPath = `artifacts/${appId}/users/${userId}/${collectionName}/${id}`;
-        console.log("Deleting document at path:", docPath);
+
+    // Bulk update function for client management
+    const handleBulkUpdate = async (type, updates) => {
+        if (!userId || !updates.length) {
+            console.log("No user ID or no updates to process");
+            return;
+        }
         
-        const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
-        await deleteDoc(docRef);
+        console.log(`Bulk updating ${updates.length} ${type}s`);
         
-        console.log(`✅ Successfully deleted ${type} with id: ${id}`);
+        const collectionNameMap = { 
+            bill: 'bills', 
+            debt: 'debts', 
+            income: 'incomes', 
+            weekly: 'weeklyCosts', 
+            job: 'jobs', 
+            task: 'tasks', 
+            invoice: 'invoices', 
+            taxPayment: 'taxPayments', 
+            goal: 'goals', 
+            client: 'clients', 
+            inventory: 'inventory', 
+            vehicle: 'vehicles', 
+            maintenanceLog: 'maintenanceLogs' 
+        };
         
-        // Optional: Show success feedback
-        // You can remove this alert in production
-        setTimeout(() => {
-            console.log(`Deletion of ${type} completed`);
-        }, 100);
+        const collectionName = collectionNameMap[type];
         
-    } catch (error) {
-        console.error(`❌ Error deleting ${type}:`, error);
-        alert(`Failed to delete ${type}. Error: ${error.message}`);
-    }
-};
+        if (!collectionName) {
+            console.error("Invalid bulk update type:", type);
+            alert("Invalid item type for bulk update");
+            return;
+        }
+        
+        try {
+            const batch = writeBatch(db);
+            
+            updates.forEach(update => {
+                const { id, ...updateData } = update;
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
+                batch.update(docRef, {
+                    ...updateData,
+                    modifiedAt: serverTimestamp()
+                });
+            });
+            
+            await batch.commit();
+            console.log(`✅ Successfully bulk updated ${updates.length} ${type}s`);
+            
+        } catch (error) {
+            console.error(`❌ Error bulk updating ${type}s:`, error);
+            alert(`Failed to bulk update ${type}s. Error: ${error.message}`);
+        }
+    };
     
     const handleExportCSV = (data, sectionName) => {
         if (!data.length) return;
@@ -990,41 +959,6 @@ const App = () => {
         reader.readAsText(file);
     };
 
-    const handleGenerateRecurring = async () => {
-        if (!userId || !window.confirm("This will generate recurring transactions for next month. Continue?")) return;
-
-        const nextMonthDate = new Date(dateRange.start);
-        nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
-        const nextMonthYear = nextMonthDate.getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
-
-        const recurringBills = bills.filter(b => b.isRecurring);
-        const recurringIncomes = incomes.filter(i => i.isRecurring);
-        
-        const batch = writeBatch(db);
-
-        recurringBills.forEach(bill => {
-            const newBill = { ...bill, createdAt: serverTimestamp(), notes: `Generated for ${nextMonthYear}` };
-            delete newBill.id;
-            const docRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'bills'));
-            batch.set(docRef, newBill);
-        });
-
-        recurringIncomes.forEach(income => {
-            const newIncome = { ...income, createdAt: serverTimestamp(), notes: `Generated for ${nextMonthYear}` };
-            delete newIncome.id;
-            const docRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'incomes'));
-            batch.set(docRef, newIncome);
-        });
-
-        try {
-            await batch.commit();
-            alert(`Generated ${recurringBills.length} bills and ${recurringIncomes.length} incomes for next month.`);
-        } catch (error) {
-            console.error("Error generating recurring transactions:", error);
-            alert("Failed to generate recurring transactions.");
-        }
-    };
-
     const handleBulkDelete = async (type, ids) => {
         if (!userId || !ids.length || !window.confirm(`Delete ${ids.length} selected items?`)) return;
         
@@ -1043,7 +977,6 @@ const App = () => {
                 const docRef = doc(db, 'artifacts', appId, 'users', userId, collectionName, id);
                 batch.delete(docRef);
                 
-                // If deleting vehicles, also delete their maintenance logs
                 if (type === 'vehicle') {
                     const vehicleMaintenanceLogs = maintenanceLogs.filter(log => log.vehicleId === id);
                     vehicleMaintenanceLogs.forEach(log => {
@@ -1062,116 +995,33 @@ const App = () => {
         }
     };
 
-    // Function to remove duplicate vehicles and clean up data
-    const removeDuplicateVehicles = async () => {
-        if (!userId || !window.confirm("Remove duplicate vehicles? This will keep only one of each unique vehicle.")) return;
+    const deleteAllVehicles = async () => {
+        if (!userId || !window.confirm("Clear all your business data? This will remove everything and give you a fresh start.")) return;
         
         try {
-            console.log("Starting duplicate removal...");
+            console.log("Clearing all business data...");
             
-            // Get all vehicles
-            const vehiclesSnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'vehicles'));
-            const allVehicles = vehiclesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            console.log("Found vehicles:", allVehicles.length);
-            
-            // Group by VIN or name to find duplicates
-            const uniqueVehicles = new Map();
-            const duplicatesToDelete = [];
-            
-            allVehicles.forEach(vehicle => {
-                const key = vehicle.vin || vehicle.name || 'unknown';
-                
-                if (uniqueVehicles.has(key)) {
-                    // This is a duplicate - mark for deletion
-                    duplicatesToDelete.push(vehicle.id);
-                    console.log("Marking duplicate for deletion:", vehicle.name, vehicle.id);
-                } else {
-                    // This is the first occurrence - keep it
-                    uniqueVehicles.set(key, vehicle);
-                    console.log("Keeping unique vehicle:", vehicle.name, vehicle.id);
-                }
-            });
-            
-            if (duplicatesToDelete.length === 0) {
-                alert("No duplicates found!");
-                return;
-            }
-            
-            console.log(`Deleting ${duplicatesToDelete.length} duplicate vehicles...`);
-            
-            // Delete duplicates in batches
-            const batchSize = 10;
-            for (let i = 0; i < duplicatesToDelete.length; i += batchSize) {
-                const batch = writeBatch(db);
-                const batchIds = duplicatesToDelete.slice(i, i + batchSize);
-                
-                batchIds.forEach(id => {
-                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'vehicles', id);
-                    batch.delete(docRef);
-                });
-                
-                await batch.commit();
-                console.log(`Deleted batch ${Math.floor(i/batchSize) + 1}`);
-            }
-            
-            console.log("✅ Duplicate removal completed");
-            alert(`Removed ${duplicatesToDelete.length} duplicate vehicles. You now have ${uniqueVehicles.size} unique vehicles.`);
-            
-        } catch (error) {
-            console.error("❌ Error removing duplicates:", error);
-            alert("Failed to remove duplicates: " + error.message);
-        }
-    };
-    const clearAllData = async () => {
-        if (!userId || !window.confirm("⚠️ WARNING: This will delete ALL your data! Are you absolutely sure?")) return;
-        
-        try {
-            console.log("Starting to clear all data...");
-            const collections = ['bills', 'debts', 'incomes', 'weeklyCosts', 'jobs', 'tasks', 'invoices', 'taxPayments', 'goals', 'clients', 'inventory', 'vehicles', 'maintenanceLogs', 'paidStatus'];
+            const collections = ['bills', 'debts', 'incomes', 'weeklyCosts', 'jobs', 'tasks', 'invoices', 'taxPayments', 'goals', 'clients', 'inventory', 'vehicles', 'maintenanceLogs', 'recurringWork', 'paidStatus', 'system', 'settings'];
             
             for (const collectionName of collections) {
-                console.log(`Clearing collection: ${collectionName}`);
+                const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, collectionName));
                 
-                if (collectionName === 'paidStatus') {
-                    // Handle paidStatus differently - it's a subcollection
-                    const paidStatusRef = collection(db, 'artifacts', appId, 'users', userId, 'paidStatus');
-                    const paidStatusSnapshot = await getDocs(paidStatusRef);
-                    
+                if (snapshot.docs.length > 0) {
                     const batch = writeBatch(db);
-                    paidStatusSnapshot.docs.forEach(docSnap => {
+                    snapshot.docs.forEach(docSnap => {
                         batch.delete(docSnap.ref);
                     });
                     
-                    if (paidStatusSnapshot.docs.length > 0) {
-                        await batch.commit();
-                        console.log(`Cleared ${paidStatusSnapshot.docs.length} documents from ${collectionName}`);
-                    }
-                } else {
-                    const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, collectionName));
-                    
-                    if (snapshot.docs.length > 0) {
-                        const batch = writeBatch(db);
-                        snapshot.docs.forEach(docSnap => {
-                            batch.delete(docSnap.ref);
-                        });
-                        
-                        await batch.commit();
-                        console.log(`Cleared ${snapshot.docs.length} documents from ${collectionName}`);
-                    } else {
-                        console.log(`Collection ${collectionName} is already empty`);
-                    }
+                    await batch.commit();
+                    console.log(`Cleared ${snapshot.docs.length} documents from ${collectionName}`);
                 }
             }
             
-            console.log("All data cleared successfully");
-            alert("All data has been cleared. The page will refresh to reseed with fresh data.");
-            
-            // Force refresh to trigger reseeding
-            window.location.reload();
+            console.log("✅ All business data cleared");
+            alert("All business data has been cleared. You now have a fresh start to add your own business information.");
             
         } catch (error) {
-            console.error("Error clearing data:", error);
+            console.error("❌ Failed to clear data:", error);
             alert("Failed to clear data: " + error.message);
         }
     };
@@ -1197,50 +1047,22 @@ const App = () => {
                 <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">Monthly Bills</h3>
-                        {selectedCategory && <button onClick={() => setSelectedCategory(null)} className="text-sm text-cyan-500 dark:text-cyan-400 hover:underline">Clear Filter: {selectedCategory}</button>}
-                        <div className="flex gap-2">
-                            <CSVImportButton type="bill" label="Import" />
-                            <button onClick={() => handleEnhancedExportCSV(filteredBills, 'bills')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><FileText size={16} /> Export</button>
-                        </div>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-200 dark:border-slate-700">
-                                <tr>
-                                    <th className="p-3">Status</th>
-                                    <th className="p-3 cursor-pointer" onClick={() => handleSort('name')}>Name</th>
-                                    <th className="p-3">Notes</th>
-                                    <th className="p-3">Receipt</th>
-                                    <th className="p-3 cursor-pointer text-right" onClick={() => handleSort('amount')}>Amount</th>
-                                    <th className="p-3 cursor-pointer text-center" onClick={() => handleSort('dueDay')}>Due Day</th>
-                                    <th className="p-3 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredBills.map(bill => (
-                                    <tr key={bill.id} className={`border-b border-slate-200 dark:border-slate-700/50 ${paidStatus[bill.id] ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                                        <td className="p-3"><button onClick={() => handleTogglePaid(bill.id)}>{paidStatus[bill.id] ? <CheckCircle className="text-green-500" /> : <Circle className="text-slate-400 dark:text-slate-600" />}</button></td>
-                                        <td className={`p-3 font-medium ${paidStatus[bill.id] ? 'line-through' : ''}`}>{bill.name}</td>
-                                        <td className="p-3 text-center"> {bill.notes && <div className="group relative flex justify-center"><MessageSquare size={16} className="text-slate-500" /><span className="absolute top-[-30px] w-max scale-0 transition-all rounded bg-slate-700 p-2 text-xs text-white group-hover:scale-100">{bill.notes}</span></div>} </td>
-                                        <td className="p-3 text-center"> {bill.attachmentURL ? <a href={bill.attachmentURL} target="_blank" rel="noopener noreferrer"><Paperclip size={16} className="text-cyan-500 dark:text-cyan-400"/></a> : <Paperclip size={16} className="text-slate-400 dark:text-slate-600"/>} </td>
-                                        <td className="p-3 text-right font-mono">${(bill.amount || 0).toFixed(2)}</td>
-                                        <td className="p-3 text-center">{bill.dueDay}</td>
-                                        <td className="p-3 text-center">
-                                            <button onClick={() => openModal('bill', bill)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 mr-2"><Edit size={16} /></button>
-                                            <button onClick={() => handleDelete('bill', bill.id)} className="text-slate-500 dark:text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <button onClick={() => openModal('bill')} className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 font-semibold"><PlusCircle size={18} /> Add New Bill</button>
-                </div>
+                <EnhancedBillsSection 
+                    bills={bills}
+                    paidStatus={paidStatus}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    handleTogglePaid={handleTogglePaid}
+                    handleSort={handleSort}
+                    openModal={openModal}
+                    handleDelete={handleDelete}
+                    handleEnhancedExportCSV={handleEnhancedExportCSV}
+                />
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700"><h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3><ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} /></div>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
+                        <ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} />
+                    </div>
                     
                     {/* AppSheet Integration Panel */}
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1271,31 +1093,26 @@ const App = () => {
                     </div>
                     
                     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Data Management</h3>
-                        <div className="space-y-3">
-                            <button 
-                                onClick={handleGenerateRecurring} 
-                                className="w-full flex items-center justify-center gap-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                            >
-                                <RefreshCw size={16} /> 
-                                Generate Next Month's Bills
-                            </button>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Getting Started</h3>
+                        <div className="space-y-4">
+                            <div className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Welcome to Your Business Dashboard!</h4>
+                                <div className="space-y-1">
+                                    <p>• <strong>Add Clients</strong> - Go to Clients section</p>
+                                    <p>• <strong>Add Vehicles</strong> - Go to Vehicles section</p>
+                                    <p>• <strong>Add Jobs</strong> - Go to Jobs section</p>
+                                    <p>• <strong>Track Bills</strong> - Add your monthly expenses</p>
+                                    <p>• <strong>Manage Inventory</strong> - Track your parts/supplies</p>
+                                    <p>• <strong>Create Invoices</strong> - Bill your customers</p>
+                                </div>
+                            </div>
                             
                             <button 
-                                onClick={removeDuplicateVehicles} 
-                                className="w-full flex items-center justify-center gap-2 text-sm bg-orange-600 hover:bg-orange-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-                            >
-                                <Car size={16} /> 
-                                Remove Duplicate Vehicles
-                            </button>
-                            
-                            {/* Debug button - remove in production */}
-                            <button 
-                                onClick={clearAllData} 
+                                onClick={deleteAllVehicles} 
                                 className="w-full flex items-center justify-center gap-2 text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
                             >
                                 <Trash2 size={16} /> 
-                                Clear All Data (Debug)
+                                Clear All Data (If Needed)
                             </button>
                         </div>
                     </div>
@@ -1309,19 +1126,105 @@ const App = () => {
             <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold">HVAC Financial Dashboard</h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">Monthly Money Management</p>
+                        <h1 className="text-3xl font-bold">Business Financial Dashboard</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">Complete Business Management Solution</p>
                     </div>
                     <div className="flex items-center gap-4">
                         <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
                             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                         </button>
-                        <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg">
-                           <span className="text-sm font-semibold">Reporting Period:</span>
+                        <div className="flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg">
+                           <span className="text-sm font-semibold">Period:</span>
                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
-                               <button onClick={() => setReportingPeriod('monthly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Monthly</button>
-                               <button onClick={() => setReportingPeriod('quarterly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'quarterly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Quarterly</button>
-                               <button onClick={() => setReportingPeriod('yearly')} className={`px-2 py-1 text-xs rounded ${reportingPeriod === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Yearly</button>
+                               <button 
+                                   onClick={() => setReportingPeriod('monthly')} 
+                                   className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'monthly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                               >
+                                   Monthly
+                               </button>
+                               <button 
+                                   onClick={() => setReportingPeriod('quarterly')} 
+                                   className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'quarterly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                               >
+                                   Quarterly
+                               </button>
+                               <button 
+                                   onClick={() => setReportingPeriod('yearly')} 
+                                   className={`px-3 py-1 text-sm rounded transition-colors ${reportingPeriod === 'yearly' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+                               >
+                                   Yearly
+                               </button>
+                           </div>
+                           
+                           {/* Date Navigation */}
+                           <div className="flex items-center gap-2 ml-2">
+                               <button
+                                   onClick={() => {
+                                       const newStart = new Date(dateRange.start);
+                                       if (reportingPeriod === 'monthly') {
+                                           newStart.setMonth(newStart.getMonth() - 1);
+                                       } else if (reportingPeriod === 'quarterly') {
+                                           newStart.setMonth(newStart.getMonth() - 3);
+                                       } else {
+                                           newStart.setFullYear(newStart.getFullYear() - 1);
+                                       }
+                                       
+                                       let end;
+                                       if (reportingPeriod === 'monthly') {
+                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
+                                       } else if (reportingPeriod === 'quarterly') {
+                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 3, 0);
+                                       } else {
+                                           end = new Date(newStart.getFullYear(), 11, 31);
+                                       }
+                                       
+                                       setDateRange({ start: newStart, end });
+                                   }}
+                                   className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
+                                   title="Previous period"
+                               >
+                                   <ChevronLeft size={16} />
+                               </button>
+                               
+                               <span className="text-sm font-medium min-w-[120px] text-center">
+                                   {reportingPeriod === 'monthly' && 
+                                       dateRange.start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                                   }
+                                   {reportingPeriod === 'quarterly' && 
+                                       `Q${Math.ceil((dateRange.start.getMonth() + 1) / 3)} ${dateRange.start.getFullYear()}`
+                                   }
+                                   {reportingPeriod === 'yearly' && 
+                                       dateRange.start.getFullYear().toString()
+                                   }
+                               </span>
+                               
+                               <button
+                                   onClick={() => {
+                                       const newStart = new Date(dateRange.start);
+                                       if (reportingPeriod === 'monthly') {
+                                           newStart.setMonth(newStart.getMonth() + 1);
+                                       } else if (reportingPeriod === 'quarterly') {
+                                           newStart.setMonth(newStart.getMonth() + 3);
+                                       } else {
+                                           newStart.setFullYear(newStart.getFullYear() + 1);
+                                       }
+                                       
+                                       let end;
+                                       if (reportingPeriod === 'monthly') {
+                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0);
+                                       } else if (reportingPeriod === 'quarterly') {
+                                           end = new Date(newStart.getFullYear(), newStart.getMonth() + 3, 0);
+                                       } else {
+                                           end = new Date(newStart.getFullYear(), 11, 31);
+                                       }
+                                       
+                                       setDateRange({ start: newStart, end });
+                                   }}
+                                   className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
+                                   title="Next period"
+                               >
+                                   <ChevronRight size={16} />
+                               </button>
                            </div>
                         </div>
                         <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm bg-slate-600 hover:bg-slate-500 text-white font-semibold px-3 py-2 rounded-md transition-colors">
@@ -1341,7 +1244,9 @@ const App = () => {
                     <button onClick={() => setActiveSection('incentives')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incentives' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Incentives</button>
                     <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
                     <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
+                    <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
                     <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
+                    <button onClick={() => setActiveSection('valuation')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'valuation' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Business Valuation</button>
                     <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Inventory</button>
                     <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Debt Management</button>
                     <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Income Sources</button>
@@ -1350,6 +1255,7 @@ const App = () => {
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
                     {activeSection === 'reports' && <ReportsSection clients={clients} jobs={jobs} bills={bills} inventory={inventory} />}
+                    {activeSection === 'valuation' && <ValuationCalculator />}
                     {activeSection === 'calendar' && <CalendarSection jobs={jobs} tasks={tasks} openModal={openModal} />}
                     {activeSection === 'invoices' && (
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1375,7 +1281,7 @@ const App = () => {
                     )}
                     {activeSection === 'tax' && <TaxManagement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
                     {activeSection === 'pnl' && <PnLStatement jobs={jobs} bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
-                    {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={setCurrentBankBalance} />}
+                    {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={handleUpdateCurrentBalance} />}
                     {activeSection === 'goals' && (
                         <GoalsSection 
                             goalsWithProgress={goalsWithProgress} 
@@ -1384,7 +1290,7 @@ const App = () => {
                             onEditGoal={(goal) => openModal('goal', goal)}
                         />
                     )}
-                    {activeSection === 'incentives' && <IncentiveCalculator />}
+                    {activeSection === 'incentives' && <IncentiveCalculator userId={userId} db={db} appId={appId} />}
                     {activeSection === 'clients' && (
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -1404,7 +1310,19 @@ const App = () => {
                                     </button>
                                 </div>
                             </div>
-                            <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />
+                            <ClientManagement 
+                                clients={clients} 
+                                openModal={openModal} 
+                                handleDelete={handleDelete} 
+                                handleBulkDelete={handleBulkDelete} 
+                                selectedIds={selectedIds} 
+                                setSelectedIds={setSelectedIds} 
+                                searchTerm={searchTerm} 
+                                setSearchTerm={setSearchTerm} 
+                                handleImportCSV={handleImportCSV} 
+                                handleExportCSV={handleExportCSV}
+                                handleBulkUpdate={handleBulkUpdate}
+                            />
                         </div>
                     )}
                     {activeSection === 'jobs' && (
@@ -1428,6 +1346,16 @@ const App = () => {
                             </div>
                             <JobsSection jobs={jobs} clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />
                         </div>
+                    )}
+                    {activeSection === 'recurring' && (
+                        <RecurringWorkSection
+                            recurringWork={sortedData}
+                            openModal={openModal}
+                            handleDelete={handleDelete}
+                            handleEnhancedExportCSV={handleEnhancedExportCSV}
+                            searchTerm={searchTerm}
+                            setSearchTerm={setSearchTerm}
+                        />
                     )}
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleImportCSV} handleExportCSV={handleExportCSV} />}

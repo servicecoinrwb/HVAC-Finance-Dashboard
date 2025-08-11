@@ -2,17 +2,30 @@ import React from 'react';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 
 export const ForecastSection = ({ invoices = [], bills = [], weeklyCosts = [], currentBankBalance = 0, setCurrentBankBalance }) => {
+    // Safe number parsing function
+    const safeNumber = (value) => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = typeof value === 'string' ? parseFloat(value.replace(/[^0-9.-]/g, '')) : Number(value);
+        return isNaN(num) ? 0 : num;
+    };
+
     const pendingInvoices = invoices.filter(inv => inv.status === 'Unpaid');
-    const pendingRevenue = pendingInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
-    const monthlyBills = bills.reduce((sum, bill) => sum + (bill.amount || 0), 0);
-    const monthlyWeeklyCosts = weeklyCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0) * 4.33;
+    const pendingRevenue = pendingInvoices.reduce((sum, inv) => sum + safeNumber(inv.grandTotal), 0);
+    const monthlyBills = bills.reduce((sum, bill) => sum + safeNumber(bill.amount), 0);
+    const monthlyWeeklyCosts = weeklyCosts.reduce((sum, cost) => sum + safeNumber(cost.amount), 0) * 4.33;
     const totalMonthlyExpenses = monthlyBills + monthlyWeeklyCosts;
-    const projectedBalance = currentBankBalance + pendingRevenue - totalMonthlyExpenses;
+    const projectedBalance = safeNumber(currentBankBalance) + pendingRevenue - totalMonthlyExpenses;
 
     const handleBalanceUpdate = () => {
         const newBalance = prompt('Enter current bank balance:', currentBankBalance);
-        if (newBalance && !isNaN(newBalance)) {
-            setCurrentBankBalance(parseFloat(newBalance));
+        if (newBalance !== null && !isNaN(newBalance) && newBalance.trim() !== '') {
+            const balanceValue = parseFloat(newBalance);
+            if (balanceValue >= 0) {
+                // Call the Firebase update function passed from App.jsx
+                setCurrentBankBalance(balanceValue);
+            } else {
+                alert('Please enter a positive number for the balance.');
+            }
         }
     };
 
@@ -27,17 +40,20 @@ export const ForecastSection = ({ invoices = [], bills = [], weeklyCosts = [], c
                             <div>
                                 <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Current Balance</p>
                                 <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                                    ${currentBankBalance.toLocaleString()}
+                                    ${safeNumber(currentBankBalance).toLocaleString()}
                                 </p>
                             </div>
                             <DollarSign className="text-blue-600 dark:text-blue-400" size={24} />
                         </div>
                         <button 
                             onClick={handleBalanceUpdate}
-                            className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                         >
                             Update Balance
                         </button>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Click to update your current bank balance
+                        </p>
                     </div>
 
                     <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
@@ -107,7 +123,7 @@ export const ForecastSection = ({ invoices = [], bills = [], weeklyCosts = [], c
                                             </p>
                                         </div>
                                         <p className="font-bold text-green-600 dark:text-green-400">
-                                            ${(invoice.grandTotal || 0).toLocaleString()}
+                                            ${safeNumber(invoice.grandTotal).toLocaleString()}
                                         </p>
                                     </div>
                                 ))
@@ -152,6 +168,18 @@ export const ForecastSection = ({ invoices = [], bills = [], weeklyCosts = [], c
                         </div>
                         <p className="text-red-700 dark:text-red-300 mt-2">
                             Your projected balance is negative. Consider following up on pending invoices or reducing expenses.
+                        </p>
+                    </div>
+                )}
+
+                {safeNumber(currentBankBalance) === 0 && (
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <div className="flex items-center gap-2">
+                            <DollarSign className="text-blue-600 dark:text-blue-400" size={20} />
+                            <h4 className="font-semibold text-blue-800 dark:text-blue-200">Update Your Balance</h4>
+                        </div>
+                        <p className="text-blue-700 dark:text-blue-300 mt-2">
+                            Click "Update Balance" above to enter your current bank balance for accurate cash flow forecasting.
                         </p>
                     </div>
                 )}
