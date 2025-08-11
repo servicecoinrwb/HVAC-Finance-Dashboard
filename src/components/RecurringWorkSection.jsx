@@ -1,7 +1,7 @@
 import React from 'react';
 import { PlusCircle, Edit, Trash2, FileText } from 'lucide-react';
 
-export const RecurringWorkManagement = ({
+export const RecurringWorkSection = ({
   recurringWork,
   openModal,
   handleDelete,
