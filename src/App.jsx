@@ -30,6 +30,7 @@ import { WeeklyCostsSection } from './components/WeeklyCostsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
 import EnhancedBillsSection from './components/EnhancedBillsSection';
 import { RecurringWorkSection } from './components/RecurringWorkSection';
+import { CSVImportButton } from './components/CSVImportButton'; // Import the new component
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -48,35 +49,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-
-// CSV Import Button Component
-const CSVImportButton = ({ type, label, acceptTypes = ".csv" }) => {
-    const fileInputRef = React.useRef(null);
-
-    return (
-        <div className="inline-block">
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept={acceptTypes}
-                onChange={(e) => {
-                    if (e.target.files[0]) {
-                        window.handleEnhancedCSVImport?.(e.target.files[0], type);
-                        e.target.value = '';
-                    }
-                }}
-                style={{ display: 'none' }}
-            />
-            <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"
-            >
-                <Upload size={16} />
-                {label}
-            </button>
-        </div>
-    );
-};
 
 const App = () => {
     const [userId, setUserId] = useState(null);
