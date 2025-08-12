@@ -608,21 +608,245 @@ const ReportingView = ({ workOrders, technicians }) => {
 
 const BillingView = ({ invoices, quotes }) => {
     const [activeTab, setActiveTab] = useState('invoices');
+    
+    // Calculate summary statistics
+    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
+    const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
+    const totalQuoteAmount = quotes.reduce((sum, q) => sum + q.amount, 0);
+    const pendingQuotes = quotes.filter(q => q.status === 'Sent' || q.status === 'Pending');
+
+    const getInvoiceStatusStyles = (status) => {
+        const styles = {
+            'paid': 'bg-green-100 text-green-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'overdue': 'bg-red-100 text-red-800',
+            'draft': 'bg-gray-100 text-gray-800'
+        };
+        return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+    };
+
+    const getQuoteStatusStyles = (status) => {
+        const styles = {
+            'sent': 'bg-blue-100 text-blue-800',
+            'accepted': 'bg-green-100 text-green-800',
+            'rejected': 'bg-red-100 text-red-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'draft': 'bg-gray-100 text-gray-800'
+        };
+        return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+    };
+
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Billing</h2>
-                <button className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><PlusCircle size={20} /> Create Quote</button>
+        <div className="space-y-6">
+            {/* Header with Summary Stats */}
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Billing & Invoicing</h2>
+                    <div className="flex gap-3">
+                        <button className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">
+                            <FileText size={20} /> Create Invoice
+                        </button>
+                        <button className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">
+                            <PlusCircle size={20} /> Create Quote
+                        </button>
+                    </div>
+                </div>
+                
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="p-4 border rounded-lg text-center">
+                        <h3 className="text-sm font-medium text-gray-600">Total Invoices</h3>
+                        <p className="text-2xl font-bold text-blue-600">{invoices.length}</p>
+                        <p className="text-sm text-gray-500">{formatCurrency(totalInvoiceAmount)}</p>
+                    </div>
+                    <div className="p-4 border rounded-lg text-center">
+                        <h3 className="text-sm font-medium text-gray-600">Paid Invoices</h3>
+                        <p className="text-2xl font-bold text-green-600">{paidInvoices.length}</p>
+                        <p className="text-sm text-gray-500">{formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                    </div>
+                    <div className="p-4 border rounded-lg text-center">
+                        <h3 className="text-sm font-medium text-gray-600">Outstanding</h3>
+                        <p className="text-2xl font-bold text-red-600">{unpaidInvoices.length}</p>
+                        <p className="text-sm text-gray-500">{formatCurrency(unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                    </div>
+                    <div className="p-4 border rounded-lg text-center">
+                        <h3 className="text-sm font-medium text-gray-600">Pending Quotes</h3>
+                        <p className="text-2xl font-bold text-yellow-600">{pendingQuotes.length}</p>
+                        <p className="text-sm text-gray-500">{formatCurrency(pendingQuotes.reduce((sum, q) => sum + q.amount, 0))}</p>
+                    </div>
+                </div>
             </div>
-            <div className="border-b border-gray-200">
-                <nav className="-mb-px flex gap-6">
-                    <button onClick={() => setActiveTab('invoices')} className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'invoices' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Invoices</button>
-                    <button onClick={() => setActiveTab('quotes')} className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'quotes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Quotes</button>
-                </nav>
-            </div>
-            <div className="mt-6">
-                {activeTab === 'invoices' && <div>{invoices.map(inv => <div key={inv.id}>{inv.id} - {inv.customerName} - {formatCurrency(inv.amount)} - {inv.status}</div>)}</div>}
-                {activeTab === 'quotes' && <div>{quotes.map(q => <div key={q.id}>{q.id} - {q.customerName} - {formatCurrency(q.amount)} - {q.status}</div>)}</div>}
+
+            {/* Tabs and Content */}
+            <div className="bg-white rounded-lg shadow-sm">
+                <div className="border-b border-gray-200">
+                    <nav className="-mb-px flex gap-6 px-6">
+                        <button 
+                            onClick={() => setActiveTab('invoices')} 
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                activeTab === 'invoices' 
+                                    ? 'border-blue-500 text-blue-600' 
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            Invoices ({invoices.length})
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('quotes')} 
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                activeTab === 'quotes' 
+                                    ? 'border-blue-500 text-blue-600' 
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            Quotes ({quotes.length})
+                        </button>
+                    </nav>
+                </div>
+
+                <div className="p-6">
+                    {activeTab === 'invoices' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-gray-800">Invoice Management</h3>
+                                <div className="flex gap-2">
+                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                        <Download size={16} /> Export
+                                    </button>
+                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                        <RefreshCw size={16} /> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {invoices.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border border-gray-200 rounded-lg">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Invoice #</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Work Order</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Amount</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200">
+                                            {invoices.map(invoice => (
+                                                <tr key={invoice.id} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{invoice.id}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">{invoice.workOrderId || 'N/A'}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">{invoice.customerName}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                        {new Date(invoice.date).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                                                        {formatCurrency(invoice.amount)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getInvoiceStatusStyles(invoice.status)}`}>
+                                                            {invoice.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <div className="flex gap-2">
+                                                            <button className="text-blue-600 hover:text-blue-800 font-medium">View</button>
+                                                            <button className="text-green-600 hover:text-green-800 font-medium">Send</button>
+                                                            <button className="text-gray-600 hover:text-gray-800 font-medium">Edit</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Invoices Yet</h3>
+                                    <p className="text-gray-500 mb-4">Create your first invoice from a completed work order.</p>
+                                    <button className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700">
+                                        Create Invoice
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'quotes' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-gray-800">Quote Management</h3>
+                                <div className="flex gap-2">
+                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                        <Download size={16} /> Export
+                                    </button>
+                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                        <RefreshCw size={16} /> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {quotes.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border border-gray-200 rounded-lg">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Quote #</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Description</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Amount</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200">
+                                            {quotes.map(quote => (
+                                                <tr key={quote.id} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{quote.id}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">{quote.customerName}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">{quote.description}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                        {new Date(quote.date).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                                                        {formatCurrency(quote.amount)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusStyles(quote.status)}`}>
+                                                            {quote.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <div className="flex gap-2">
+                                                            <button className="text-blue-600 hover:text-blue-800 font-medium">View</button>
+                                                            <button className="text-green-600 hover:text-green-800 font-medium">Send</button>
+                                                            <button className="text-gray-600 hover:text-gray-800 font-medium">Edit</button>
+                                                            <button className="text-purple-600 hover:text-purple-800 font-medium">Convert</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Quotes Yet</h3>
+                                    <p className="text-gray-500 mb-4">Create your first quote for potential customers.</p>
+                                    <button className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700">
+                                        Create Quote
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
