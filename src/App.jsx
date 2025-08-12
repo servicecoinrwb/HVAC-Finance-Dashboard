@@ -100,6 +100,9 @@ const App = () => {
     const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
     const [paidStatus, setPaidStatus] = useState({});
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
+    const [csvMapping, setCsvMapping] = useState({});
 
     // --- Hooks (Correct Order) ---
     useEffect(() => {
@@ -131,6 +134,40 @@ const App = () => {
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
+    // --- Memoized Calculations ---
+    const filteredJobs = useMemo(() => financialJobs.filter(job => {
+        if (!job.date) return false;
+        const jobDate = new Date(job.date);
+        return jobDate >= dateRange.start && jobDate <= dateRange.end;
+    }), [financialJobs, dateRange]);
+
+    const totals = useMemo(() => {
+        const totalIncome = incomes.reduce((acc, i) => acc + (i.amount || 0), 0);
+        const totalMonthlyBills = bills.reduce((acc, b) => acc + (b.amount || 0), 0);
+        const projectedMonthlyWeekly = weeklyCosts.reduce((acc, c) => acc + (c.amount || 0), 0) * 4.33;
+        const totalOutflow = totalMonthlyBills + projectedMonthlyWeekly;
+        const netCashFlow = totalIncome - totalOutflow;
+        const totalDebt = debts.reduce((acc, d) => acc + ((d.totalAmount || 0) - (d.paidAmount || 0)), 0);
+        return { totalIncome, totalOutflow, netCashFlow, totalDebt };
+    }, [bills, debts, incomes, weeklyCosts]);
+
+    const pnlData = useMemo(() => {
+        const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
+        const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
+        const grossProfit = revenue - cogs;
+        return { revenue, cogs, grossProfit };
+    }, [filteredJobs]);
+
+    const expenseByCategory = useMemo(() => {
+        const categories = bills.reduce((acc, bill) => {
+            const category = bill.category || 'Uncategorized';
+            acc[category] = (acc[category] || 0) + bill.amount;
+            return acc;
+        }, {});
+        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943', '#19D4FF'];
+        return Object.entries(categories).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] })).sort((a, b) => b.value - a.value);
+    }, [bills]);
+
     // --- Event Handlers ---
     const handleUpdateOrder = (orderId, payload) => {
         const orderRef = doc(db, 'artifacts', appId, 'users', userId, 'workOrders', orderId);
@@ -145,7 +182,7 @@ const App = () => {
         const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() };
         const orderRef = doc(db, 'artifacts', appId, 'users', userId, 'workOrders', orderId);
         const currentOrder = workOrders.find(o => o.id === orderId);
-        const updatedNotes = [...(currentOrder.notes || []), newNote];
+        const updatedNotes = [...(currentOrder?.notes || []), newNote];
         updateDoc(orderRef, { notes: updatedNotes });
         callback();
     };
@@ -207,9 +244,12 @@ const App = () => {
         if (!userId) return; 
         await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), { status: { ...paidStatus, [billId]: !paidStatus[billId] } }, { merge: true }); 
     };
-    
-    // ... other handlers ...
 
+    const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
+
+    // --- Render Logic ---
+    const filteredDispatchOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(dispatchSearchTerm.toLowerCase()))), [workOrders, dispatchSearchTerm, statusFilter]);
+    
     const renderFinancialDashboard = () => (
         <>
             <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
@@ -221,34 +261,62 @@ const App = () => {
                     <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
                         {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                     </button>
-                    {/* Add other financial header buttons here if needed */}
                 </div>
             </header>
             <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
                 <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
-                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
-                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
-                <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
-                <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
-                {/* ... Add all other financial nav buttons ... */}
+                {/* ... other financial nav buttons */}
             </nav>
             <main>
                 {activeSection === 'dashboard' && (
                     <>
-                        {/* Dashboard content like StatCards and charts */}
+                        {showAlerts && <AlertsPanel bills={bills} paidStatus={paidStatus} onClose={() => setShowAlerts(false)} />}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                            <StatCard title="Total Monthly Income" value={`$${totals.totalIncome.toLocaleString()}`} icon={<Banknote size={24} />} color="green" />
+                            <StatCard title="Total Monthly Outflow" value={`$${totals.totalOutflow.toLocaleString()}`} icon={<ArrowDown size={24} />} color="red" />
+                            <StatCard title="Projected Net" value={`$${totals.netCashFlow.toLocaleString()}`} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
+                            <StatCard title="Outstanding Debt" value={`$${totals.totalDebt.toLocaleString()}`} icon={<AlertTriangle size={24} />} color="orange" />
+                        </div>
+                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                            <EnhancedBillsSection 
+                                bills={bills} 
+                                paidStatus={paidStatus}
+                                setPaidStatus={setPaidStatus}
+                                selectedCategory={selectedCategory} 
+                                setSelectedCategory={setSelectedCategory} 
+                                handleTogglePaid={handleTogglePaid} 
+                                handleSort={setSortConfig} 
+                                openModal={openModal} 
+                                handleDelete={handleDelete} 
+                                handleEnhancedExportCSV={() => {}}
+                            />
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
+                                    <ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} />
+                                </div>
+                            </div>
+                        </div>
                     </>
                 )}
-                {/* ... Render other financial components based on activeSection ... */}
+                {/* ... other financial sections ... */}
             </main>
         </>
     );
 
     const renderDispatchDashboard = () => {
-        // ... (this function should already be correct from previous steps)
+        switch(dispatchSubView) {
+            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={()=>{}} onUpdateCustomer={()=>{}} onAddLocation={()=>{}} />;
+            case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
+            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={()=>{}} onUpdateTechnician={()=>{}} onDeleteTechnician={()=>{}} />;
+            case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
+            case 'billing': return <BillingView invoices={invoices} quotes={[]} />;
+            default: return <DashboardView orders={filteredDispatchOrders} onSelectOrder={setSelectedOrder} searchTerm={dispatchSearchTerm} setSearchTerm={setDispatchSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
+        }
     };
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
-    if (!userId) return <Auth setUserId={setUserId} />;
+    if (!userId) return <Auth />;
 
     return (
         <div className="bg-gray-50 min-h-screen font-sans">
