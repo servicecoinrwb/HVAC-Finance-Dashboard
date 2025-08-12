@@ -22,11 +22,17 @@ const initialTechnicians = [
 ];
 
 const initialInvoices = [
-    { id: 'INV-001', workOrderId: '6694098-01', customerName: 'Retail Maintenance Inc.', date: new Date().toISOString(), amount: 750, status: 'Paid' }
+    { id: 'INV-001', workOrderId: '6694098-01', customerName: 'Retail Maintenance Inc.', date: new Date().toISOString(), amount: 750, status: 'Paid' },
+    { id: 'INV-002', workOrderId: '6748425-01', customerName: 'Synergy Management', date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), amount: 150.5, status: 'Pending' },
+    { id: 'INV-003', workOrderId: '6693039-01', customerName: 'National Service Group', date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), amount: 2500, status: 'Paid' },
+    { id: 'INV-004', workOrderId: null, customerName: 'Mr. Henderson', date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), amount: 425, status: 'Overdue' }
 ];
 
 const initialQuotes = [
-    { id: 'QT-001', customerName: 'Mr. Henderson', date: new Date().toISOString(), amount: 1200, description: 'New AC unit installation', status: 'Sent' }
+    { id: 'QT-001', customerName: 'Mr. Henderson', date: new Date().toISOString(), amount: 1200, description: 'New AC unit installation', status: 'Sent' },
+    { id: 'QT-002', customerName: 'Synergy Management', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), amount: 3500, description: 'Complete HVAC system upgrade for Lane Bryant locations', status: 'Pending' },
+    { id: 'QT-003', customerName: 'Retail Maintenance Inc.', date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), amount: 850, description: 'Preventive maintenance contract', status: 'Accepted' },
+    { id: 'QT-004', customerName: 'Downtown Office Complex', date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), amount: 2200, description: 'Rooftop unit replacement', status: 'Draft' }
 ];
 
 // --- Utility Functions ---
@@ -44,8 +50,384 @@ const getStatusStyles = (s) => ({'completed':'bg-green-100 text-green-800','sche
 const getCustomerTypeStyles = (t) => ({'national account':'bg-blue-100 text-blue-800','commercial':'bg-purple-100 text-purple-800','residential':'bg-green-100 text-green-800','maintenance':'bg-yellow-100 text-yellow-800',}[t?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 const getTechStatusStyles = (s) => ({'available': 'bg-green-100 text-green-800', 'on site': 'bg-blue-100 text-blue-800', 'en route': 'bg-yellow-100 text-yellow-800', 'on break': 'bg-gray-100 text-gray-800', 'on call': 'bg-teal-100 text-teal-800', 'day off': 'bg-slate-200 text-slate-800'}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 
-// --- Child Components ---
+// --- Modal Components (Defined First) ---
+const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
+    const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
+    const [customCustomer, setCustomCustomer] = useState('');
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [useCustomCustomer, setUseCustomCustomer] = useState(false);
 
+    const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
+    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!amount || (!selectedWorkOrder && !customCustomer)) return;
+
+        const invoiceData = {
+            id: `INV-${Date.now()}`,
+            workOrderId: selectedWorkOrder || null,
+            customerName: useCustomCustomer ? customCustomer : selectedOrder?.Client || '',
+            date: new Date().toISOString(),
+            amount: parseFloat(amount),
+            status: 'Draft',
+            description: description || selectedOrder?.Task || '',
+            dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        };
+
+        onAddInvoice(invoiceData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Create Invoice</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center">
+                            <input 
+                                type="radio" 
+                                checked={!useCustomCustomer} 
+                                onChange={() => setUseCustomCustomer(false)}
+                                className="mr-2" 
+                            />
+                            From Work Order
+                        </label>
+                        <label className="flex items-center">
+                            <input 
+                                type="radio" 
+                                checked={useCustomCustomer} 
+                                onChange={() => setUseCustomCustomer(true)}
+                                className="mr-2" 
+                            />
+                            Custom Invoice
+                        </label>
+                    </div>
+
+                    {!useCustomCustomer ? (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 block mb-1">Select Completed Work Order</label>
+                            <select 
+                                value={selectedWorkOrder} 
+                                onChange={(e) => {
+                                    setSelectedWorkOrder(e.target.value);
+                                    const order = completedOrders.find(wo => wo.id === e.target.value);
+                                    if (order) {
+                                        setAmount(order.NTE || '');
+                                        setDescription(order.Task || '');
+                                    }
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                required
+                            >
+                                <option value="">Select a work order...</option>
+                                {completedOrders.map(wo => (
+                                    <option key={wo.id} value={wo.id}>
+                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedOrder && (
+                                <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
+                                    <p><strong>Customer:</strong> {selectedOrder.Client}</p>
+                                    <p><strong>Location:</strong> {selectedOrder.Company}</p>
+                                    <p><strong>Task:</strong> {selectedOrder.Task}</p>
+                                    <p><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label>
+                            <input 
+                                type="text" 
+                                value={customCustomer} 
+                                onChange={(e) => setCustomCustomer(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                placeholder="Enter customer name"
+                                required
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Invoice Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="0.00"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Description</label>
+                        <textarea 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="Invoice description..."
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Due Date</label>
+                        <input 
+                            type="date" 
+                            value={dueDate} 
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
+                        Create Invoice
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
+    const [customerName, setCustomerName] = useState('');
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [validUntil, setValidUntil] = useState('');
+    const [notes, setNotes] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!customerName || !amount || !description) return;
+
+        const quoteData = {
+            id: `QT-${Date.now()}`,
+            customerName,
+            date: new Date().toISOString(),
+            amount: parseFloat(amount),
+            description,
+            status: 'Draft',
+            validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            notes
+        };
+
+        onAddQuote(quoteData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Create Quote</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Customer</label>
+                        <select 
+                            value={customerName} 
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            required
+                        >
+                            <option value="">Select a customer...</option>
+                            {customers.map(customer => (
+                                <option key={customer.id} value={customer.name}>
+                                    {customer.name}
+                                </option>
+                            ))}
+                            <option value="custom">Other (Enter below)</option>
+                        </select>
+                        {customerName === 'custom' && (
+                            <input 
+                                type="text" 
+                                placeholder="Enter customer name"
+                                onChange={(e) => setCustomerName(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg mt-2"
+                                required
+                            />
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Quote Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="0.00"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Description of Work</label>
+                        <textarea 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows="4"
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="Describe the work to be performed..."
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Valid Until</label>
+                        <input 
+                            type="date" 
+                            value={validUntil} 
+                            onChange={(e) => setValidUntil(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Additional Notes</label>
+                        <textarea 
+                            value={notes} 
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="Any additional notes or terms..."
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
+                        Create Quote
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const AddCustomerModal = ({ onClose, onAddCustomer }) => {
+    const [name, setName] = useState('');
+    const [type, setType] = useState('Commercial');
+    const [contactName, setContactName] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+    const [contactPhone, setContactPhone] = useState('');
+    const [street, setStreet] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('MI');
+    const [zip, setZip] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!name.trim()) { alert("Customer name cannot be empty."); return; }
+        onAddCustomer({ name, type, contact: { name: contactName, email: contactEmail, phone: contactPhone }, billingAddress: { street, city, state, zip }, locations: [] });
+        onClose();
+    };
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add New Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Type</label><select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">Name</label><input value={contactName} onChange={e=>setContactName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Email</label><input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} type="email" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Phone</label><input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} type="tel" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Billing Address</h3><div className="mt-2"><label className="text-xs">Street</label><input value={street} onChange={e=>setStreet(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">City</label><input value={city} onChange={e=>setCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">State</label><input value={state} onChange={e=>setState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Zip</label><input value={zip} onChange={e=>setZip(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Customer</button></div></form></div>);
+};
+
+const EditCustomerModal = ({ customer, onClose, onUpdateCustomer }) => {
+    const [formData, setFormData] = useState(customer);
+    const handleChange = (e, section = null) => {
+        const { name, value } = e.target;
+        if (section) {
+            setFormData(prev => ({ ...prev, [section]: { ...prev[section], [name]: value } }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+    const handleSubmit = (e) => { e.preventDefault(); onUpdateCustomer(formData); onClose(); };
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Type</label><select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">Name</label><input name="name" value={formData.contact.name} onChange={e => handleChange(e, 'contact')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Email</label><input name="email" value={formData.contact.email} onChange={e => handleChange(e, 'contact')} type="email" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Phone</label><input name="phone" value={formData.contact.phone} onChange={e => handleChange(e, 'contact')} type="tel" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Billing Address</h3><div className="mt-2"><label className="text-xs">Street</label><input name="street" value={formData.billingAddress.street} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">City</label><input name="city" value={formData.billingAddress.city} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">State</label><input name="state" value={formData.billingAddress.state} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Zip</label><input name="zip" value={formData.billingAddress.zip} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
+};
+
+const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
+    const [name, setName] = useState('');
+    const [locNum, setLocNum] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('MI');
+    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) { alert("Location name cannot be empty."); return; } onAddLocation(customer.id, { name, locNum, city, state }); onClose(); };
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Location Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Location #</label><input type="text" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">City</label><input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">State</label><input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
+};
+
+const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
+    const [clientId, setClientId] = useState(customers[0]?.id || '');
+    const [locationIdentifier, setLocationIdentifier] = useState('');
+    const [task, setTask] = useState('');
+    const [priority, setPriority] = useState('Regular');
+    const [category, setCategory] = useState('Heating & Cooling');
+    const [nte, setNte] = useState('');
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
+    const [clientWO, setClientWO] = useState('');
+
+    const selectedClient = useMemo(() => customers.find(c => c.id === clientId), [clientId, customers]);
+    
+    useEffect(() => {
+        if (selectedClient?.locations?.[0]) {
+            const loc = selectedClient.locations[0];
+            setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
+        } else {
+            setLocationIdentifier('');
+        }
+    }, [selectedClient]);
+
+    const handleLocationChange = (identifier) => {
+        setLocationIdentifier(identifier);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
+        const location = selectedClient.locations.find(l => l.name === company && l.locNum === locNum);
+        if (!clientId || !location || !task) { alert('Please fill out all required fields.'); return; }
+        onAddOrder({ Client: selectedClient.name, Company: location.name, 'Loc #': location.locNum, Task: task, Priority: priority, Category: category, City: location.city, State: location.state, NTE: parseFloat(nte) || 0, 'Schedule Date': yyyymmddToExcel(scheduleDate), startTime, endTime, clientWO });
+    };
+
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Add New Work Order</h2><button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={28} /></button></div><div className="p-6 overflow-y-auto space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Client</label><select value={clientId} onChange={(e) => setClientId(parseInt(e.target.value))} className="w-full p-2 border border-gray-300 rounded-lg">{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>{selectedClient && <div><label className="text-sm font-medium text-gray-600 block mb-1">Location</label><select value={locationIdentifier} onChange={e => handleLocationChange(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg">{selectedClient.locations.map((l, index) => <option key={`${l.name}-${l.locNum}-${index}`} value={`${l.name}-${l.locNum}-${index}`}>{l.name} (#{l.locNum})</option>)}</select></div>}<div><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Task / Issue</label><textarea value={task} onChange={e => setTask(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded-lg" required></textarea></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Priority</label><select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Regular</option><option>Low</option><option>Urgent</option><option>Emergency</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Heating & Cooling</option><option>Refrigeration</option><option>Maintenance</option><option>Plumbing</option><option>Other</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">NTE Amount ($)</label><input type="number" value={nte} onChange={e => setNte(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="e.g., 500" /></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t mt-auto"><button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button></div></form></div>);
+};
+
+const AddTechnicianModal = ({ onClose, onAdd }) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) return; onAdd({ name, email, phone, status: 'Available' }); onClose(); };
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add New Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Technician</button></div></form></div>);
+};
+
+const EditTechnicianModal = ({ technician, onClose, onUpdate }) => {
+    const [formData, setFormData] = useState(technician);
+    const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleSubmit = (e) => { e.preventDefault(); onUpdate(formData); onClose(); };
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Available</option><option>En Route</option><option>On Site</option><option>On Break</option><option>On Call</option><option>Day Off</option></select></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
+};
+
+// --- Child Components ---
 const Header = ({ currentView, setCurrentView, onAddOrderClick }) => (
     <header className="bg-white shadow-sm sticky top-0 z-10"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"><div className="flex items-center justify-between"><div className="flex items-center space-x-3">{currentView !== 'dashboard' ? <button onClick={() => setCurrentView('dashboard')} className="p-2 rounded-full hover:bg-gray-100"><ArrowLeft size={24} /></button> : <Wrench className="h-8 w-8 text-blue-600" />}<h1 className="text-2xl font-bold text-gray-800">HVAC Schedule Dashboard</h1></div><div className="flex items-center gap-2"><button onClick={() => setCurrentView('billing')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><FileText size={20} /> Billing</button><button onClick={() => setCurrentView('reporting')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><BarChart2 size={20} /> Reporting</button><button onClick={() => setCurrentView('route')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Map size={20} /> Route</button><button onClick={() => setCurrentView('dispatch')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><CalendarIcon size={20} /> Dispatch</button><button onClick={() => setCurrentView('customers')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Users size={20} /> Customers</button><button onClick={() => setCurrentView('technicians')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><User size={20} /> Technicians</button><button onClick={onAddOrderClick} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"><PlusCircle size={20} /> Add Work Order</button></div></div></div></header>
 );
@@ -373,163 +755,6 @@ const WorkOrderDetailModal = ({ order, onClose, onUpdate, onAddNote, technicians
     return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Work Order Details</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={28} /></button></div><div className="p-6 overflow-y-auto"><div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{details.map(d => (<div key={d.label} className="flex flex-col"><span className="text-xs text-gray-500 font-medium">{d.label}</span><span className={`text-base text-gray-900 font-semibold flex items-center gap-2 mt-1 ${d.style || ''}`}>{d.icon && <span className="text-gray-400">{React.cloneElement(d.icon, { size: 16 })}</span>}<span className={d.style || ''}>{d.value}</span></span></div>))}</div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3">Job Management</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Open</option><option>Scheduled</option><option>In Progress</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Assigned Technicians</label><div className="border p-2 rounded-lg max-h-24 overflow-y-auto">{technicians.filter(t=>t.name !== 'Unassigned').map(t => (<div key={t.id} className="flex items-center"><input type="checkbox" id={`tech-${t.id}`} checked={assignedTechnicians.includes(t.name)} onChange={() => handleTechChange(t.name)} className="mr-2" /><label htmlFor={`tech-${t.id}`}>{t.name}</label></div>))}</div></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="mt-4"><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e => setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="mt-4 flex justify-end"><button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center"><MessageSquare size={20} className="mr-2"/>Work Notes</h3><div className="space-y-3 max-h-48 overflow-y-auto bg-gray-50 p-3 rounded-lg">{order.notes && order.notes.length > 0 ? order.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (<div key={index} className="text-sm bg-white p-2 rounded shadow-sm"><p className="text-gray-800">{note.text}</p><p className="text-xs text-gray-500 mt-1 text-right">{formatTimestamp(note.timestamp)}</p></div>)) : <p className="text-sm text-gray-500 text-center py-4">No notes for this job yet.</p>}</div><div className="mt-4"><textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add a new note..." rows="3" className="w-full p-2 border border-gray-300 rounded-lg"></textarea><div className="flex justify-end mt-2"><button onClick={() => onAddNote(order.id, newNote, () => setNewNote(''))} disabled={!newNote.trim()} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400">Add Note</button></div></div></div></div></div></div>);
 };
 
-const AddCustomerModal = ({ onClose, onAddCustomer }) => {
-    const [name, setName] = useState('');
-    const [type, setType] = useState('Commercial');
-    const [contactName, setContactName] = useState('');
-    const [contactEmail, setContactEmail] = useState('');
-    const [contactPhone, setContactPhone] = useState('');
-    const [street, setStreet] = useState('');
-    const [city, setCity] = useState('');
-    const [state, setState] = useState('MI');
-    const [zip, setZip] = useState('');
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!name.trim()) { alert("Customer name cannot be empty."); return; }
-        onAddCustomer({ name, type, contact: { name: contactName, email: contactEmail, phone: contactPhone }, billingAddress: { street, city, state, zip }, locations: [] });
-        onClose();
-    };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add New Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Type</label><select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">Name</label><input value={contactName} onChange={e=>setContactName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Email</label><input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} type="email" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Phone</label><input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} type="tel" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Billing Address</h3><div className="mt-2"><label className="text-xs">Street</label><input value={street} onChange={e=>setStreet(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">City</label><input value={city} onChange={e=>setCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">State</label><input value={state} onChange={e=>setState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Zip</label><input value={zip} onChange={e=>setZip(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Customer</button></div></form></div>);
-};
-
-const EditCustomerModal = ({ customer, onClose, onUpdateCustomer }) => {
-    const [formData, setFormData] = useState(customer);
-    const handleChange = (e, section = null) => {
-        const { name, value } = e.target;
-        if (section) {
-            setFormData(prev => ({ ...prev, [section]: { ...prev[section], [name]: value } }));
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
-    };
-    const handleSubmit = (e) => { e.preventDefault(); onUpdateCustomer(formData); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Type</label><select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">Name</label><input name="name" value={formData.contact.name} onChange={e => handleChange(e, 'contact')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Email</label><input name="email" value={formData.contact.email} onChange={e => handleChange(e, 'contact')} type="email" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Phone</label><input name="phone" value={formData.contact.phone} onChange={e => handleChange(e, 'contact')} type="tel" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Billing Address</h3><div className="mt-2"><label className="text-xs">Street</label><input name="street" value={formData.billingAddress.street} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">City</label><input name="city" value={formData.billingAddress.city} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">State</label><input name="state" value={formData.billingAddress.state} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Zip</label><input name="zip" value={formData.billingAddress.zip} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
-};
-
-const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
-    const [name, setName] = useState('');
-    const [locNum, setLocNum] = useState('');
-    const [city, setCity] = useState('');
-    const [state, setState] = useState('MI');
-    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) { alert("Location name cannot be empty."); return; } onAddLocation(customer.id, { name, locNum, city, state }); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Location Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Location #</label><input type="text" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">City</label><input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">State</label><input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
-};
-
-const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
-    const [clientId, setClientId] = useState(customers[0]?.id || '');
-    const [locationIdentifier, setLocationIdentifier] = useState('');
-    const [task, setTask] = useState('');
-    const [priority, setPriority] = useState('Regular');
-    const [category, setCategory] = useState('Heating & Cooling');
-    const [nte, setNte] = useState('');
-    const [scheduleDate, setScheduleDate] = useState('');
-    const [startTime, setStartTime] = useState('');
-    const [endTime, setEndTime] = useState('');
-    const [clientWO, setClientWO] = useState('');
-
-    const selectedClient = useMemo(() => customers.find(c => c.id === clientId), [clientId, customers]);
-    
-    useEffect(() => {
-        if (selectedClient?.locations?.[0]) {
-            const loc = selectedClient.locations[0];
-            setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
-        } else {
-            setLocationIdentifier('');
-        }
-    }, [selectedClient]);
-
-    const handleLocationChange = (identifier) => {
-        setLocationIdentifier(identifier);
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
-        const location = selectedClient.locations.find(l => l.name === company && l.locNum === locNum);
-        if (!clientId || !location || !task) { alert('Please fill out all required fields.'); return; }
-        onAddOrder({ Client: selectedClient.name, Company: location.name, 'Loc #': location.locNum, Task: task, Priority: priority, Category: category, City: location.city, State: location.state, NTE: parseFloat(nte) || 0, 'Schedule Date': yyyymmddToExcel(scheduleDate), startTime, endTime, clientWO });
-    };
-
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Add New Work Order</h2><button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={28} /></button></div><div className="p-6 overflow-y-auto space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Client</label><select value={clientId} onChange={(e) => setClientId(parseInt(e.target.value))} className="w-full p-2 border border-gray-300 rounded-lg">{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>{selectedClient && <div><label className="text-sm font-medium text-gray-600 block mb-1">Location</label><select value={locationIdentifier} onChange={e => handleLocationChange(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg">{selectedClient.locations.map((l, index) => <option key={`${l.name}-${l.locNum}-${index}`} value={`${l.name}-${l.locNum}-${index}`}>{l.name} (#{l.locNum})</option>)}</select></div>}<div><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Task / Issue</label><textarea value={task} onChange={e => setTask(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded-lg" required></textarea></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Priority</label><select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Regular</option><option>Low</option><option>Urgent</option><option>Emergency</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Heating & Cooling</option><option>Refrigeration</option><option>Maintenance</option><option>Plumbing</option><option>Other</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">NTE Amount ($)</label><input type="number" value={nte} onChange={e => setNte(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="e.g., 500" /></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t mt-auto"><button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button></div></form></div>);
-};
-
-// --- Main App Component ---
-const App = () => {
-    const [workOrders, setWorkOrders] = useState(initialSampleData);
-    const [customers, setCustomers] = useState(initialCustomers);
-    const [technicians, setTechnicians] = useState(initialTechnicians);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [isAddingOrder, setIsAddingOrder] = useState(false);
-    const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'customers', 'dispatch', 'technicians', 'route'
-    
-    const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
-    
-    const handleUpdateOrder = (orderId, payload) => { setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); setSelectedOrder(p => ({ ...p, ...payload })); };
-    const handleAddNote = (orderId, noteText, callback) => { if (!noteText.trim()) return; const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); setWorkOrders(updatedOrders); setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); callback(); };
-    const handleAddNewOrder = (newOrderData) => { const newId = `WO-${Date.now()}`; const newOrder = { ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: [] }; setWorkOrders(p => [newOrder, ...p]); setIsAddingOrder(false); };
-    const handleAddCustomer = (newCustomerData) => { const newCustomer = { ...newCustomerData, id: Date.now() }; setCustomers(p => [...p, newCustomer]); };
-    const handleUpdateCustomer = (updatedCustomer) => { setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); };
-    const handleAddLocationToCustomer = (customerId, newLocation) => { setCustomers(customers.map(c => c.id === customerId ? { ...c, locations: [...c.locations, newLocation] } : c)); };
-    const handleAddTechnician = (newTechData) => { const newTech = { ...newTechData, id: Date.now() }; setTechnicians(p => [...p, newTech]); };
-    const handleUpdateTechnician = (updatedTech) => { setTechnicians(technicians.map(t => t.id === updatedTech.id ? updatedTech : t)); };
-    const handleDeleteTechnician = (techId) => {
-        const techToDelete = technicians.find(t => t.id === techId);
-        if (techToDelete) {
-            setWorkOrders(workOrders.map(wo => ({...wo, technician: wo.technician.filter(t => t !== techToDelete.name)})));
-            setTechnicians(technicians.filter(t => t.id !== techId));
-        }
-    };
-
-    const renderContent = () => {
-        switch(currentView) {
-            case 'customers':
-                return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
-            case 'dispatch':
-                return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
-            case 'technicians':
-                return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
-             case 'route':
-                return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
-            case 'reporting':
-                return <ReportingView workOrders={workOrders} technicians={technicians} />;
-            case 'billing':
-                return <BillingView invoices={initialInvoices} quotes={initialQuotes} />;
-            case 'dashboard':
-            default:
-                return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
-        }
-    };
-
-    return (
-        <div className="bg-gray-50 min-h-screen font-sans">
-            <Header currentView={currentView} setCurrentView={setCurrentView} onAddOrderClick={() => setIsAddingOrder(true)} />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {renderContent()}
-            </main>
-            {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
-            {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
-        </div>
-    );
-};
-
-const AddTechnicianModal = ({ onClose, onAdd }) => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
-    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) return; onAdd({ name, email, phone, status: 'Available' }); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add New Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Technician</button></div></form></div>);
-};
-
-const EditTechnicianModal = ({ technician, onClose, onUpdate }) => {
-    const [formData, setFormData] = useState(technician);
-    const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSubmit = (e) => { e.preventDefault(); onUpdate(formData); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Available</option><option>En Route</option><option>On Site</option><option>On Break</option><option>On Call</option><option>Day Off</option></select></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
-};
-
 const ReportingView = ({ workOrders, technicians }) => {
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
     const openOrders = workOrders.filter(wo => ['Open', 'Scheduled', 'In Progress'].includes(wo['Order Status']));
@@ -625,586 +850,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
             'overdue': 'bg-red-100 text-red-800',
             'draft': 'bg-gray-100 text-gray-800'
         };
-
-const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
-    const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
-    const [customCustomer, setCustomCustomer] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [dueDate, setDueDate] = useState('');
-    const [useCustomCustomer, setUseCustomCustomer] = useState(false);
-
-    const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
-    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!amount || (!selectedWorkOrder && !customCustomer)) return;
-
-        const invoiceData = {
-            id: `INV-${Date.now()}`,
-            workOrderId: selectedWorkOrder || null,
-            customerName: useCustomCustomer ? customCustomer : selectedOrder?.Client || '',
-            date: new Date().toISOString(),
-            amount: parseFloat(amount),
-            status: 'Draft',
-            description: description || selectedOrder?.Task || '',
-            dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        };
-
-        onAddInvoice(invoiceData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Create Invoice</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center">
-                            <input 
-                                type="radio" 
-                                checked={!useCustomCustomer} 
-                                onChange={() => setUseCustomCustomer(false)}
-                                className="mr-2" 
-                            />
-                            From Work Order
-                        </label>
-                        <label className="flex items-center">
-                            <input 
-                                type="radio" 
-                                checked={useCustomCustomer} 
-                                onChange={() => setUseCustomCustomer(true)}
-                                className="mr-2" 
-                            />
-                            Custom Invoice
-                        </label>
-                    </div>
-
-                    {!useCustomCustomer ? (
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-1">Select Completed Work Order</label>
-                            <select 
-                                value={selectedWorkOrder} 
-                                onChange={(e) => {
-                                    setSelectedWorkOrder(e.target.value);
-                                    const order = completedOrders.find(wo => wo.id === e.target.value);
-                                    if (order) {
-                                        setAmount(order.NTE || '');
-                                        setDescription(order.Task || '');
-                                    }
-                                }}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
-                                required
-                            >
-                                <option value="">Select a work order...</option>
-                                {completedOrders.map(wo => (
-                                    <option key={wo.id} value={wo.id}>
-                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
-                                    </option>
-                                ))}
-                            </select>
-                            {selectedOrder && (
-                                <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-                                    <p><strong>Customer:</strong> {selectedOrder.Client}</p>
-                                    <p><strong>Location:</strong> {selectedOrder.Company}</p>
-                                    <p><strong>Task:</strong> {selectedOrder.Task}</p>
-                                    <p><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label>
-                            <input 
-                                type="text" 
-                                value={customCustomer} 
-                                onChange={(e) => setCustomCustomer(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
-                                placeholder="Enter customer name"
-                                required
-                            />
-                        </div>
-                    )}
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Invoice Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="0.00"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Description</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="Invoice description..."
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Due Date</label>
-                        <input 
-                            type="date" 
-                            value={dueDate} 
-                            onChange={(e) => setDueDate(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Create Invoice
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
-    const [customerName, setCustomerName] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [validUntil, setValidUntil] = useState('');
-    const [notes, setNotes] = useState('');
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!customerName || !amount || !description) return;
-
-        const quoteData = {
-            id: `QT-${Date.now()}`,
-            customerName,
-            date: new Date().toISOString(),
-            amount: parseFloat(amount),
-            description,
-            status: 'Draft',
-            validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            notes
-        };
-
-        onAddQuote(quoteData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Create Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Customer</label>
-                        <select 
-                            value={customerName} 
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            required
-                        >
-                            <option value="">Select a customer...</option>
-                            {customers.map(customer => (
-                                <option key={customer.id} value={customer.name}>
-                                    {customer.name}
-                                </option>
-                            ))}
-                            <option value="custom">Other (Enter below)</option>
-                        </select>
-                        {customerName === 'custom' && (
-                            <input 
-                                type="text" 
-                                placeholder="Enter customer name"
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg mt-2"
-                                required
-                            />
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Quote Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="0.00"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Description of Work</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="4"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="Describe the work to be performed..."
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Valid Until</label>
-                        <input 
-                            type="date" 
-                            value={validUntil} 
-                            onChange={(e) => setValidUntil(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Additional Notes</label>
-                        <textarea 
-                            value={notes} 
-                            onChange={(e) => setNotes(e.target.value)}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="Any additional notes or terms..."
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Create Quote
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote }) => {
-    const [activeTab, setActiveTab] = useState('invoices');
-    const [showCreateInvoice, setShowCreateInvoice] = useState(false);
-    const [showCreateQuote, setShowCreateQuote] = useState(false);
-    
-    // Calculate summary statistics
-    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-    const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
-    const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
-    const totalQuoteAmount = quotes.reduce((sum, q) => sum + q.amount, 0);
-    const pendingQuotes = quotes.filter(q => q.status === 'Sent' || q.status === 'Pending');
-
-    const getInvoiceStatusStyles = (status) => {
-        const styles = {
-            'paid': 'bg-green-100 text-green-800',
-            'pending': 'bg-yellow-100 text-yellow-800',
-            'overdue': 'bg-red-100 text-red-800',
-            'draft': 'bg-gray-100 text-gray-800'
-        };
-
-const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
-    const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
-    const [customCustomer, setCustomCustomer] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [dueDate, setDueDate] = useState('');
-    const [useCustomCustomer, setUseCustomCustomer] = useState(false);
-
-    const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
-    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!amount || (!selectedWorkOrder && !customCustomer)) return;
-
-        const invoiceData = {
-            id: `INV-${Date.now()}`,
-            workOrderId: selectedWorkOrder || null,
-            customerName: useCustomCustomer ? customCustomer : selectedOrder?.Client || '',
-            date: new Date().toISOString(),
-            amount: parseFloat(amount),
-            status: 'Draft',
-            description: description || selectedOrder?.Task || '',
-            dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        };
-
-        onAddInvoice(invoiceData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Create Invoice</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center">
-                            <input 
-                                type="radio" 
-                                checked={!useCustomCustomer} 
-                                onChange={() => setUseCustomCustomer(false)}
-                                className="mr-2" 
-                            />
-                            From Work Order
-                        </label>
-                        <label className="flex items-center">
-                            <input 
-                                type="radio" 
-                                checked={useCustomCustomer} 
-                                onChange={() => setUseCustomCustomer(true)}
-                                className="mr-2" 
-                            />
-                            Custom Invoice
-                        </label>
-                    </div>
-
-                    {!useCustomCustomer ? (
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-1">Select Completed Work Order</label>
-                            <select 
-                                value={selectedWorkOrder} 
-                                onChange={(e) => {
-                                    setSelectedWorkOrder(e.target.value);
-                                    const order = completedOrders.find(wo => wo.id === e.target.value);
-                                    if (order) {
-                                        setAmount(order.NTE || '');
-                                        setDescription(order.Task || '');
-                                    }
-                                }}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
-                                required
-                            >
-                                <option value="">Select a work order...</option>
-                                {completedOrders.map(wo => (
-                                    <option key={wo.id} value={wo.id}>
-                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
-                                    </option>
-                                ))}
-                            </select>
-                            {selectedOrder && (
-                                <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-                                    <p><strong>Customer:</strong> {selectedOrder.Client}</p>
-                                    <p><strong>Location:</strong> {selectedOrder.Company}</p>
-                                    <p><strong>Task:</strong> {selectedOrder.Task}</p>
-                                    <p><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label>
-                            <input 
-                                type="text" 
-                                value={customCustomer} 
-                                onChange={(e) => setCustomCustomer(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
-                                placeholder="Enter customer name"
-                                required
-                            />
-                        </div>
-                    )}
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Invoice Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="0.00"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Description</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="Invoice description..."
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Due Date</label>
-                        <input 
-                            type="date" 
-                            value={dueDate} 
-                            onChange={(e) => setDueDate(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Create Invoice
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
-    const [customerName, setCustomerName] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [validUntil, setValidUntil] = useState('');
-    const [notes, setNotes] = useState('');
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!customerName || !amount || !description) return;
-
-        const quoteData = {
-            id: `QT-${Date.now()}`,
-            customerName,
-            date: new Date().toISOString(),
-            amount: parseFloat(amount),
-            description,
-            status: 'Draft',
-            validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            notes
-        };
-
-        onAddQuote(quoteData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Create Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Customer</label>
-                        <select 
-                            value={customerName} 
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            required
-                        >
-                            <option value="">Select a customer...</option>
-                            {customers.map(customer => (
-                                <option key={customer.id} value={customer.name}>
-                                    {customer.name}
-                                </option>
-                            ))}
-                            <option value="custom">Other (Enter below)</option>
-                        </select>
-                        {customerName === 'custom' && (
-                            <input 
-                                type="text" 
-                                placeholder="Enter customer name"
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg mt-2"
-                                required
-                            />
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Quote Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="0.00"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Description of Work</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="4"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="Describe the work to be performed..."
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Valid Until</label>
-                        <input 
-                            type="date" 
-                            value={validUntil} 
-                            onChange={(e) => setValidUntil(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Additional Notes</label>
-                        <textarea 
-                            value={notes} 
-                            onChange={(e) => setNotes(e.target.value)}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
-                            placeholder="Any additional notes or terms..."
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Create Quote
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
         return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
     };
 
@@ -1555,4 +1200,75 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
     );
 };
 
-export default App;
+// --- Main WorkOrderManagement Component ---
+const WorkOrderManagement = () => {
+    const [workOrders, setWorkOrders] = useState(initialSampleData);
+    const [customers, setCustomers] = useState(initialCustomers);
+    const [technicians, setTechnicians] = useState(initialTechnicians);
+    const [invoices, setInvoices] = useState(initialInvoices);
+    const [quotes, setQuotes] = useState(initialQuotes);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [isAddingOrder, setIsAddingOrder] = useState(false);
+    const [currentView, setCurrentView] = useState('dashboard');
+    
+    const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
+    
+    const handleUpdateOrder = (orderId, payload) => { setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); setSelectedOrder(p => ({ ...p, ...payload })); };
+    const handleAddNote = (orderId, noteText, callback) => { if (!noteText.trim()) return; const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); setWorkOrders(updatedOrders); setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); callback(); };
+    const handleAddNewOrder = (newOrderData) => { const newId = `WO-${Date.now()}`; const newOrder = { ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: [] }; setWorkOrders(p => [newOrder, ...p]); setIsAddingOrder(false); };
+    const handleAddCustomer = (newCustomerData) => { const newCustomer = { ...newCustomerData, id: Date.now() }; setCustomers(p => [...p, newCustomer]); };
+    const handleUpdateCustomer = (updatedCustomer) => { setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); };
+    const handleAddLocationToCustomer = (customerId, newLocation) => { setCustomers(customers.map(c => c.id === customerId ? { ...c, locations: [...c.locations, newLocation] } : c)); };
+    const handleAddTechnician = (newTechData) => { const newTech = { ...newTechData, id: Date.now() }; setTechnicians(p => [...p, newTech]); };
+    const handleUpdateTechnician = (updatedTech) => { setTechnicians(technicians.map(t => t.id === updatedTech.id ? updatedTech : t)); };
+    const handleDeleteTechnician = (techId) => {
+        const techToDelete = technicians.find(t => t.id === techId);
+        if (techToDelete) {
+            setWorkOrders(workOrders.map(wo => ({...wo, technician: wo.technician.filter(t => t !== techToDelete.name)})));
+            setTechnicians(technicians.filter(t => t.id !== techId));
+        }
+    };
+
+    const handleAddInvoice = (invoiceData) => {
+        setInvoices(prev => [invoiceData, ...prev]);
+    };
+
+    const handleAddQuote = (quoteData) => {
+        setQuotes(prev => [quoteData, ...prev]);
+    };
+
+    const renderContent = () => {
+        switch(currentView) {
+            case 'customers':
+                return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
+            case 'dispatch':
+                return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
+            case 'technicians':
+                return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
+             case 'route':
+                return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
+            case 'reporting':
+                return <ReportingView workOrders={workOrders} technicians={technicians} />;
+            case 'billing':
+                return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handleAddInvoice} onAddQuote={handleAddQuote} />;
+            case 'dashboard':
+            default:
+                return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
+        }
+    };
+
+    return (
+        <div className="bg-gray-50 min-h-screen font-sans">
+            <Header currentView={currentView} setCurrentView={setCurrentView} onAddOrderClick={() => setIsAddingOrder(true)} />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {renderContent()}
+            </main>
+            {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
+            {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
+        </div>
+    );
+};
+
+export default WorkOrderManagement;
