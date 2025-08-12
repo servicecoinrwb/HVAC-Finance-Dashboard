@@ -27,7 +27,7 @@ import { GoalsSection } from './components/GoalsSection';
 import { WeeklyCostsSection } from './components/WeeklyCostsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
 import EnhancedBillsSection from './components/EnhancedBillsSection';
-import RecurringWorkSection from './components/RecurringWorkSection';
+import { RecurringWorkSection } from './components/RecurringWorkSection';
 import { CSVImportButton } from './components/CSVImportButton';
 import { DispatchHeader } from './components/DispatchHeader';
 import { DashboardView } from './components/DashboardView';
@@ -100,9 +100,6 @@ const App = () => {
     const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
     const [paidStatus, setPaidStatus] = useState({});
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
-    const [csvMapping, setCsvMapping] = useState({});
 
     // --- Hooks ---
     useEffect(() => {
@@ -189,47 +186,21 @@ const App = () => {
 
     const handleAddNewOrder = (newOrderData) => {
         const newId = `WO-${Date.now()}`;
-        const newOrder = {
-            ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: []
-        };
+        const newOrder = { ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: [] };
         addDoc(collection(db, 'artifacts', appId, 'users', userId, 'workOrders'), newOrder);
         setIsAddingOrder(false);
     };
 
-    const handleAddCustomer = (newCustomerData) => {
-        const newCustomer = { ...newCustomerData, id: Date.now().toString() };
-        addDoc(collection(db, 'artifacts', appId, 'users', userId, 'customers'), newCustomer);
-    };
-    
-    const handleUpdateCustomer = (updatedCustomer) => {
-        const customerRef = doc(db, 'artifacts', appId, 'users', userId, 'customers', updatedCustomer.id);
-        updateDoc(customerRef, updatedCustomer);
-    };
-
+    const handleAddCustomer = (newCustomerData) => { addDoc(collection(db, 'artifacts', appId, 'users', userId, 'customers'), { ...newCustomerData, id: Date.now().toString() }); };
+    const handleUpdateCustomer = (updatedCustomer) => { updateDoc(doc(db, 'artifacts', appId, 'users', userId, 'customers', updatedCustomer.id), updatedCustomer); };
     const handleAddLocationToCustomer = (customerId, newLocation) => {
         const customerRef = doc(db, 'artifacts', appId, 'users', userId, 'customers', customerId);
         const customer = customers.find(c => c.id === customerId);
-        const updatedLocations = [...customer.locations, newLocation];
-        updateDoc(customerRef, { locations: updatedLocations });
+        updateDoc(customerRef, { locations: [...customer.locations, newLocation] });
     };
-
-    const handleAddTechnician = (newTechData) => {
-        const newTech = { ...newTechData, id: Date.now().toString() };
-        addDoc(collection(db, 'artifacts', appId, 'users', userId, 'technicians'), newTech);
-    };
-
-    const handleUpdateTechnician = (updatedTech) => {
-        const techRef = doc(db, 'artifacts', appId, 'users', userId, 'technicians', updatedTech.id);
-        updateDoc(techRef, updatedTech);
-    };
-
-    const handleDeleteTechnician = (techId) => {
-        const techToDelete = technicians.find(t => t.id === techId);
-        if (techToDelete) {
-            // This part is complex - requires updating all work orders. For now, we'll just delete the tech.
-            deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'technicians', techId));
-        }
-    };
+    const handleAddTechnician = (newTechData) => { addDoc(collection(db, 'artifacts', appId, 'users', userId, 'technicians'), { ...newTechData, id: Date.now().toString() }); };
+    const handleUpdateTechnician = (updatedTech) => { updateDoc(doc(db, 'artifacts', appId, 'users', userId, 'technicians', updatedTech.id), updatedTech); };
+    const handleDeleteTechnician = (techId) => { deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'technicians', techId)); };
     
     const handleSave = async (itemData, file) => {
         if (!userId) return;
@@ -294,10 +265,20 @@ const App = () => {
             </header>
             <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
                 <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
+                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
+                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
                 <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
                 <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
                 <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
-                {/* Add other buttons for vehicles, inventory, etc. as needed */}
+                <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
+                <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Inventory</button>
+                <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Debt</button>
+                <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Income</button>
+                <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Weekly Costs</button>
+                <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Goals</button>
+                <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L</button>
+                <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Forecast</button>
+                <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Tax</button>
             </nav>
             <main>
                 {activeSection === 'dashboard' && (
@@ -310,9 +291,9 @@ const App = () => {
                             <StatCard title="Outstanding Debt" value={`$${totals.totalDebt.toLocaleString()}`} icon={<AlertTriangle size={24} />} color="orange" />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            <StatCard title="Gross Profit Margin" value={`${pnlData.revenue > 0 ? ((pnlData.grossProfit / pnlData.revenue) * 100).toFixed(1) : '0.0'}%`} icon={<Percent size={24} />} color="teal" subtext="For selected period"/>
-                            <StatCard title="Avg. Job Revenue" value={`$${(pnlData.revenue / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<TrendingUp size={24} />} color="indigo" subtext={`${filteredJobs.length} jobs`}/>
-                            <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
+                           <StatCard title="Gross Profit Margin" value={`${pnlData.revenue > 0 ? ((pnlData.grossProfit / pnlData.revenue) * 100).toFixed(1) : '0.0'}%`} icon={<Percent size={24} />} color="teal" subtext="For selected period"/>
+                           <StatCard title="Avg. Job Revenue" value={`$${(pnlData.revenue / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<TrendingUp size={24} />} color="indigo" subtext={`${filteredJobs.length} jobs`}/>
+                           <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                             <EnhancedBillsSection bills={bills} paidStatus={paidStatus} setPaidStatus={setPaidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={() => {}} />
@@ -325,9 +306,20 @@ const App = () => {
                         </div>
                     </>
                 )}
+                {activeSection === 'reports' && <ReportsSection clients={financialClients} jobs={financialJobs} bills={bills} inventory={inventory} />}
+                {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                 {activeSection === 'recurring' && <RecurringWorkSection recurringWork={recurringWork} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                 {activeSection === 'clients' && <ClientManagement clients={financialClients} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'incomes' && <IncomeSourcesSection incomes={incomes} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'weeklyCosts' && <WeeklyCostsSection weeklyCosts={weeklyCosts} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'goals' && <GoalsSection goalsWithProgress={[]} openModal={openModal} />}
+                {activeSection === 'pnl' && <PnLStatement jobs={financialJobs} bills={bills} weeklyCosts={weeklyCosts} />}
+                {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} />}
+                {activeSection === 'tax' && <TaxManagement jobs={financialJobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
             </main>
         </>
     );
