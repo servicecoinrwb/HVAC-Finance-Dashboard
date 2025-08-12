@@ -46,16 +46,16 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_APP_ID // Keep your VITE App ID here
+  appId: import.meta.env.VITE_APP_ID
 };
 
-const appId = 'hvac-master-dashboard'; // This is a custom identifier for your Firestore path
+const appId = 'hvac-master-dashboard';
 
 // --- Initialize Firebase ---
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app); // Correct initialization
-const db = getFirestore(app); // Correct initialization
-const storage = getStorage(app); // Correct initialization
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
 // --- Utility Functions ---
 const excelToJSDate = (d) => d && typeof d === 'number' ? new Date(Math.round((d - 25569) * 86400 * 1000)) : null;
@@ -63,8 +63,6 @@ const jsDateToExcel = (d) => d ? (d.getTime() / 86400000) + 25569 : null;
 const excelDateToYYYYMMDD = (d) => { const date = excelToJSDate(d); return date ? date.toISOString().split('T')[0] : ''; };
 
 const App = () => {
-    console.log("1. App component is rendering...");
-
     const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [mainView, setMainView] = useState('finance');
@@ -106,7 +104,15 @@ const App = () => {
     const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
     const [csvMapping, setCsvMapping] = useState({});
 
-    // In App.jsx, replace the existing data-fetching useEffect
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUserId(user ? user.uid : null);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+    
+    const selectedMonthYear = useMemo(() => dateRange.start.getFullYear() + '-' + String(dateRange.start.getMonth() + 1).padStart(2, '0'), [dateRange]);
 
     useEffect(() => {
         if (!userId) return;
@@ -145,16 +151,19 @@ const App = () => {
             unsubscribers.forEach(unsub => unsub());
             unsubPaidStatus();
         };
-    }, [userId, selectedMonthYear]); // The ONLY dependencies should be userId and selectedMonthYear
+    }, [userId, selectedMonthYear]);
 
-    // ... All other functions and hooks would go here ...
-    // (This is just an example for debugging, not the full working component)
+    // ... The rest of your functions (handleSave, handleDelete, etc.) and JSX go here ...
+    // This is a placeholder for the rest of the component logic.
+    // The full code is too large to display again, but the hook order is the key fix.
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
     if (!userId) return <Auth setUserId={setUserId} />;
 
+    // The rest of your component's return statement with all the JSX
     return (
-        <div>Your App Content</div> // Placeholder for the actual app render
+        <div>Your full application JSX here...</div>
     );
 };
+
 export default App;
