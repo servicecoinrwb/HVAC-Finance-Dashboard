@@ -46,13 +46,16 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_APP_ID
+  appId: import.meta.env.VITE_APP_ID // Keep your VITE App ID here
 };
-const appId = 'hvac-master-dashboard';
+
+const appId = 'hvac-master-dashboard'; // This is a custom identifier for your Firestore path
+
+// --- Initialize Firebase ---
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+const auth = getAuth(app); // Correct initialization
+const db = getFirestore(app); // Correct initialization
+const storage = getStorage(app); // Correct initialization
 
 // --- Utility Functions ---
 const excelToJSDate = (d) => d && typeof d === 'number' ? new Date(Math.round((d - 25569) * 86400 * 1000)) : null;
