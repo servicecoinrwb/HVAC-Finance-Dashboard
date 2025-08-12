@@ -38,6 +38,8 @@ import { RoutePlanningView } from './components/RoutePlanningView';
 import { BillingView } from './components/BillingView';
 import { WorkOrderDetailModal } from './components/WorkOrderDetailModal';
 import { AddWorkOrderModal } from './components/AddWorkOrderModal';
+import CalendarSection from './components/CalendarSection';
+
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -191,22 +193,21 @@ const App = () => {
     }, [goals, debts, financialJobs]);
 
     // --- Event Handlers ---
-    const handleUpdateOrder = (orderId, payload) => { /* Firestore logic */ };
-    const handleAddNote = (orderId, noteText, callback) => { /* Firestore logic */ };
-    const handleAddNewOrder = (newOrderData) => { /* Firestore logic */ };
-    const handleAddCustomer = (newCustomerData) => { /* Firestore logic */ };
-    const handleUpdateCustomer = (updatedCustomer) => { /* Firestore logic */ };
-    const handleAddLocationToCustomer = (customerId, newLocation) => { /* Firestore logic */ };
-    const handleAddTechnician = (newTechData) => { /* Firestore logic */ };
-    const handleUpdateTechnician = (updatedTech) => { /* Firestore logic */ };
-    const handleDeleteTechnician = (techId) => { /* Firestore logic */ };
-    const handleSave = async (itemData, file) => { /* Your existing save logic */ };
-    const handleDelete = async (type, id) => { /* Your existing delete logic */ };
-    const handleTogglePaid = async (billId) => { /* Your existing toggle logic */ };
-    const handleToggleInvoicePaid = async (invoiceId, currentStatus) => { /* Your existing toggle logic */ };
-    const handleBulkDelete = async (type, ids) => { /* Your existing bulk delete logic */ };
-    const handleEnhancedExportCSV = (data, sectionName, customFields = null) => { /* Your export logic */};
-
+    const handleUpdateOrder = (orderId, payload) => { /* ... */ };
+    const handleAddNote = (orderId, noteText, callback) => { /* ... */ };
+    const handleAddNewOrder = (newOrderData) => { /* ... */ };
+    const handleAddCustomer = (newCustomerData) => { /* ... */ };
+    const handleUpdateCustomer = (updatedCustomer) => { /* ... */ };
+    const handleAddLocationToCustomer = (customerId, newLocation) => { /* ... */ };
+    const handleAddTechnician = (newTechData) => { /* ... */ };
+    const handleUpdateTechnician = (updatedTech) => { /* ... */ };
+    const handleDeleteTechnician = (techId) => { /* ... */ };
+    const handleSave = async (itemData, file) => { /* ... */ };
+    const handleDelete = async (type, id) => { /* ... */ };
+    const handleTogglePaid = async (billId) => { /* ... */ };
+    const handleToggleInvoicePaid = async (invoiceId, currentStatus) => { /* ... */ };
+    const handleBulkDelete = async (type, ids) => { /* ... */ };
+    const handleEnhancedExportCSV = (data, sectionName, customFields = null) => { /* ... */};
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
 
     // --- Render Logic ---
@@ -258,7 +259,7 @@ const App = () => {
                            <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} setPaidStatus={setPaidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={handleEnhancedExportCSV} />
+                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} />
                             <div className="lg:col-span-2 space-y-6">
                                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                                     <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
@@ -269,12 +270,12 @@ const App = () => {
                     </>
                 )}
                 {activeSection === 'reports' && <ReportsSection clients={financialClients} jobs={financialJobs} bills={bills} inventory={inventory} />}
-                {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedExportCSV} handleExportCSV={handleEnhancedExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
-                {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
-                {activeSection === 'recurring' && <RecurringWorkSection recurringWork={recurringWork} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
-                {activeSection === 'clients' && <ClientManagement clients={financialClients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedExportCSV} handleExportCSV={handleEnhancedExportCSV} />}
+                {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                {activeSection === 'recurring' && <RecurringWorkSection recurringWork={recurringWork} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                {activeSection === 'clients' && <ClientManagement clients={financialClients} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} />}
-                {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
+                {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'incomes' && <IncomeSourcesSection incomes={incomes} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'weeklyCosts' && <WeeklyCostsSection weeklyCosts={weeklyCosts} openModal={openModal} handleDelete={handleDelete} />}
