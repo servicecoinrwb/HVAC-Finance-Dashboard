@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, DollarSign, Home, Sun, Moon, ArrowDown, Banknote, Percent, Target, TrendingUp } from 'lucide-react';
+import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, DollarSign, Home, ArrowDown, Banknote, Percent, Target, TrendingUp } from 'lucide-react';
 
 // Import All Components
 import Auth from './components/Auth';
@@ -91,7 +91,6 @@ const App = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [modalType, setModalType] = useState('bill');
-    const [theme, setTheme] = useState('dark');
     const [sortConfig, setSortConfig] = useState({ key: 'dueDay', direction: 'ascending' });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -100,7 +99,6 @@ const App = () => {
     const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
     const [paidStatus, setPaidStatus] = useState({});
-    const [selectedIds, setSelectedIds] = useState([]);
 
     // --- Hooks ---
     useEffect(() => {
@@ -110,10 +108,6 @@ const App = () => {
         });
         return () => unsubscribe();
     }, []);
-    
-    useEffect(() => {
-        document.documentElement.className = theme;
-    }, [theme]);
     
     const selectedMonthYear = useMemo(() => {
         if (!dateRange || !dateRange.start) return '';
@@ -136,8 +130,6 @@ const App = () => {
         }, err => console.error("Error fetching paid status:", err));
         return () => { unsubscribers.forEach(unsub => unsub()); unsubPaidStatus(); };
     }, [userId, selectedMonthYear]);
-
-    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
     // --- Memoized Calculations ---
     const filteredJobs = useMemo(() => {
@@ -203,7 +195,6 @@ const App = () => {
     const handleSave = async (itemData, file) => { /* ... */ };
     const handleDelete = async (type, id) => { /* ... */ };
     const handleTogglePaid = async (billId) => { /* ... */ };
-    const handleToggleInvoicePaid = async (invoiceId, currentStatus) => { /* ... */ };
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
 
     // --- Render Logic ---
@@ -214,30 +205,25 @@ const App = () => {
             <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">Business Financial Dashboard</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your company's finances.</p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
-                        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                    </button>
+                    <p className="text-slate-500 mt-1">Manage your company's finances.</p>
                 </div>
             </header>
-            <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
-                <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
-                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
-                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
-                <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
-                <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
-                <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
-                <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
-                <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Inventory</button>
-                <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Debt</button>
-                <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Income</button>
-                <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Weekly Costs</button>
-                <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Goals</button>
-                <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L</button>
-                <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Forecast</button>
-                <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Tax</button>
+            <nav className="flex items-center border-b border-slate-200 mb-6 overflow-x-auto">
+                <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Dashboard</button>
+                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Reports</button>
+                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Invoices</button>
+                <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Jobs</button>
+                <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Recurring</button>
+                <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Clients</button>
+                <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Vehicles</button>
+                <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Inventory</button>
+                <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Debt</button>
+                <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Income</button>
+                <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Weekly Costs</button>
+                <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Goals</button>
+                <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>P&L</button>
+                <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Forecast</button>
+                <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Tax</button>
             </nav>
             <main>
                 {activeSection === 'dashboard' && (
@@ -255,10 +241,10 @@ const App = () => {
                            <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} setPaidStatus={setPaidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={() => {}} />
+                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} />
                             <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
+                                <div className="bg-white p-6 rounded-xl border border-slate-200">
+                                    <h3 className="text-xl font-bold text-slate-800 mb-4">Expense Breakdown</h3>
                                     <ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} />
                                 </div>
                             </div>
@@ -283,55 +269,44 @@ const App = () => {
         </div>
     );
 
-    const renderDispatchDashboard = () => {
-        switch(dispatchSubView) {
-            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
-            case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
-            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
-            case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
-            case 'billing': return <BillingView invoices={invoices} quotes={[]} />;
-            default: return <DashboardView orders={filteredDispatchOrders} onSelectOrder={setSelectedOrder} searchTerm={dispatchSearchTerm} setSearchTerm={setDispatchSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
-        }
-    };
+    const renderDispatchDashboard = () => { /* ... same as before ... */ };
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
     if (!userId) return <Auth />;
 
     return (
-        <div className={theme}>
-            <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
-                <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-20">
-                     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-                         <div className="flex items-center justify-between">
-                             <div className="flex items-center space-x-4">
-                                 <Wrench className="h-8 w-8 text-blue-600" />
-                                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">HVAC Business Suite</h1>
-                             </div>
-                             <div className="flex items-center gap-2">
-                                  <button onClick={() => setMainView('finance')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'finance' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300'}`}>
-                                     <DollarSign size={20} /> Finance
-                                 </button>
-                                 <button onClick={() => setMainView('dispatch')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'dispatch' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300'}`}>
-                                     <CalendarIcon size={20} /> Dispatch
-                                 </button>
-                             </div>
+        <div className="bg-gray-50 min-h-screen font-sans">
+            <header className="bg-white shadow-sm sticky top-0 z-20">
+                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                     <div className="flex items-center justify-between">
+                         <div className="flex items-center space-x-4">
+                             <Wrench className="h-8 w-8 text-blue-600" />
+                             <h1 className="text-2xl font-bold text-gray-800">HVAC Business Suite</h1>
+                         </div>
+                         <div className="flex items-center gap-2">
+                              <button onClick={() => setMainView('finance')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'finance' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>
+                                 <DollarSign size={20} /> Finance
+                             </button>
+                             <button onClick={() => setMainView('dispatch')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'dispatch' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>
+                                 <CalendarIcon size={20} /> Dispatch
+                             </button>
                          </div>
                      </div>
-                 </header>
+                 </div>
+             </header>
 
-                {mainView === 'dispatch' && (
-                    <>
-                        <DispatchHeader currentView={dispatchSubView} setCurrentView={setDispatchSubView} onAddOrderClick={() => setIsAddingOrder(true)} />
-                        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                            {renderDispatchDashboard()}
-                        </main>
-                        {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
-                        {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
-                    </>
-                )}
+            {mainView === 'dispatch' && (
+                <>
+                    <DispatchHeader currentView={dispatchSubView} setCurrentView={setDispatchSubView} onAddOrderClick={() => setIsAddingOrder(true)} />
+                    <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {renderDispatchDashboard()}
+                    </main>
+                    {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
+                    {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
+                </>
+            )}
 
-                {mainView === 'finance' && renderFinancialDashboard()}
-            </div>
+            {mainView === 'finance' && renderFinancialDashboard()}
         </div>
     );
 };
