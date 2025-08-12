@@ -556,6 +556,9 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
     const [viewType, setViewType] = useState('today'); // 'today', '3-day', 'week', 'custom'
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
+    
+    // Google Maps API Key
+    const googleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
     const jobsForRange = useMemo(() => {
         let startDate = new Date();
@@ -614,6 +617,38 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
 
     const handlePrint = () => window.print();
 
+    // Initialize Google Map
+    useEffect(() => {
+        if (window.google && window.google.maps && googleMapsApiKey) {
+            const mapElement = document.getElementById('route-map');
+            if (mapElement) {
+                const map = new window.google.maps.Map(mapElement, {
+                    zoom: 10,
+                    center: { lat: 42.4668, lng: -83.1632 }, // Southfield, MI area
+                    mapTypeId: 'roadmap'
+                });
+
+                // Add markers for scheduled jobs
+                Object.entries(groupedJobs).forEach(([date, techJobs]) => {
+                    Object.entries(techJobs).forEach(([techName, jobs]) => {
+                        jobs.forEach((job, index) => {
+                            // For now using approximate coordinates - you'd want to geocode actual addresses
+                            const lat = 42.4668 + (Math.random() - 0.5) * 0.2; // Random positions around Southfield
+                            const lng = -83.1632 + (Math.random() - 0.5) * 0.2;
+                            
+                            new window.google.maps.Marker({
+                                position: { lat, lng },
+                                map: map,
+                                title: `${job.Company} - ${job.Task}`,
+                                label: String(index + 1)
+                            });
+                        });
+                    });
+                });
+            }
+        }
+    }, [groupedJobs, googleMapsApiKey]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-6 print:hidden">
@@ -663,7 +698,11 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
                     ) : <p>No jobs scheduled for this selection.</p>}
                 </div>
                 <div className="md:col-span-2 bg-gray-200 rounded-lg flex items-center justify-center h-96 print:hidden">
-                    <p className="text-gray-500">Map Placeholder</p>
+                    <div id="route-map" className="w-full h-full rounded-lg">
+                        <p className="text-gray-500 flex items-center justify-center h-full">
+                            Map will load here once Google Maps API key is configured
+                        </p>
+                    </div>
                 </div>
             </div>
             <style>{`@media print { body * { visibility: hidden; } .print-container, .print-container * { visibility: visible; } .print-container { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>

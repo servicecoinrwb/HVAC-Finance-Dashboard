@@ -350,20 +350,11 @@ const App = () => {
         handleEnhancedExportCSV(templateData, 'appsheet_template', ['Job Name', 'Revenue', 'Material Cost', 'Labor Cost', 'Date', 'Customer', 'Notes']);
     };
 
-   const toggleTheme = async () => {
-        if (!userId) return;
-        const newTheme = theme === 'light' ? 'dark' : 'light';
-        try {
-            await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'settings', 'theme'), 
-                { theme: newTheme, updatedAt: serverTimestamp() }, 
-                { merge: true }
-            );
-        } catch (error) {
-            console.error("Failed to update theme:", error);
-            // Fallback to local state if Firestore fails
-            setTheme(newTheme);
-        }
-    };
+   useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+    }, [theme]);
+
+    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
     useEffect(() => {
         const now = new Date();
