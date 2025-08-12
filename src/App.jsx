@@ -193,8 +193,8 @@ const App = () => {
     // --- Render Logic ---
     const filteredDispatchOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(dispatchSearchTerm.toLowerCase()))), [workOrders, dispatchSearchTerm, statusFilter]);
     
-    const renderFinancialDashboard = () => (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+   const renderFinancialDashboard = () => (
+        <>
             <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">Business Financial Dashboard</h1>
@@ -224,7 +224,31 @@ const App = () => {
                 <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Tax</button>
             </nav>
             <main>
-                {activeSection === 'dashboard' && ( /* Your dashboard content JSX */ )}
+                {activeSection === 'dashboard' && (
+                    <>
+                        {showAlerts && <AlertsPanel bills={bills} paidStatus={paidStatus} onClose={() => setShowAlerts(false)} />}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                            <StatCard title="Total Monthly Income" value={`$${totals.totalIncome.toLocaleString()}`} icon={<Banknote size={24} />} color="green" />
+                            <StatCard title="Total Monthly Outflow" value={`$${totals.totalOutflow.toLocaleString()}`} icon={<ArrowDown size={24} />} color="red" />
+                            <StatCard title="Projected Net" value={`$${totals.netCashFlow.toLocaleString()}`} icon={<DollarSign size={24} />} color={totals.netCashFlow >= 0 ? 'cyan' : 'amber'} />
+                            <StatCard title="Outstanding Debt" value={`$${totals.totalDebt.toLocaleString()}`} icon={<AlertTriangle size={24} />} color="orange" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                           <StatCard title="Gross Profit Margin" value={`${pnlData.revenue > 0 ? ((pnlData.grossProfit / pnlData.revenue) * 100).toFixed(1) : '0.0'}%`} icon={<Percent size={24} />} color="teal" subtext="For selected period"/>
+                           <StatCard title="Avg. Job Revenue" value={`$${(pnlData.revenue / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<TrendingUp size={24} />} color="indigo" subtext={`${filteredJobs.length} jobs`}/>
+                           <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} setPaidStatus={setPaidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={() => {}} />
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
+                                    <ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} />
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
                 {activeSection === 'reports' && <ReportsSection clients={financialClients} jobs={financialJobs} bills={bills} inventory={inventory} />}
                 {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
@@ -240,27 +264,7 @@ const App = () => {
                 {activeSection === 'forecast' && <ForecastSection invoices={invoices} bills={bills} weeklyCosts={weeklyCosts} />}
                 {activeSection === 'tax' && <TaxManagement jobs={financialJobs} bills={bills} weeklyCosts={weeklyCosts} taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
             </main>
-        </div>
+        </>
     );
-
-    const renderDispatchDashboard = () => { /* ... */ };
-
-    if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
-    if (!userId) return <Auth />;
-
-    return (
-        <div className={theme}>
-            <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
-                <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-20">
-                     {/* ... main header ... */}
-                 </header>
-
-                {mainView === 'dispatch' && ( /* ... dispatch view ... */ )}
-
-                {mainView === 'finance' && renderFinancialDashboard()}
-            </div>
-        </div>
-    );
-};
 
 export default App;
