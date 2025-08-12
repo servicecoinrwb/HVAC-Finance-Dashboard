@@ -350,7 +350,19 @@ const App = () => {
         handleEnhancedExportCSV(templateData, 'appsheet_template', ['Job Name', 'Revenue', 'Material Cost', 'Labor Cost', 'Date', 'Customer', 'Notes']);
     };
 
+   const [theme, setTheme] = useState('dark');
+
+        // Load theme from localStorage on component mount
     useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            setTheme(savedTheme);
+        }
+    }, []);
+
+        // Save theme to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('theme', theme);
         document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
