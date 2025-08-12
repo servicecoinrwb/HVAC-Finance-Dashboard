@@ -12,7 +12,7 @@ import CalendarSection from './components/CalendarSection';
 import { StatCard } from './components/StatCard';
 import { ItemFormModal } from './components/ItemFormModal';
 import { InvoiceManagement } from './components/InvoiceManagement';
-import { hvac-scheduler-app } from './components/InvoiceManagement';
+import { workordermanagement } from './components/workordermanagement';
 import { ClientManagement } from './components/ClientManagement';
 import VehicleManagement from './components/VehicleManagement';
 import ValuationCalculator from './components/ValuationCalculator';
