@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw } from 'lucide-react';
+import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+
+// --- Firebase Configuration ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'hvac-scheduler-app';
+
 
 // --- Data ---
 const initialCustomers = [
-    { id: 1, name: "Synergy Management", type: "National Account", contact: { name: "Sarah Connor", email: "s.connor@synergy.com", phone: "555-0101" }, billingAddress: { street: "100 Main St", city: "Southfield", state: "MI", zip: "48075" }, locations: [{name: "Lane Bryant", locNum: "4826", city: "LIVONIA", state: "MI"}, {name: "Lane Bryant", locNum: "6065", city: "LATHRUP VLG", state: "MI"}] },
-    { id: 2, name: "Retail Maintenance Inc.", type: "National Account", contact: { name: "Bob Belcher", email: "bob@rmi.com", phone: "555-0102" }, billingAddress: { street: "200 Corporate Dr", city: "Troy", state: "MI", zip: "48084" }, locations: [{name: "Value City Furniture", locNum: "175", city: "NOVI", state: "MI"}, {name: "Value City Furniture", locNum: "188", city: "CANTON TWP", state: "MI"}] },
-    { id: 3, name: "Mr. Henderson", type: "Residential", contact: { name: "James Henderson", email: "j.henderson@email.com", phone: "555-0103" }, billingAddress: { street: "123 Oak Ave", city: "Southfield", state: "MI", zip: "48076" }, locations: [{name: "Primary Residence", locNum: "N/A", city: "SOUTHFIELD", state: "MI"}] },
+    { id: '1', name: "Synergy Management", type: "National Account", contact: { name: "Sarah Connor", email: "s.connor@synergy.com", phone: "555-0101" }, billingAddress: { street: "100 Main St", city: "Southfield", state: "MI", zip: "48075" }, locations: [{name: "Lane Bryant", locNum: "4826", city: "LIVONIA", state: "MI"}, {name: "Lane Bryant", locNum: "6065", city: "LATHRUP VLG", state: "MI"}] },
+    { id: '2', name: "Retail Maintenance Inc.", type: "National Account", contact: { name: "Bob Belcher", email: "bob@rmi.com", phone: "555-0102" }, billingAddress: { street: "200 Corporate Dr", city: "Troy", state: "MI", zip: "48084" }, locations: [{name: "Value City Furniture", locNum: "175", city: "NOVI", state: "MI"}, {name: "Value City Furniture", locNum: "188", city: "CANTON TWP", state: "MI"}] },
+    { id: '3', name: "Mr. Henderson", type: "Residential", contact: { name: "James Henderson", email: "j.henderson@email.com", phone: "555-0103" }, billingAddress: { street: "123 Oak Ave", city: "Southfield", state: "MI", zip: "48076" }, locations: [{name: "Primary Residence", locNum: "N/A", city: "SOUTHFIELD", state: "MI"}] },
 ];
 
 const initialSampleData = [
@@ -15,10 +26,10 @@ const initialSampleData = [
 ].map(d => ({...d, id: d['WO#']}));
 
 const initialTechnicians = [
-    { id: 1, name: 'John Smith', email: 'john.s@example.com', phone: '555-1111', status: 'Available' },
-    { id: 2, name: 'Jane Doe', email: 'jane.d@example.com', phone: '555-2222', status: 'On Site' },
-    { id: 3, name: 'Mike Rowe', email: 'mike.r@example.com', phone: '555-3333', status: 'On Call' },
-    { id: 4, name: 'Sarah Jenkins', email: 'sarah.j@example.com', phone: '555-4444', status: 'Day Off' },
+    { id: '1', name: 'John Smith', email: 'john.s@example.com', phone: '555-1111', status: 'Available' },
+    { id: '2', name: 'Jane Doe', email: 'jane.d@example.com', phone: '555-2222', status: 'On Site' },
+    { id: '3', name: 'Mike Rowe', email: 'mike.r@example.com', phone: '555-3333', status: 'On Call' },
+    { id: '4', name: 'Sarah Jenkins', email: 'sarah.j@example.com', phone: '555-4444', status: 'Day Off' },
 ];
 
 const initialInvoices = [
@@ -43,6 +54,7 @@ const getPriorityStyles = (p) => ({'emergency':'bg-red-100 text-red-800 border-r
 const getStatusStyles = (s) => ({'completed':'bg-green-100 text-green-800','scheduled':'bg-blue-100 text-blue-800','open':'bg-yellow-100 text-yellow-800','in progress':'bg-purple-100 text-purple-800','on hold':'bg-pink-100 text-pink-800','cancelled':'bg-red-100 text-red-800',}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 const getCustomerTypeStyles = (t) => ({'national account':'bg-blue-100 text-blue-800','commercial':'bg-purple-100 text-purple-800','residential':'bg-green-100 text-green-800','maintenance':'bg-yellow-100 text-yellow-800',}[t?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 const getTechStatusStyles = (s) => ({'available': 'bg-green-100 text-green-800', 'on site': 'bg-blue-100 text-blue-800', 'en route': 'bg-yellow-100 text-yellow-800', 'on break': 'bg-gray-100 text-gray-800', 'on call': 'bg-teal-100 text-teal-800', 'day off': 'bg-slate-200 text-slate-800'}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
+const getBillingStatusStyles = (s) => ({'paid':'bg-green-100 text-green-800','sent':'bg-blue-100 text-blue-800','draft':'bg-yellow-100 text-yellow-800', 'approved': 'bg-purple-100 text-purple-800', 'rejected': 'bg-red-100 text-red-800'}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 
 // --- Child Components ---
 
@@ -92,7 +104,6 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
         const newEndTime = `${String(parseInt(time.split(':')[0]) + 2).padStart(2, '0')}:${time.split(':')[1]}`;
 
         onUpdateOrder(order.id, {
-            ...order,
             technician: [techName],
             'Schedule Date': yyyymmddToExcel(selectedDate),
             startTime: newStartTime,
@@ -105,7 +116,6 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
         e.preventDefault();
         const order = JSON.parse(e.dataTransfer.getData("workOrder"));
         onUpdateOrder(order.id, {
-            ...order,
             technician: [],
             'Schedule Date': null,
             startTime: null,
