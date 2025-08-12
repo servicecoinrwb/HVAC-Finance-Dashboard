@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, DollarSign, Home, ArrowDown, Banknote, Percent, Target, TrendingUp } from 'lucide-react';
+import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, DollarSign, Home, Sun, Moon, ArrowDown, Banknote, Percent, Target, TrendingUp } from 'lucide-react';
 
 // Import All Components
 import Auth from './components/Auth';
@@ -91,6 +91,7 @@ const App = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [modalType, setModalType] = useState('bill');
+    const [theme, setTheme] = useState('dark');
     const [sortConfig, setSortConfig] = useState({ key: 'dueDay', direction: 'ascending' });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -99,6 +100,7 @@ const App = () => {
     const [reportingPeriod, setReportingPeriod] = useState('monthly');
     const [showAlerts, setShowAlerts] = useState(true);
     const [paidStatus, setPaidStatus] = useState({});
+    const [selectedIds, setSelectedIds] = useState([]);
 
     // --- Hooks ---
     useEffect(() => {
@@ -108,6 +110,10 @@ const App = () => {
         });
         return () => unsubscribe();
     }, []);
+    
+    useEffect(() => {
+        document.documentElement.className = theme;
+    }, [theme]);
     
     const selectedMonthYear = useMemo(() => {
         if (!dateRange || !dateRange.start) return '';
@@ -130,6 +136,8 @@ const App = () => {
         }, err => console.error("Error fetching paid status:", err));
         return () => { unsubscribers.forEach(unsub => unsub()); unsubPaidStatus(); };
     }, [userId, selectedMonthYear]);
+
+    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
     // --- Memoized Calculations ---
     const filteredJobs = useMemo(() => {
@@ -183,18 +191,22 @@ const App = () => {
     }, [goals, debts, financialJobs]);
 
     // --- Event Handlers ---
-    const handleUpdateOrder = (orderId, payload) => { /* ... */ };
-    const handleAddNote = (orderId, noteText, callback) => { /* ... */ };
-    const handleAddNewOrder = (newOrderData) => { /* ... */ };
-    const handleAddCustomer = (newCustomerData) => { /* ... */ };
-    const handleUpdateCustomer = (updatedCustomer) => { /* ... */ };
-    const handleAddLocationToCustomer = (customerId, newLocation) => { /* ... */ };
-    const handleAddTechnician = (newTechData) => { /* ... */ };
-    const handleUpdateTechnician = (updatedTech) => { /* ... */ };
-    const handleDeleteTechnician = (techId) => { /* ... */ };
-    const handleSave = async (itemData, file) => { /* ... */ };
-    const handleDelete = async (type, id) => { /* ... */ };
-    const handleTogglePaid = async (billId) => { /* ... */ };
+    const handleUpdateOrder = (orderId, payload) => { /* Firestore logic */ };
+    const handleAddNote = (orderId, noteText, callback) => { /* Firestore logic */ };
+    const handleAddNewOrder = (newOrderData) => { /* Firestore logic */ };
+    const handleAddCustomer = (newCustomerData) => { /* Firestore logic */ };
+    const handleUpdateCustomer = (updatedCustomer) => { /* Firestore logic */ };
+    const handleAddLocationToCustomer = (customerId, newLocation) => { /* Firestore logic */ };
+    const handleAddTechnician = (newTechData) => { /* Firestore logic */ };
+    const handleUpdateTechnician = (updatedTech) => { /* Firestore logic */ };
+    const handleDeleteTechnician = (techId) => { /* Firestore logic */ };
+    const handleSave = async (itemData, file) => { /* Your existing save logic */ };
+    const handleDelete = async (type, id) => { /* Your existing delete logic */ };
+    const handleTogglePaid = async (billId) => { /* Your existing toggle logic */ };
+    const handleToggleInvoicePaid = async (invoiceId, currentStatus) => { /* Your existing toggle logic */ };
+    const handleBulkDelete = async (type, ids) => { /* Your existing bulk delete logic */ };
+    const handleEnhancedExportCSV = (data, sectionName, customFields = null) => { /* Your export logic */};
+
     const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setIsModalOpen(true); };
 
     // --- Render Logic ---
@@ -205,25 +217,30 @@ const App = () => {
             <header className="flex flex-col sm:flex-row justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold">Business Financial Dashboard</h1>
-                    <p className="text-slate-500 mt-1">Manage your company's finances.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your company's finances.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                        {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
                 </div>
             </header>
-            <nav className="flex items-center border-b border-slate-200 mb-6 overflow-x-auto">
-                <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Dashboard</button>
-                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Reports</button>
-                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Invoices</button>
-                <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Jobs</button>
-                <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Recurring</button>
-                <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Clients</button>
-                <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Vehicles</button>
-                <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Inventory</button>
-                <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Debt</button>
-                <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Income</button>
-                <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Weekly Costs</button>
-                <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Goals</button>
-                <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>P&L</button>
-                <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Forecast</button>
-                <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-800'}`}>Tax</button>
+            <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
+                <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
+                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
+                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
+                <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
+                <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
+                <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
+                <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
+                <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Inventory</button>
+                <button onClick={() => setActiveSection('debts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'debts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Debt</button>
+                <button onClick={() => setActiveSection('incomes')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'incomes' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Income</button>
+                <button onClick={() => setActiveSection('weeklyCosts')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'weeklyCosts' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Weekly Costs</button>
+                <button onClick={() => setActiveSection('goals')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'goals' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Goals</button>
+                <button onClick={() => setActiveSection('pnl')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'pnl' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>P&L</button>
+                <button onClick={() => setActiveSection('forecast')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'forecast' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Forecast</button>
+                <button onClick={() => setActiveSection('tax')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'tax' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Tax</button>
             </nav>
             <main>
                 {activeSection === 'dashboard' && (
@@ -241,10 +258,10 @@ const App = () => {
                            <StatCard title="Avg. Job Profit" value={`$${(pnlData.grossProfit / (filteredJobs.length || 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} icon={<Target size={24} />} color="purple" subtext="Gross profit per job" />
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} />
+                            <EnhancedBillsSection bills={bills} paidStatus={paidStatus} setPaidStatus={setPaidStatus} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} handleTogglePaid={handleTogglePaid} handleSort={setSortConfig} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={handleEnhancedExportCSV} />
                             <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-white p-6 rounded-xl border border-slate-200">
-                                    <h3 className="text-xl font-bold text-slate-800 mb-4">Expense Breakdown</h3>
+                                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                                    <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Expense Breakdown</h3>
                                     <ActivePieChart data={expenseByCategory} onSliceClick={setSelectedCategory} />
                                 </div>
                             </div>
@@ -252,12 +269,12 @@ const App = () => {
                     </>
                 )}
                 {activeSection === 'reports' && <ReportsSection clients={financialClients} jobs={financialJobs} bills={bills} inventory={inventory} />}
-                {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} />}
-                {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                {activeSection === 'recurring' && <RecurringWorkSection recurringWork={recurringWork} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
-                {activeSection === 'clients' && <ClientManagement clients={financialClients} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedExportCSV} handleExportCSV={handleEnhancedExportCSV} handleToggleInvoicePaid={handleToggleInvoicePaid} />}
+                {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
+                {activeSection === 'recurring' && <RecurringWorkSection recurringWork={recurringWork} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
+                {activeSection === 'clients' && <ClientManagement clients={financialClients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedExportCSV} handleExportCSV={handleEnhancedExportCSV} />}
                 {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} />}
-                {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} />}
+                {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
                 {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'incomes' && <IncomeSourcesSection incomes={incomes} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'weeklyCosts' && <WeeklyCostsSection weeklyCosts={weeklyCosts} openModal={openModal} handleDelete={handleDelete} />}
@@ -269,44 +286,55 @@ const App = () => {
         </div>
     );
 
-    const renderDispatchDashboard = () => { /* ... same as before ... */ };
+    const renderDispatchDashboard = () => {
+        switch(dispatchSubView) {
+            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
+            case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
+            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
+            case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
+            case 'billing': return <BillingView invoices={invoices} quotes={[]} />;
+            default: return <DashboardView orders={filteredDispatchOrders} onSelectOrder={setSelectedOrder} searchTerm={dispatchSearchTerm} setSearchTerm={setDispatchSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
+        }
+    };
 
     if (isLoading) return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
     if (!userId) return <Auth />;
 
     return (
-        <div className="bg-gray-50 min-h-screen font-sans">
-            <header className="bg-white shadow-sm sticky top-0 z-20">
-                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-                     <div className="flex items-center justify-between">
-                         <div className="flex items-center space-x-4">
-                             <Wrench className="h-8 w-8 text-blue-600" />
-                             <h1 className="text-2xl font-bold text-gray-800">HVAC Business Suite</h1>
-                         </div>
-                         <div className="flex items-center gap-2">
-                              <button onClick={() => setMainView('finance')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'finance' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>
-                                 <DollarSign size={20} /> Finance
-                             </button>
-                             <button onClick={() => setMainView('dispatch')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'dispatch' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>
-                                 <CalendarIcon size={20} /> Dispatch
-                             </button>
+        <div className={theme}>
+            <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
+                <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-20">
+                     <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                         <div className="flex items-center justify-between">
+                             <div className="flex items-center space-x-4">
+                                 <Wrench className="h-8 w-8 text-blue-600" />
+                                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">HVAC Business Suite</h1>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                  <button onClick={() => setMainView('finance')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'finance' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300'}`}>
+                                     <DollarSign size={20} /> Finance
+                                 </button>
+                                 <button onClick={() => setMainView('dispatch')} className={`font-semibold py-2 px-4 rounded-lg flex items-center gap-2 ${mainView === 'dispatch' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300'}`}>
+                                     <CalendarIcon size={20} /> Dispatch
+                                 </button>
+                             </div>
                          </div>
                      </div>
-                 </div>
-             </header>
+                 </header>
 
-            {mainView === 'dispatch' && (
-                <>
-                    <DispatchHeader currentView={dispatchSubView} setCurrentView={setDispatchSubView} onAddOrderClick={() => setIsAddingOrder(true)} />
-                    <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        {renderDispatchDashboard()}
-                    </main>
-                    {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
-                    {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
-                </>
-            )}
+                {mainView === 'dispatch' && (
+                    <>
+                        <DispatchHeader currentView={dispatchSubView} setCurrentView={setDispatchSubView} onAddOrderClick={() => setIsAddingOrder(true)} />
+                        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            {renderDispatchDashboard()}
+                        </main>
+                        {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
+                        {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
+                    </>
+                )}
 
-            {mainView === 'finance' && renderFinancialDashboard()}
+                {mainView === 'finance' && renderFinancialDashboard()}
+            </div>
         </div>
     );
 };
