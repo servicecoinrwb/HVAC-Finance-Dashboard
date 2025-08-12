@@ -606,8 +606,10 @@ const ReportingView = ({ workOrders, technicians }) => {
     );
 };
 
-const BillingView = ({ invoices, quotes }) => {
+const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote }) => {
     const [activeTab, setActiveTab] = useState('invoices');
+    const [showCreateInvoice, setShowCreateInvoice] = useState(false);
+    const [showCreateQuote, setShowCreateQuote] = useState(false);
     
     // Calculate summary statistics
     const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
@@ -623,6 +625,286 @@ const BillingView = ({ invoices, quotes }) => {
             'overdue': 'bg-red-100 text-red-800',
             'draft': 'bg-gray-100 text-gray-800'
         };
+
+const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
+    const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
+    const [customCustomer, setCustomCustomer] = useState('');
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [useCustomCustomer, setUseCustomCustomer] = useState(false);
+
+    const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
+    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!amount || (!selectedWorkOrder && !customCustomer)) return;
+
+        const invoiceData = {
+            id: `INV-${Date.now()}`,
+            workOrderId: selectedWorkOrder || null,
+            customerName: useCustomCustomer ? customCustomer : selectedOrder?.Client || '',
+            date: new Date().toISOString(),
+            amount: parseFloat(amount),
+            status: 'Draft',
+            description: description || selectedOrder?.Task || '',
+            dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        };
+
+        onAddInvoice(invoiceData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Create Invoice</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center">
+                            <input 
+                                type="radio" 
+                                checked={!useCustomCustomer} 
+                                onChange={() => setUseCustomCustomer(false)}
+                                className="mr-2" 
+                            />
+                            From Work Order
+                        </label>
+                        <label className="flex items-center">
+                            <input 
+                                type="radio" 
+                                checked={useCustomCustomer} 
+                                onChange={() => setUseCustomCustomer(true)}
+                                className="mr-2" 
+                            />
+                            Custom Invoice
+                        </label>
+                    </div>
+
+                    {!useCustomCustomer ? (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 block mb-1">Select Completed Work Order</label>
+                            <select 
+                                value={selectedWorkOrder} 
+                                onChange={(e) => {
+                                    setSelectedWorkOrder(e.target.value);
+                                    const order = completedOrders.find(wo => wo.id === e.target.value);
+                                    if (order) {
+                                        setAmount(order.NTE || '');
+                                        setDescription(order.Task || '');
+                                    }
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                required
+                            >
+                                <option value="">Select a work order...</option>
+                                {completedOrders.map(wo => (
+                                    <option key={wo.id} value={wo.id}>
+                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedOrder && (
+                                <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
+                                    <p><strong>Customer:</strong> {selectedOrder.Client}</p>
+                                    <p><strong>Location:</strong> {selectedOrder.Company}</p>
+                                    <p><strong>Task:</strong> {selectedOrder.Task}</p>
+                                    <p><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label>
+                            <input 
+                                type="text" 
+                                value={customCustomer} 
+                                onChange={(e) => setCustomCustomer(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                placeholder="Enter customer name"
+                                required
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Invoice Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="0.00"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Description</label>
+                        <textarea 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="Invoice description..."
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Due Date</label>
+                        <input 
+                            type="date" 
+                            value={dueDate} 
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
+                        Create Invoice
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
+    const [customerName, setCustomerName] = useState('');
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [validUntil, setValidUntil] = useState('');
+    const [notes, setNotes] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!customerName || !amount || !description) return;
+
+        const quoteData = {
+            id: `QT-${Date.now()}`,
+            customerName,
+            date: new Date().toISOString(),
+            amount: parseFloat(amount),
+            description,
+            status: 'Draft',
+            validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            notes
+        };
+
+        onAddQuote(quoteData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Create Quote</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Customer</label>
+                        <select 
+                            value={customerName} 
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            required
+                        >
+                            <option value="">Select a customer...</option>
+                            {customers.map(customer => (
+                                <option key={customer.id} value={customer.name}>
+                                    {customer.name}
+                                </option>
+                            ))}
+                            <option value="custom">Other (Enter below)</option>
+                        </select>
+                        {customerName === 'custom' && (
+                            <input 
+                                type="text" 
+                                placeholder="Enter customer name"
+                                onChange={(e) => setCustomerName(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg mt-2"
+                                required
+                            />
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Quote Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="0.00"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Description of Work</label>
+                        <textarea 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows="4"
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="Describe the work to be performed..."
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Valid Until</label>
+                        <input 
+                            type="date" 
+                            value={validUntil} 
+                            onChange={(e) => setValidUntil(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Additional Notes</label>
+                        <textarea 
+                            value={notes} 
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            placeholder="Any additional notes or terms..."
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
+                        Create Quote
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
         return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
     };
 
@@ -644,10 +926,16 @@ const BillingView = ({ invoices, quotes }) => {
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">Billing & Invoicing</h2>
                     <div className="flex gap-3">
-                        <button className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">
+                        <button 
+                            onClick={() => setShowCreateInvoice(true)}
+                            className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                        >
                             <FileText size={20} /> Create Invoice
                         </button>
-                        <button className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">
+                        <button 
+                            onClick={() => setShowCreateQuote(true)}
+                            className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
+                        >
                             <PlusCircle size={20} /> Create Quote
                         </button>
                     </div>
@@ -711,10 +999,38 @@ const BillingView = ({ invoices, quotes }) => {
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-semibold text-gray-800">Invoice Management</h3>
                                 <div className="flex gap-2">
-                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                    <button 
+                                        onClick={() => {
+                                            const csvContent = [
+                                                ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status'],
+                                                ...invoices.map(inv => [
+                                                    inv.id,
+                                                    inv.workOrderId || 'N/A',
+                                                    inv.customerName,
+                                                    new Date(inv.date).toLocaleDateString(),
+                                                    inv.amount,
+                                                    inv.status
+                                                ])
+                                            ].map(row => row.join(',')).join('\n');
+                                            
+                                            const blob = new Blob([csvContent], { type: 'text/csv' });
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = 'invoices.csv';
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            document.body.removeChild(a);
+                                            window.URL.revokeObjectURL(url);
+                                        }}
+                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                    >
                                         <Download size={16} /> Export
                                     </button>
-                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                    <button 
+                                        onClick={() => window.location.reload()}
+                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                    >
                                         <RefreshCw size={16} /> Refresh
                                     </button>
                                 </div>
@@ -768,7 +1084,10 @@ const BillingView = ({ invoices, quotes }) => {
                                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
                                     <h3 className="text-lg font-medium text-gray-900 mb-2">No Invoices Yet</h3>
                                     <p className="text-gray-500 mb-4">Create your first invoice from a completed work order.</p>
-                                    <button className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700">
+                                    <button 
+                                        onClick={() => setShowCreateInvoice(true)}
+                                        className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700"
+                                    >
                                         Create Invoice
                                     </button>
                                 </div>
@@ -781,10 +1100,38 @@ const BillingView = ({ invoices, quotes }) => {
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-semibold text-gray-800">Quote Management</h3>
                                 <div className="flex gap-2">
-                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                    <button 
+                                        onClick={() => {
+                                            const csvContent = [
+                                                ['Quote #', 'Customer', 'Description', 'Date', 'Amount', 'Status'],
+                                                ...quotes.map(quote => [
+                                                    quote.id,
+                                                    quote.customerName,
+                                                    quote.description,
+                                                    new Date(quote.date).toLocaleDateString(),
+                                                    quote.amount,
+                                                    quote.status
+                                                ])
+                                            ].map(row => row.join(',')).join('\n');
+                                            
+                                            const blob = new Blob([csvContent], { type: 'text/csv' });
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = 'quotes.csv';
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            document.body.removeChild(a);
+                                            window.URL.revokeObjectURL(url);
+                                        }}
+                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                    >
                                         <Download size={16} /> Export
                                     </button>
-                                    <button className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200">
+                                    <button 
+                                        onClick={() => window.location.reload()}
+                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                    >
                                         <RefreshCw size={16} /> Refresh
                                     </button>
                                 </div>
@@ -839,7 +1186,10 @@ const BillingView = ({ invoices, quotes }) => {
                                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
                                     <h3 className="text-lg font-medium text-gray-900 mb-2">No Quotes Yet</h3>
                                     <p className="text-gray-500 mb-4">Create your first quote for potential customers.</p>
-                                    <button className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700">
+                                    <button 
+                                        onClick={() => setShowCreateQuote(true)}
+                                        className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700"
+                                    >
                                         Create Quote
                                     </button>
                                 </div>
@@ -848,6 +1198,24 @@ const BillingView = ({ invoices, quotes }) => {
                     )}
                 </div>
             </div>
+            
+            {/* Modals */}
+            {showCreateInvoice && (
+                <CreateInvoiceModal 
+                    workOrders={workOrders}
+                    customers={customers}
+                    onClose={() => setShowCreateInvoice(false)}
+                    onAddInvoice={onAddInvoice}
+                />
+            )}
+            
+            {showCreateQuote && (
+                <CreateQuoteModal 
+                    customers={customers}
+                    onClose={() => setShowCreateQuote(false)}
+                    onAddQuote={onAddQuote}
+                />
+            )}
         </div>
     );
 };
