@@ -106,16 +106,46 @@ const App = () => {
     const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
     const [csvMapping, setCsvMapping] = useState({});
 
+    // In App.jsx, replace the existing data-fetching useEffect
+
     useEffect(() => {
-        console.log("2. Setting up auth listener...");
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            console.log("3. Auth state changed! User:", user);
-            setUserId(user ? user.uid : null);
-            setIsLoading(false);
-            console.log("4. Setting isLoading to false.");
-        });
-        return () => unsubscribe();
-    }, []);
+        if (!userId) return;
+
+        const collectionsToWatch = {
+            bills: setBills, 
+            debts: setDebts, 
+            incomes: setIncomes, 
+            weeklyCosts: setWeeklyCosts, 
+            jobs: setFinancialJobs, 
+            tasks: setTasks, 
+            invoices: setInvoices, 
+            taxPayments: setTaxPayments, 
+            goals: setGoals, 
+            clients: setFinancialClients, 
+            inventory: setInventory, 
+            vehicles: setVehicles, 
+            maintenanceLogs: setMaintenanceLogs, 
+            recurringWork: setRecurringWork,
+            workOrders: setWorkOrders, 
+            customers: setCustomers, 
+            technicians: setTechnicians,
+        };
+
+        const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
+            onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
+                setter(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            }, err => console.error(`Error fetching ${colName}:`, err))
+        );
+
+        const unsubPaidStatus = onSnapshot(doc(db, 'artifacts', appId, 'users', userId, 'paidStatus', selectedMonthYear), (doc) => {
+            setPaidStatus(doc.exists() ? doc.data().status : {});
+        }, err => console.error("Error fetching paid status:", err));
+
+        return () => { 
+            unsubscribers.forEach(unsub => unsub());
+            unsubPaidStatus();
+        };
+    }, [userId, selectedMonthYear]); // The ONLY dependencies should be userId and selectedMonthYear
 
     // ... All other functions and hooks would go here ...
     // (This is just an example for debugging, not the full working component)
@@ -127,6 +157,4 @@ const App = () => {
         <div>Your App Content</div> // Placeholder for the actual app render
     );
 };
-
-
 export default App;
