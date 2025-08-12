@@ -5,7 +5,7 @@ import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, DollarSign, Home, Sun, Moon, ArrowDown, Banknote, Percent, Target, TrendingUp } from 'lucide-react';
 
-// Import Components
+// Import All Components
 import Auth from './components/Auth';
 import TaxManagement from './components/TaxManagement';
 import { StatCard } from './components/StatCard';
@@ -27,7 +27,7 @@ import { GoalsSection } from './components/GoalsSection';
 import { WeeklyCostsSection } from './components/WeeklyCostsSection';
 import IncentiveCalculator from './components/IncentiveCalculator';
 import EnhancedBillsSection from './components/EnhancedBillsSection';
-import RecurringWorkSection from './components/RecurringWorkSection';
+import { RecurringWorkSection } from './components/RecurringWorkSection';
 import { CSVImportButton } from './components/CSVImportButton';
 import { DispatchHeader } from './components/DispatchHeader';
 import { DashboardView } from './components/DashboardView';
@@ -104,7 +104,7 @@ const App = () => {
     const [csvPreview, setCsvPreview] = useState({ show: false, data: [], headers: [], type: '', fileName: '' });
     const [csvMapping, setCsvMapping] = useState({});
 
-    // --- Hooks (Correct Order) ---
+    // --- Hooks ---
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUserId(user ? user.uid : null);
@@ -190,16 +190,45 @@ const App = () => {
     const handleAddNewOrder = (newOrderData) => {
         const newId = `WO-${Date.now()}`;
         const newOrder = {
-            ...newOrderData,
-            "WO#": newId,
-            id: newId,
-            "Created Date": jsDateToExcel(new Date()),
-            "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open',
-            notes: [],
-            technician: []
+            ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: []
         };
         addDoc(collection(db, 'artifacts', appId, 'users', userId, 'workOrders'), newOrder);
         setIsAddingOrder(false);
+    };
+
+    const handleAddCustomer = (newCustomerData) => {
+        const newCustomer = { ...newCustomerData, id: Date.now().toString() };
+        addDoc(collection(db, 'artifacts', appId, 'users', userId, 'customers'), newCustomer);
+    };
+    
+    const handleUpdateCustomer = (updatedCustomer) => {
+        const customerRef = doc(db, 'artifacts', appId, 'users', userId, 'customers', updatedCustomer.id);
+        updateDoc(customerRef, updatedCustomer);
+    };
+
+    const handleAddLocationToCustomer = (customerId, newLocation) => {
+        const customerRef = doc(db, 'artifacts', appId, 'users', userId, 'customers', customerId);
+        const customer = customers.find(c => c.id === customerId);
+        const updatedLocations = [...customer.locations, newLocation];
+        updateDoc(customerRef, { locations: updatedLocations });
+    };
+
+    const handleAddTechnician = (newTechData) => {
+        const newTech = { ...newTechData, id: Date.now().toString() };
+        addDoc(collection(db, 'artifacts', appId, 'users', userId, 'technicians'), newTech);
+    };
+
+    const handleUpdateTechnician = (updatedTech) => {
+        const techRef = doc(db, 'artifacts', appId, 'users', userId, 'technicians', updatedTech.id);
+        updateDoc(techRef, updatedTech);
+    };
+
+    const handleDeleteTechnician = (techId) => {
+        const techToDelete = technicians.find(t => t.id === techId);
+        if (techToDelete) {
+            // This part is complex - requires updating all work orders. For now, we'll just delete the tech.
+            deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'technicians', techId));
+        }
     };
     
     const handleSave = async (itemData, file) => {
@@ -265,11 +294,10 @@ const App = () => {
             </header>
             <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
                 <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
-                <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
-                <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
                 <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
                 <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
                 <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
+                {/* Add other buttons for vehicles, inventory, etc. as needed */}
             </nav>
             <main>
                 {activeSection === 'dashboard' && (
@@ -297,8 +325,6 @@ const App = () => {
                         </div>
                     </>
                 )}
-                {activeSection === 'reports' && <ReportsSection clients={financialClients} jobs={financialJobs} bills={bills} inventory={inventory} />}
-                {activeSection === 'invoices' && <InvoiceManagement invoices={invoices} openModal={openModal} handleDelete={handleDelete} />}
                 {activeSection === 'jobs' && <JobsSection jobs={financialJobs} clients={financialClients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                 {activeSection === 'recurring' && <RecurringWorkSection recurringWork={recurringWork} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                 {activeSection === 'clients' && <ClientManagement clients={financialClients} openModal={openModal} handleDelete={handleDelete} />}
@@ -308,9 +334,9 @@ const App = () => {
 
     const renderDispatchDashboard = () => {
         switch(dispatchSubView) {
-            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={()=>{}} onUpdateCustomer={()=>{}} onAddLocation={()=>{}} />;
+            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
             case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
-            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={()=>{}} onUpdateTechnician={()=>{}} onDeleteTechnician={()=>{}} />;
+            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
             case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
             case 'billing': return <BillingView invoices={invoices} quotes={[]} />;
             default: return <DashboardView orders={filteredDispatchOrders} onSelectOrder={setSelectedOrder} searchTerm={dispatchSearchTerm} setSearchTerm={setDispatchSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
