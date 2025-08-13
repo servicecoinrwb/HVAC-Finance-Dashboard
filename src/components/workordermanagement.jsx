@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw } from 'lucide-react';
+import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
 // --- Data ---
@@ -428,6 +428,283 @@ const EditTechnicianModal = ({ technician, onClose, onUpdate }) => {
     return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Available</option><option>En Route</option><option>On Site</option><option>On Break</option><option>On Call</option><option>Day Off</option></select></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
 };
 
+const CSVImportModal = ({ type, onClose, onImport }) => {
+    const [csvData, setCsvData] = useState('');
+    const [parsedData, setParsedData] = useState([]);
+    const [errors, setErrors] = useState([]);
+    const [showPreview, setShowPreview] = useState(false);
+
+    const sampleData = {
+        invoices: 'Invoice #,Work Order,Customer,Date,Amount,Status,Description,Due Date\nINV-005,6748425-01,Synergy Management,1/15/2025,1500.00,Draft,HVAC Installation,2/15/2025',
+        quotes: 'Quote #,Customer,Description,Date,Amount,Status,Valid Until,Notes\nQT-005,ABC Company,Air conditioning repair,1/15/2025,850.00,Draft,2/15/2025,Emergency repair needed',
+        customers: 'Name,Type,Contact Name,Contact Email,Contact Phone,Street,City,State,Zip\nNew Company,Commercial,John Doe,john@company.com,555-1234,123 Main St,Southfield,MI,48075'
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type === 'text/csv') {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setCsvData(event.target.result);
+            };
+            reader.readAsText(file);
+        }
+    };
+
+    const parseCSV = () => {
+        if (!csvData.trim()) {
+            setErrors(['Please upload a CSV file or paste CSV data']);
+            return;
+        }
+
+        // Simple CSV parser fallback if PapaParse is not available
+        const simpleParse = (csvText) => {
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.replace(/"/g, '').trim());
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = values[index] || '';
+                });
+                return obj;
+            });
+            return { data, errors: [] };
+        };
+
+        // Try to use PapaParse if available, otherwise use simple parser
+        let result;
+        if (window.Papa) {
+            result = window.Papa.parse(csvData, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: false
+            });
+        } else {
+            result = simpleParse(csvData);
+        }
+
+        if (result.errors.length > 0) {
+            setErrors(result.errors.map(e => typeof e === 'string' ? e : e.message));
+            return;
+        }
+
+        // Validate required fields based on type
+        const validationErrors = [];
+        const validatedData = [];
+
+        result.data.forEach((row, index) => {
+            const rowErrors = [];
+            
+            if (type === 'invoices') {
+                if (!row['Invoice #']) rowErrors.push(`Row ${index + 1}: Invoice # is required`);
+                if (!row['Customer']) rowErrors.push(`Row ${index + 1}: Customer is required`);
+                if (!row['Amount'] || isNaN(parseFloat(row['Amount']))) rowErrors.push(`Row ${index + 1}: Valid amount is required`);
+                if (!row['Status']) rowErrors.push(`Row ${index + 1}: Status is required`);
+            } else if (type === 'quotes') {
+                if (!row['Quote #']) rowErrors.push(`Row ${index + 1}: Quote # is required`);
+                if (!row['Customer']) rowErrors.push(`Row ${index + 1}: Customer is required`);
+                if (!row['Description']) rowErrors.push(`Row ${index + 1}: Description is required`);
+                if (!row['Amount'] || isNaN(parseFloat(row['Amount']))) rowErrors.push(`Row ${index + 1}: Valid amount is required`);
+            } else if (type === 'customers') {
+                if (!row['Name']) rowErrors.push(`Row ${index + 1}: Name is required`);
+                if (!row['Type']) rowErrors.push(`Row ${index + 1}: Type is required`);
+            }
+
+            if (rowErrors.length === 0) {
+                validatedData.push(row);
+            } else {
+                validationErrors.push(...rowErrors);
+            }
+        });
+
+        if (validationErrors.length > 0) {
+            setErrors(validationErrors);
+            setParsedData([]);
+        } else {
+            setErrors([]);
+            setParsedData(validatedData);
+            setShowPreview(true);
+        }
+    };
+
+    const handleImport = () => {
+        if (parsedData.length === 0) return;
+
+        const processedData = parsedData.map(row => {
+            if (type === 'invoices') {
+                return {
+                    id: row['Invoice #'],
+                    workOrderId: row['Work Order'] || null,
+                    customerName: row['Customer'],
+                    date: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString(),
+                    amount: parseFloat(row['Amount']),
+                    status: row['Status'] || 'Draft',
+                    description: row['Description'] || '',
+                    dueDate: row['Due Date'] ? new Date(row['Due Date']).toISOString() : null
+                };
+            } else if (type === 'quotes') {
+                return {
+                    id: row['Quote #'],
+                    customerName: row['Customer'],
+                    description: row['Description'],
+                    date: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString(),
+                    amount: parseFloat(row['Amount']),
+                    status: row['Status'] || 'Draft',
+                    validUntil: row['Valid Until'] ? new Date(row['Valid Until']).toISOString() : null,
+                    notes: row['Notes'] || ''
+                };
+            } else if (type === 'customers') {
+                return {
+                    id: Date.now() + Math.random(),
+                    name: row['Name'],
+                    type: row['Type'],
+                    contact: {
+                        name: row['Contact Name'] || '',
+                        email: row['Contact Email'] || '',
+                        phone: row['Contact Phone'] || ''
+                    },
+                    billingAddress: {
+                        street: row['Street'] || '',
+                        city: row['City'] || '',
+                        state: row['State'] || '',
+                        zip: row['Zip'] || ''
+                    },
+                    locations: []
+                };
+            }
+        });
+
+        onImport(processedData);
+        
+        // Show success message
+        alert(`Successfully imported ${processedData.length} ${type}!`);
+        
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Import {type.charAt(0).toUpperCase() + type.slice(1)} from CSV</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1">
+                    <div className="space-y-6">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 block mb-2">Upload CSV File</label>
+                            <input 
+                                type="file" 
+                                accept=".csv" 
+                                onChange={handleFileUpload}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                        </div>
+
+                        <div className="text-center text-gray-500">OR</div>
+
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 block mb-2">Paste CSV Data</label>
+                            <textarea
+                                value={csvData}
+                                onChange={(e) => setCsvData(e.target.value)}
+                                placeholder={`Paste your CSV data here...\n\nExpected format:\n${sampleData[type]}`}
+                                rows="8"
+                                className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm"
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                            <h4 className="font-medium text-blue-800 mb-2">Required CSV Format for {type.charAt(0).toUpperCase() + type.slice(1)}:</h4>
+                            <pre className="text-sm text-blue-700 bg-blue-100 p-2 rounded overflow-x-auto">
+                                {sampleData[type]}
+                            </pre>
+                        </div>
+
+                        {errors.length > 0 && (
+                            <div className="bg-red-50 p-4 rounded-lg">
+                                <h4 className="font-medium text-red-800 mb-2">Validation Errors:</h4>
+                                <ul className="text-sm text-red-700 space-y-1">
+                                    {errors.map((error, index) => (
+                                        <li key={index} className="flex items-start">
+                                            <span className="text-red-500 mr-2">•</span>
+                                            {error}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {showPreview && parsedData.length > 0 && (
+                            <div className="bg-green-50 p-4 rounded-lg">
+                                <h4 className="font-medium text-green-800 mb-2">Preview ({parsedData.length} records ready to import):</h4>
+                                <div className="max-h-40 overflow-y-auto">
+                                    <table className="w-full text-sm border border-green-200 rounded">
+                                        <thead className="bg-green-100">
+                                            <tr>
+                                                {Object.keys(parsedData[0] || {}).map(key => (
+                                                    <th key={key} className="p-2 text-left font-medium text-green-800">
+                                                        {key}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {parsedData.slice(0, 3).map((row, index) => (
+                                                <tr key={index} className="border-t border-green-200">
+                                                    {Object.values(row).map((value, colIndex) => (
+                                                        <td key={colIndex} className="p-2 text-green-700">
+                                                            {String(value)}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {parsedData.length > 3 && (
+                                        <p className="text-green-600 text-center mt-2">
+                                            ... and {parsedData.length - 3} more records
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t flex justify-between gap-4">
+                    <button 
+                        onClick={parseCSV}
+                        disabled={!csvData.trim()}
+                        className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                        Parse & Validate
+                    </button>
+                    <div className="flex gap-4">
+                        <button 
+                            onClick={onClose} 
+                            className="text-gray-700 font-bold py-2 px-4"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleImport}
+                            disabled={parsedData.length === 0}
+                            className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                        >
+                            Import {parsedData.length} Records
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Child Components ---
 const Header = ({ currentView, setCurrentView, onAddOrderClick }) => (
     <header className="bg-white shadow-sm sticky top-0 z-10"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"><div className="flex items-center justify-between"><div className="flex items-center space-x-3">{currentView !== 'dashboard' ? <button onClick={() => setCurrentView('dashboard')} className="p-2 rounded-full hover:bg-gray-100"><ArrowLeft size={24} /></button> : <Wrench className="h-8 w-8 text-blue-600" />}<h1 className="text-2xl font-bold text-gray-800">HVAC Schedule Dashboard</h1></div><div className="flex items-center gap-2"><button onClick={() => setCurrentView('billing')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><FileText size={20} /> Billing</button><button onClick={() => setCurrentView('reporting')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><BarChart2 size={20} /> Reporting</button><button onClick={() => setCurrentView('route')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Map size={20} /> Route</button><button onClick={() => setCurrentView('dispatch')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><CalendarIcon size={20} /> Dispatch</button><button onClick={() => setCurrentView('customers')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Users size={20} /> Customers</button><button onClick={() => setCurrentView('technicians')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><User size={20} /> Technicians</button><button onClick={onAddOrderClick} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"><PlusCircle size={20} /> Add Work Order</button></div></div></div></header>
@@ -719,11 +996,74 @@ const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, on
     const [isAddingCustomer, setIsAddingCustomer] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [addingLocationTo, setAddingLocationTo] = useState(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+
+    const exportCustomersToCSV = () => {
+        const csvContent = [
+            ['Name', 'Type', 'Contact Name', 'Contact Email', 'Contact Phone', 'Street', 'City', 'State', 'Zip', 'Locations Count'],
+            ...customers.map(customer => [
+                customer.name,
+                customer.type,
+                customer.contact.name,
+                customer.contact.email,
+                customer.contact.phone,
+                customer.billingAddress.street,
+                customer.billingAddress.city,
+                customer.billingAddress.state,
+                customer.billingAddress.zip,
+                customer.locations.length
+            ])
+        ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-gray-800">Customer Management</h2><button onClick={() => setIsAddingCustomer(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><PlusCircle size={20} /> Add New Customer</button></div><div className="space-y-4">{customers.map(customer => (<div key={customer.id} className="border border-gray-200 rounded-lg p-4"><div className="flex justify-between items-center"><div className="flex items-center gap-4"><h3 className="text-lg font-bold text-gray-900">{customer.name}</h3><span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span></div><div className="flex items-center gap-2"><button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 hover:underline">Edit Details</button><button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 hover:underline">Add Location</button></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div className="text-sm"><p className="font-semibold text-gray-600">Primary Contact</p><p className="flex items-center gap-2"><User size={14}/> {customer.contact.name}</p><p className="flex items-center gap-2"><Mail size={14}/> {customer.contact.email}</p><p className="flex items-center gap-2"><Phone size={14}/> {customer.contact.phone}</p></div><div className="text-sm"><p className="font-semibold text-gray-600">Billing Address</p><p>{customer.billingAddress.street}</p><p>{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p></div></div><div className="mt-3 pt-3 border-t"><h4 className="text-sm font-semibold text-gray-600 mb-1">Service Locations ({customer.locations.length})</h4><div className="pl-4 border-l-2 space-y-1">{customer.locations.map((loc, index) => (<div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700"><span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}</div>))}</div></div></div>))}</div>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Customer Management</h2>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                    >
+                        <Upload size={20} /> Import CSV
+                    </button>
+                    <button 
+                        onClick={exportCustomersToCSV}
+                        className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"
+                    >
+                        <Download size={20} /> Export CSV
+                    </button>
+                    <button 
+                        onClick={() => setIsAddingCustomer(true)} 
+                        className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
+                    >
+                        <PlusCircle size={20} /> Add New Customer
+                    </button>
+                </div>
+            </div>
+            <div className="space-y-4">{customers.map(customer => (<div key={customer.id} className="border border-gray-200 rounded-lg p-4"><div className="flex justify-between items-center"><div className="flex items-center gap-4"><h3 className="text-lg font-bold text-gray-900">{customer.name}</h3><span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span></div><div className="flex items-center gap-2"><button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 hover:underline">Edit Details</button><button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 hover:underline">Add Location</button></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div className="text-sm"><p className="font-semibold text-gray-600">Primary Contact</p><p className="flex items-center gap-2"><User size={14}/> {customer.contact.name}</p><p className="flex items-center gap-2"><Mail size={14}/> {customer.contact.email}</p><p className="flex items-center gap-2"><Phone size={14}/> {customer.contact.phone}</p></div><div className="text-sm"><p className="font-semibold text-gray-600">Billing Address</p><p>{customer.billingAddress.street}</p><p>{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p></div></div><div className="mt-3 pt-3 border-t"><h4 className="text-sm font-semibold text-gray-600 mb-1">Service Locations ({customer.locations.length})</h4><div className="pl-4 border-l-2 space-y-1">{customer.locations.map((loc, index) => (<div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700"><span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}</div>))}</div></div></div>))}</div>
         {isAddingCustomer && <AddCustomerModal onAddCustomer={onAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
         {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={onUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
         {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={onAddLocation} onClose={() => setAddingLocationTo(null)} />}
+        {showImportModal && (
+            <CSVImportModal 
+                type="customers"
+                onClose={() => setShowImportModal(false)}
+                onImport={(data) => {
+                    data.forEach(customer => onAddCustomer(customer));
+                }}
+            />
+        )}
         </div>
     );
 };
@@ -906,6 +1246,58 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
         return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
     };
 
+    const exportInvoicesToCSV = () => {
+        const csvContent = [
+            ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status', 'Description', 'Due Date'],
+            ...invoices.map(inv => [
+                inv.id,
+                inv.workOrderId || '',
+                inv.customerName,
+                new Date(inv.date).toLocaleDateString(),
+                inv.amount,
+                inv.status,
+                inv.description || '',
+                inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : ''
+            ])
+        ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoices-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
+    const exportQuotesToCSV = () => {
+        const csvContent = [
+            ['Quote #', 'Customer', 'Description', 'Date', 'Amount', 'Status', 'Valid Until', 'Notes'],
+            ...quotes.map(quote => [
+                quote.id,
+                quote.customerName,
+                quote.description,
+                new Date(quote.date).toLocaleDateString(),
+                quote.amount,
+                quote.status,
+                quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '',
+                quote.notes || ''
+            ])
+        ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quotes-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="space-y-6">
             {/* Header with Summary Stats */}
@@ -988,28 +1380,15 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                 <div className="flex gap-2">
                                     <button 
                                         onClick={() => {
-                                            const csvContent = [
-                                                ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status'],
-                                                ...invoices.map(inv => [
-                                                    inv.id,
-                                                    inv.workOrderId || 'N/A',
-                                                    inv.customerName,
-                                                    new Date(inv.date).toLocaleDateString(),
-                                                    inv.amount,
-                                                    inv.status
-                                                ])
-                                            ].map(row => row.join(',')).join('\n');
-                                            
-                                            const blob = new Blob([csvContent], { type: 'text/csv' });
-                                            const url = window.URL.createObjectURL(blob);
-                                            const a = document.createElement('a');
-                                            a.href = url;
-                                            a.download = 'invoices.csv';
-                                            document.body.appendChild(a);
-                                            a.click();
-                                            document.body.removeChild(a);
-                                            window.URL.revokeObjectURL(url);
+                                            setImportType('invoices');
+                                            setShowImportModal(true);
                                         }}
+                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                    >
+                                        <Upload size={16} /> Import
+                                    </button>
+                                    <button 
+                                        onClick={exportInvoicesToCSV}
                                         className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
                                     >
                                         <Download size={16} /> Export
@@ -1104,28 +1483,15 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                 <div className="flex gap-2">
                                     <button 
                                         onClick={() => {
-                                            const csvContent = [
-                                                ['Quote #', 'Customer', 'Description', 'Date', 'Amount', 'Status'],
-                                                ...quotes.map(quote => [
-                                                    quote.id,
-                                                    quote.customerName,
-                                                    quote.description,
-                                                    new Date(quote.date).toLocaleDateString(),
-                                                    quote.amount,
-                                                    quote.status
-                                                ])
-                                            ].map(row => row.join(',')).join('\n');
-                                            
-                                            const blob = new Blob([csvContent], { type: 'text/csv' });
-                                            const url = window.URL.createObjectURL(blob);
-                                            const a = document.createElement('a');
-                                            a.href = url;
-                                            a.download = 'quotes.csv';
-                                            document.body.appendChild(a);
-                                            a.click();
-                                            document.body.removeChild(a);
-                                            window.URL.revokeObjectURL(url);
+                                            setImportType('quotes');
+                                            setShowImportModal(true);
                                         }}
+                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                    >
+                                        <Upload size={16} /> Import
+                                    </button>
+                                    <button 
+                                        onClick={exportQuotesToCSV}
                                         className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
                                     >
                                         <Download size={16} /> Export
@@ -1238,6 +1604,20 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     onAddQuote={onAddQuote}
                 />
             )}
+
+            {showImportModal && (
+                <CSVImportModal 
+                    type={importType}
+                    onClose={() => setShowImportModal(false)}
+                    onImport={(data) => {
+                        if (importType === 'invoices') {
+                            data.forEach(invoice => onAddInvoice(invoice));
+                        } else if (importType === 'quotes') {
+                            data.forEach(quote => onAddQuote(quote));
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };
@@ -1255,12 +1635,34 @@ const WorkOrderManagement = () => {
     const [isAddingOrder, setIsAddingOrder] = useState(false);
     const [currentView, setCurrentView] = useState('dashboard');
     
+    // Load PapaParse library for CSV functionality
+    useEffect(() => {
+        if (!window.Papa) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
+            script.async = true;
+            document.head.appendChild(script);
+            return () => {
+                document.head.removeChild(script);
+            };
+        }
+    }, []);
+    
     const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
     
     const handleUpdateOrder = (orderId, payload) => { setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); setSelectedOrder(p => ({ ...p, ...payload })); };
     const handleAddNote = (orderId, noteText, callback) => { if (!noteText.trim()) return; const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); setWorkOrders(updatedOrders); setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); callback(); };
     const handleAddNewOrder = (newOrderData) => { const newId = `WO-${Date.now()}`; const newOrder = { ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: [] }; setWorkOrders(p => [newOrder, ...p]); setIsAddingOrder(false); };
-    const handleAddCustomer = (newCustomerData) => { const newCustomer = { ...newCustomerData, id: Date.now() }; setCustomers(p => [...p, newCustomer]); };
+    
+    const handleAddCustomer = (customerData) => {
+        if (Array.isArray(customerData)) {
+            setCustomers(prev => [...prev, ...customerData]);
+        } else {
+            const newCustomer = { ...customerData, id: Date.now() + Math.random() };
+            setCustomers(prev => [...prev, newCustomer]);
+        }
+    };
+
     const handleUpdateCustomer = (updatedCustomer) => { setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); };
     const handleAddLocationToCustomer = (customerId, newLocation) => { setCustomers(customers.map(c => c.id === customerId ? { ...c, locations: [...c.locations, newLocation] } : c)); };
     const handleAddTechnician = (newTechData) => { const newTech = { ...newTechData, id: Date.now() }; setTechnicians(p => [...p, newTech]); };
@@ -1274,11 +1676,19 @@ const WorkOrderManagement = () => {
     };
 
     const handleAddInvoice = (invoiceData) => {
-        setInvoices(prev => [invoiceData, ...prev]);
+        if (Array.isArray(invoiceData)) {
+            setInvoices(prev => [...invoiceData, ...prev]);
+        } else {
+            setInvoices(prev => [invoiceData, ...prev]);
+        }
     };
 
     const handleAddQuote = (quoteData) => {
-        setQuotes(prev => [quoteData, ...prev]);
+        if (Array.isArray(quoteData)) {
+            setQuotes(prev => [...quoteData, ...prev]);
+        } else {
+            setQuotes(prev => [quoteData, ...prev]);
+        }
     };
 
     const renderContent = () => {
