@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import Papa from 'papaparse'; // Added for CSV parsing
+import Papa from 'papaparse';
 
 // --- Data ---
 const initialCustomers = [
@@ -560,7 +560,7 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
     
     // Google Maps API Key
-    const googleMapsApiKey = import.meta.env.VITE_Google Maps_API_KEY;
+    const googleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
     const jobsForRange = useMemo(() => {
         let startDate = new Date();
@@ -793,7 +793,7 @@ const WorkOrderDetailModal = ({ order, onClose, onUpdate, onAddNote, technicians
     };
 
     const details = [ { label: "Work Order #", value: order['WO#'], icon: <Wrench/> }, { label: "Client WO#", value: order.clientWO, icon: <Briefcase />}, { label: "Location", value: `${order.Company} (#${order['Loc #']})`, icon: <Building/> }, { label: "Address", value: `${order.City}, ${order.State}`, icon: <MapPin/> }, { label: "Priority", value: order.Priority, icon: <AlertTriangle/>, style: getPriorityStyles(order.Priority) + ' px-2 py-0.5 rounded-full text-xs font-semibold' }, { label: "Task", value: order.Task }, { label: "NTE Amount", value: formatCurrency(order.NTE) }, { label: "Created Date", value: excelDateToJSDateString(order['Created Date']) }, ];
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Work Order Details</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={28} /></button></div><div className="p-6 overflow-y-auto"><div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{details.map(d => (<div key={d.label} className="flex flex-col"><span className="text-xs text-gray-500 font-medium">{d.label}</span><span className={`text-base text-gray-900 font-semibold flex items-center gap-2 mt-1 ${d.style || ''}`}>{d.icon && <span className="text-gray-400">{React.cloneElement(d.icon, { size: 16 })}</span>}<span className={d.style || ''}>{d.value}</span></span></div>))}</div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3">Job Management</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Open</option><option>Scheduled</option><option>In Progress</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Assigned Technicians</label><div className="border p-2 rounded-lg max-h-24 overflow-y-auto">{technicians.filter(t=>t.name !== 'Unassigned').map(t => (<div key={t.id} className="flex items-center"><input type="checkbox" id={`tech-${t.id}`} checked={assignedTechnicians.includes(t.name)} onChange={() => handleTechChange(t.name)} className="mr-2" /><label htmlFor={`tech-${t.id}`}>{t.name}</label></div>))}</div></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="mt-4"><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e => setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="mt-4 flex justify-end"><button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center"><MessageSquare size={20} className="mr-2"/>Work Notes</h3><div className="space-y-3 max-h-48 overflow-y-auto bg-gray-50 p-3 rounded-lg">{order.notes && order.notes.length > 0 ? order.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (<div key={index} className="text-sm bg-white p-2 rounded shadow-sm"><p className="text-gray-800">{note.text}</p><p className="text-xs text-gray-500 mt-1 text-right">{formatTimestamp(note.timestamp)}</p></div>)) : <p className="text-sm text-gray-500 text-center py-4">No notes for this job yet.</p>}</div><div className="mt-4"><textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add a new note..." rows="3" className="w-full p-2 border border-gray-300 rounded-lg"></textarea><div className="flex justify-end mt-2"><button onClick={() => onAddNote(order.id, newNote, () => setNewNote(''))} disabled={!newNote.trim()} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400">Add Note</button></div></div></div></div></div>);
+    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Work Order Details</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={28} /></button></div><div className="p-6 overflow-y-auto"><div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{details.map(d => (<div key={d.label} className="flex flex-col"><span className="text-xs text-gray-500 font-medium">{d.label}</span><span className={`text-base text-gray-900 font-semibold flex items-center gap-2 mt-1 ${d.style || ''}`}>{d.icon && <span className="text-gray-400">{React.cloneElement(d.icon, { size: 16 })}</span>}<span className={d.style || ''}>{d.value}</span></span></div>))}</div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3">Job Management</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Open</option><option>Scheduled</option><option>In Progress</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Assigned Technicians</label><div className="border p-2 rounded-lg max-h-24 overflow-y-auto">{technicians.filter(t=>t.name !== 'Unassigned').map(t => (<div key={t.id} className="flex items-center"><input type="checkbox" id={`tech-${t.id}`} checked={assignedTechnicians.includes(t.name)} onChange={() => handleTechChange(t.name)} className="mr-2" /><label htmlFor={`tech-${t.id}`}>{t.name}</label></div>))}</div></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="mt-4"><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e => setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="mt-4 flex justify-end"><button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center"><MessageSquare size={20} className="mr-2"/>Work Notes</h3><div className="space-y-3 max-h-48 overflow-y-auto bg-gray-50 p-3 rounded-lg">{order.notes && order.notes.length > 0 ? order.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (<div key={index} className="text-sm bg-white p-2 rounded shadow-sm"><p className="text-gray-800">{note.text}</p><p className="text-xs text-gray-500 mt-1 text-right">{formatTimestamp(note.timestamp)}</p></div>)) : <p className="text-sm text-gray-500 text-center py-4">No notes for this job yet.</p>}</div><div className="mt-4"><textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add a new note..." rows="3" className="w-full p-2 border border-gray-300 rounded-lg"></textarea><div className="flex justify-end mt-2"><button onClick={() => onAddNote(order.id, newNote, () => setNewNote(''))} disabled={!newNote.trim()} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400">Add Note</button></div></div></div></div></div></div>);
 };
 
 const ReportingView = ({ workOrders, technicians }) => {
@@ -822,55 +822,63 @@ const ReportingView = ({ workOrders, technicians }) => {
     };
 
     const handleDownloadPdf = () => {
-        // Note: For a production app, use a dedicated library like @react-pdf/renderer
-        // for more control over the PDF layout and styling, rather than html2canvas.
-        alert("Generating PDF... (This is a placeholder. A library like @react-pdf/renderer would be used in a real app)");
-        window.print();
+        const input = document.getElementById('reporting-view');
+        html2canvas(input).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jspdf.jsPDF();
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save("hvac-report.pdf");
+        });
     };
 
     return (
-        <div id="reporting-view" className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Reporting Dashboard</h2>
-                <button onClick={handleDownloadPdf} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"><Download size={20} /> Download Report</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Open/Active Jobs</h3><p className="text-5xl font-bold text-yellow-600">{openOrders.length}</p></div>
-                <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Completed Jobs</h3><p className="text-5xl font-bold text-green-600">{completedOrders.length}</p></div>
-                <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Potential Revenue</h3><p className="text-5xl font-bold text-blue-600">{formatCurrency(totalRevenue)}</p></div>
-            </div>
-            
-            <div className="p-4 border rounded-lg">
-                <h3 className="text-xl font-bold mb-4">Technician Leaderboard</h3>
-                <div className="space-y-4">
-                    {jobsByTech.map((tech, index) => (
-                        <div key={tech.name} className="flex items-center gap-4">
-                            <div className="w-10 text-center">
-                                {index < 3 ? <Award size={24} className={medalColor(index)} /> : <span className="text-lg font-bold text-gray-400">{index + 1}</span>}
-                            </div>
-                            <div className="flex-1">
-                                <p className="font-bold">{tech.name}</p>
-                                <div className="w-full bg-gray-200 rounded-full h-4 mt-1">
-                                    <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${maxJobs > 0 ? (tech.count / maxJobs) * 100 : 0}%` }}></div>
+        <>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+            <div id="reporting-view" className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Reporting Dashboard</h2>
+                    <button onClick={handleDownloadPdf} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"><Download size={20} /> Download PDF</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Open/Active Jobs</h3><p className="text-5xl font-bold text-yellow-600">{openOrders.length}</p></div>
+                    <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Completed Jobs</h3><p className="text-5xl font-bold text-green-600">{completedOrders.length}</p></div>
+                    <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Potential Revenue</h3><p className="text-5xl font-bold text-blue-600">{formatCurrency(totalRevenue)}</p></div>
+                </div>
+                
+                <div className="p-4 border rounded-lg">
+                    <h3 className="text-xl font-bold mb-4">Technician Leaderboard</h3>
+                    <div className="space-y-4">
+                        {jobsByTech.map((tech, index) => (
+                            <div key={tech.name} className="flex items-center gap-4">
+                                <div className="w-10 text-center">
+                                    {index < 3 ? <Award size={24} className={medalColor(index)} /> : <span className="text-lg font-bold text-gray-400">{index + 1}</span>}
                                 </div>
+                                <div className="flex-1">
+                                    <p className="font-bold">{tech.name}</p>
+                                    <div className="w-full bg-gray-200 rounded-full h-4 mt-1">
+                                        <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${maxJobs > 0 ? (tech.count / maxJobs) * 100 : 0}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className="w-12 text-right font-bold text-lg">{tech.count}</div>
                             </div>
-                            <div className="w-12 text-right font-bold text-lg">{tech.count}</div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 
-// --- MODIFIED BillingView Component ---
-const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote, onImportInvoices, onImportQuotes }) => {
+const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote }) => {
     const [activeTab, setActiveTab] = useState('invoices');
     const [showCreateInvoice, setShowCreateInvoice] = useState(false);
     const [showCreateQuote, setShowCreateQuote] = useState(false);
     const fileInputRef = useRef(null); // Ref for the hidden file input
 
-    // --- NEW: CSV Import Handlers ---
+    // --- CSV Import Handlers ---
     const handleImportClick = () => {
         fileInputRef.current?.click();
     };
@@ -878,6 +886,13 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
     const handleFileChange = (event) => {
         const file = event.target.files[0];
         if (!file) return;
+
+        // NOTE: This is a placeholder for the parent component to handle the data.
+        // In the final version, this logic is in the main WorkOrderManagement component.
+        const onImport = (data) => {
+            alert(`File parsed successfully with ${data.length} rows! In a real app, this data would now be processed.`);
+            console.log(data);
+        };
 
         Papa.parse(file, {
             header: true,
@@ -887,11 +902,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     alert("Error parsing CSV: " + results.errors.map(e => e.message).join('\n'));
                     return;
                 }
-                if (activeTab === 'invoices') {
-                    onImportInvoices(results.data);
-                } else if (activeTab === 'quotes') {
-                    onImportQuotes(results.data);
-                }
+                onImport(results.data);
             },
             error: (error) => {
                 alert("An error occurred during file parsing: " + error.message);
@@ -900,14 +911,10 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
         event.target.value = null; // Reset input value
     };
 
-    // --- NEW: CSV Export Handlers ---
-    const handleExport = (data, fileName, headers) => {
-        const csvContent = Papa.unparse({
-            fields: headers,
-            data: data
-        });
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // --- CSV Export Handlers ---
+    const handleExport = (data, fileName) => {
+        const csv = Papa.unparse(data);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -919,32 +926,14 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
     };
 
     const handleExportInvoices = () => {
-        const dataToExport = invoices.map(inv => ({
-            'Invoice #': inv.id,
-            'Work Order': inv.workOrderId || 'N/A',
-            'Customer': inv.customerName,
-            'Date': new Date(inv.date).toLocaleDateString(),
-            'Amount': inv.amount,
-            'Status': inv.status
-        }));
-        const headers = ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status'];
-        handleExport(dataToExport, 'invoices.csv', headers);
+        handleExport(invoices, 'invoices.csv');
     };
 
     const handleExportQuotes = () => {
-        const dataToExport = quotes.map(quote => ({
-            'Quote #': quote.id,
-            'Customer': quote.customerName,
-            'Description': quote.description,
-            'Date': new Date(quote.date).toLocaleDateString(),
-            'Amount': quote.amount,
-            'Status': quote.status
-        }));
-        const headers = ['Quote #', 'Customer', 'Description', 'Date', 'Amount', 'Status'];
-        handleExport(dataToExport, 'quotes.csv', headers);
+        handleExport(quotes, 'quotes.csv');
     };
 
-    // Summary statistics
+    // Calculate summary statistics
     const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
     const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
     const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
@@ -981,7 +970,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-semibold text-gray-800">Invoice Management</h3>
                                 <div className="flex gap-2">
-                                    {/* --- NEW: Import/Export Buttons --- */}
                                     <button onClick={handleImportClick} className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"><Upload size={16} /> Import</button>
                                     <button onClick={handleExportInvoices} className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"><Download size={16} /> Export</button>
                                 </div>
@@ -994,7 +982,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-semibold text-gray-800">Quote Management</h3>
                                 <div className="flex gap-2">
-                                     {/* --- NEW: Import/Export Buttons --- */}
                                     <button onClick={handleImportClick} className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"><Upload size={16} /> Import</button>
                                     <button onClick={handleExportQuotes} className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"><Download size={16} /> Export</button>
                                 </div>
@@ -1005,7 +992,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                 </div>
             </div>
             
-            {/* --- NEW: Hidden file input for CSV upload --- */}
             <input
                 type="file"
                 ref={fileInputRef}
@@ -1035,7 +1021,6 @@ const WorkOrderManagement = () => {
     
     const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
     
-    // --- Data Handlers ---
     const handleUpdateOrder = (orderId, payload) => { setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); setSelectedOrder(p => ({ ...p, ...payload })); };
     const handleAddNote = (orderId, noteText, callback) => { if (!noteText.trim()) return; const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); setWorkOrders(updatedOrders); setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); callback(); };
     const handleAddNewOrder = (newOrderData) => { const newId = `WO-${Date.now()}`; const newOrder = { ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: [] }; setWorkOrders(p => [newOrder, ...p]); setIsAddingOrder(false); };
@@ -1052,60 +1037,40 @@ const WorkOrderManagement = () => {
         }
     };
 
-    const handleAddInvoice = (invoiceData) => { setInvoices(prev => [invoiceData, ...prev]); };
-    const handleAddQuote = (quoteData) => { setQuotes(prev => [quoteData, ...prev]); };
-
-    // --- NEW: CSV Import Handlers ---
-    const handleImportInvoices = (importedData) => {
-        const requiredHeaders = ['id', 'customerName', 'amount', 'status'];
-        const firstRow = importedData[0] || {};
-        if (!requiredHeaders.every(h => h in firstRow)) {
-            alert(`Invalid invoice CSV format. Required headers are: ${requiredHeaders.join(', ')}`);
-            return;
-        }
-
-        const formattedData = importedData.map(inv => ({
-            ...inv,
-            amount: parseFloat(inv.amount),
-            date: inv.date ? new Date(inv.date).toISOString() : new Date().toISOString()
-        })).filter(inv => inv.id && !isNaN(inv.amount));
-
-        const invoiceMap = new Map(invoices.map(inv => [inv.id, inv]));
-        formattedData.forEach(inv => invoiceMap.set(inv.id, inv));
-
-        setInvoices(Array.from(invoiceMap.values()).sort((a,b) => new Date(b.date) - new Date(a.date)));
-        alert(`${formattedData.length} invoices imported/updated successfully!`);
+    const handleAddInvoice = (invoiceData) => {
+        setInvoices(prev => [invoiceData, ...prev]);
     };
 
+    const handleAddQuote = (quoteData) => {
+        setQuotes(prev => [quoteData, ...prev]);
+    };
+
+    const handleImportInvoices = (importedData) => {
+        // ... logic to update invoices state ...
+        alert(`${importedData.length} invoices would be imported.`);
+        console.log(importedData);
+     };
+
     const handleImportQuotes = (importedData) => {
-        const requiredHeaders = ['id', 'customerName', 'amount', 'status', 'description'];
-        const firstRow = importedData[0] || {};
-        if (!requiredHeaders.every(h => h in firstRow)) {
-            alert(`Invalid quote CSV format. Required headers are: ${requiredHeaders.join(', ')}`);
-            return;
-        }
-        
-        const formattedData = importedData.map(q => ({
-            ...q,
-            amount: parseFloat(q.amount),
-            date: q.date ? new Date(q.date).toISOString() : new Date().toISOString()
-        })).filter(q => q.id && !isNaN(q.amount));
-
-        const quoteMap = new Map(quotes.map(q => [q.id, q]));
-        formattedData.forEach(q => quoteMap.set(q.id, q));
-
-        setQuotes(Array.from(quoteMap.values()).sort((a,b) => new Date(b.date) - new Date(a.date)));
-        alert(`${formattedData.length} quotes imported/updated successfully!`);
+        // ... logic to update quotes state ...
+        alert(`${importedData.length} quotes would be imported.`);
+        console.log(importedData);
     };
 
     const renderContent = () => {
         switch(currentView) {
-            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
-            case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
-            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
-            case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
-            case 'reporting': return <ReportingView workOrders={workOrders} technicians={technicians} />;
-            case 'billing': return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handleAddInvoice} onAddQuote={handleAddQuote} onImportInvoices={handleImportInvoices} onImportQuotes={handleImportQuotes} />;
+            case 'customers':
+                return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
+            case 'dispatch':
+                return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
+            case 'technicians':
+                return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
+             case 'route':
+                return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
+            case 'reporting':
+                return <ReportingView workOrders={workOrders} technicians={technicians} />;
+            case 'billing':
+                return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handleAddInvoice} onAddQuote={handleAddQuote} onImportInvoices={handleImportInvoices} onImportQuotes={handleImportQuotes} />;
             case 'dashboard':
             default:
                 return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
