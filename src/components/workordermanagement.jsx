@@ -554,33 +554,35 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
 
 const RoutePlanningView = ({ workOrders, technicians }) => {
     const [selectedTechId, setSelectedTechId] = useState('ALL');
-    const [viewType, setViewType] = useState('today'); // 'today', '3-day', 'week', 'custom'
+    const [viewType, setViewType] = useState('today');
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
 
     const jobsForRange = useMemo(() => {
         let startDate = new Date();
-        let endDate = new Date();
+        endDate = new Date();
         
         switch(viewType) {
             case 'today':
-                startDate = new Date();
-                endDate = new Date();
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(23, 59, 59, 999);
                 break;
             case '3-day':
-                startDate = new Date();
-                endDate = new Date();
+                startDate.setHours(0, 0, 0, 0);
                 endDate.setDate(startDate.getDate() + 2);
+                endDate.setHours(23, 59, 59, 999);
                 break;
             case 'week':
-                startDate = new Date();
-                const dayOfWeek = startDate.getDay();
-                startDate.setDate(startDate.getDate() - dayOfWeek);
-                endDate.setDate(startDate.getDate() + 6);
+                const firstDay = new Date(startDate.setDate(startDate.getDate() - startDate.getDay()));
+                const lastDay = new Date(startDate.setDate(startDate.getDate() - startDate.getDay() + 6));
+                firstDay.setHours(0, 0, 0, 0);
+                lastDay.setHours(23, 59, 59, 999);
+                startDate = firstDay;
+                endDate = lastDay;
                 break;
             case 'custom':
                 startDate = new Date(customStartDate + 'T00:00:00');
-                endDate = new Date(customEndDate + 'T00:00:00');
+                endDate = new Date(customEndDate + 'T23:59:59');
                 break;
             default:
                 break;
@@ -605,7 +607,7 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
             const dateStr = excelDateToYYYYMMDD(job['Schedule Date']);
             if (!acc[dateStr]) acc[dateStr] = {};
 
-            job.technician.forEach(techName => {
+            (job.technician || []).forEach(techName => {
                 if (!acc[dateStr][techName]) acc[dateStr][techName] = [];
                 acc[dateStr][techName].push(job);
             });
@@ -669,114 +671,6 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
                  <h2 className="text-2xl font-bold mb-4">Route for {selectedTechId === 'ALL' ? 'All Technicians' : technicians.find(t=>t.id === Number(selectedTechId))?.name} on {new Date(customStartDate + 'T00:00:00').toLocaleDateString()}</h2>
                  {Object.entries(groupedJobs).map(([date, techJobs]) => (<div key={date} className="mb-4"><h3 className="font-bold text-lg mt-4 border-t pt-2">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>{Object.entries(techJobs).map(([techName, jobs]) => (<div key={techName} className="mb-2"><h4 className="font-semibold text-md mt-2">{techName}</h4>{jobs.map((job, index) => (<div key={job.id} className="p-2 border-b"><p><strong>{index + 1}. {formatTime(job.startTime)} - {formatTime(job.endTime)}: {job.Company}</strong></p><p>{job.Task} at {job.City}, {job.State}</p></div>))}</div>))}</div>))}
             </div>
-        </div>
-    );
-};
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6 print:hidden">
-                <h2 className="text-2xl font-bold text-gray-800">Route Planning</h2>
-                <div className="flex items-center gap-4">
-                    <select value={viewType} onChange={e => setViewType(e.target.value)} className="p-2 border border-gray-300 rounded-lg">
-                        <option value="today">Today</option>
-                        <option value="3-day">Next 3 Days</option>
-                        <option value="week">This Week</option>
-                        <option value="custom">Custom Range</option>
-                    </select>
-                    {viewType === 'custom' && (
-                        <>
-                            <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
-                            <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
-                        </>
-                    )}
-                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} className="p-2 border border-gray-300 rounded-lg">
-                        <option value="ALL">All Technicians</option>
-                        {technicians.filter(t=>t.name !== 'Unassigned').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                    <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"><Printer size={20} /> Print Route</button>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1 print:col-span-3">
-                    <h3 className="font-bold text-lg mb-2">Job Order</h3>
-                    {Object.keys(groupedJobs).length > 0 ? (
-                        Object.entries(groupedJobs).map(([date, techJobs]) => (
-                            <div key={date} className="mb-4">
-                                <h4 className="font-bold text-xl mb-2 p-2 bg-gray-200 rounded-md sticky top-20">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4>
-                                {Object.entries(techJobs).map(([techName, jobs]) => (
-                                    <div key={techName} className="mb-4">
-                                        {selectedTechId === 'ALL' && <h5 className="font-bold text-md mb-2 p-2 bg-gray-100 rounded-md">{techName}</h5>}
-                                        <div className="space-y-2">
-                                            {jobs.map((job, index) => (
-                                                <div key={job.id} className="p-3 border rounded-lg flex items-center gap-4">
-                                                    <span className="text-xl font-bold text-gray-400">{index + 1}</span>
-                                                    <div><p className="font-bold">{formatTime(job.startTime)} - {formatTime(job.endTime)}</p><p>{job.Company} - {job.City}</p><p className="text-sm text-gray-600">{job.Task}</p></div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ))
-                    ) : <p>No jobs scheduled for this selection.</p>}
-                </div>
-                <div className="md:col-span-2 bg-gray-200 rounded-lg flex items-center justify-center h-96 print:hidden">
-                    <div id="route-map" className="w-full h-full rounded-lg">
-                        <p className="text-gray-500 flex items-center justify-center h-full">
-                            Map will load here once Google Maps API key is configured
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <style>{`@media print { body * { visibility: hidden; } .print-container, .print-container * { visibility: visible; } .print-container { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
-            <div className="print-container hidden print:block">
-                 <h2 className="text-2xl font-bold mb-4">Route for {selectedTechId === 'ALL' ? 'All Technicians' : technicians.find(t=>t.id === selectedTechId)?.name} on {new Date(customStartDate + 'T00:00:00').toLocaleDateString()}</h2>
-                 {Object.entries(groupedJobs).map(([date, techJobs]) => (<div key={date} className="mb-4"><h3 className="font-bold text-lg mt-4 border-t pt-2">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>{Object.entries(techJobs).map(([techName, jobs]) => (<div key={techName} className="mb-2"><h4 className="font-semibold text-md mt-2">{techName}</h4>{jobs.map((job, index) => (<div key={job.id} className="p-2 border-b"><p><strong>{index + 1}. {formatTime(job.startTime)} - {formatTime(job.endTime)}: {job.Company}</strong></p><p>{job.Task} at {job.City}, {job.State}</p></div>))}</div>))}</div>))}
-            </div>
-        </div>
-    );
-
-const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, onAddLocation }) => {
-    const [isAddingCustomer, setIsAddingCustomer] = useState(false);
-    const [editingCustomer, setEditingCustomer] = useState(null);
-    const [addingLocationTo, setAddingLocationTo] = useState(null);
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-gray-800">Customer Management</h2><button onClick={() => setIsAddingCustomer(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><PlusCircle size={20} /> Add New Customer</button></div><div className="space-y-4">{customers.map(customer => (<div key={customer.id} className="border border-gray-200 rounded-lg p-4"><div className="flex justify-between items-center"><div className="flex items-center gap-4"><h3 className="text-lg font-bold text-gray-900">{customer.name}</h3><span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span></div><div className="flex items-center gap-2"><button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 hover:underline">Edit Details</button><button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 hover:underline">Add Location</button></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div className="text-sm"><p className="font-semibold text-gray-600">Primary Contact</p><p className="flex items-center gap-2"><User size={14}/> {customer.contact.name}</p><p className="flex items-center gap-2"><Mail size={14}/> {customer.contact.email}</p><p className="flex items-center gap-2"><Phone size={14}/> {customer.contact.phone}</p></div><div className="text-sm"><p className="font-semibold text-gray-600">Billing Address</p><p>{customer.billingAddress.street}</p><p>{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p></div></div><div className="mt-3 pt-3 border-t"><h4 className="text-sm font-semibold text-gray-600 mb-1">Service Locations ({customer.locations.length})</h4><div className="pl-4 border-l-2 space-y-1">{customer.locations.map((loc, index) => (<div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700"><span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}</div>))}</div></div></div>))}</div>
-        {isAddingCustomer && <AddCustomerModal onAddCustomer={onAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
-        {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={onUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
-        {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={onAddLocation} onClose={() => setAddingLocationTo(null)} />}
-        </div>
-    );
-};
-
-const TechnicianManagementView = ({ technicians, onAddTechnician, onUpdateTechnician, onDeleteTechnician }) => {
-    const [isAdding, setIsAdding] = useState(false);
-    const [editing, setEditing] = useState(null);
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-gray-800">Technician Management</h2><button onClick={() => setIsAdding(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><PlusCircle size={20} /> Add New Technician</button></div>
-            <div className="space-y-4">
-                {technicians.map(tech => (
-                    <div key={tech.id} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center">
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-900">{tech.name}</h3>
-                            <div className="text-sm text-gray-600 flex items-center gap-4 mt-1">
-                                <span className="flex items-center gap-1.5"><Mail size={14}/> {tech.email}</span>
-                                <span className="flex items-center gap-1.5"><Phone size={14}/> {tech.phone}</span>
-                            </div>
-                        </div>
-                        {tech.name !== 'Unassigned' && (
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setEditing(tech)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full"><Edit size={16}/></button>
-                                <button onClick={() => onDeleteTechnician(tech.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-full"><Trash2 size={16}/></button>
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-            {isAdding && <AddTechnicianModal onAdd={onAddTechnician} onClose={() => setIsAdding(false)} />}
-            {editing && <EditTechnicianModal technician={editing} onUpdate={onUpdateTechnician} onClose={() => setEditing(null)} />}
         </div>
     );
 };
