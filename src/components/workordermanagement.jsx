@@ -2,6 +2,80 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
+const firebaseConfig = {
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "your-app-id"
+};
+
+// Firebase Mock Implementation (Replace with actual Firebase imports)
+const auth = {
+  currentUser: null,
+  signInWithEmailAndPassword: async (email, password) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        auth.currentUser = { uid: 'user123', email };
+        resolve({ user: auth.currentUser });
+      }, 1000);
+    });
+  },
+  createUserWithEmailAndPassword: async (email, password) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        auth.currentUser = { uid: 'user123', email };
+        resolve({ user: auth.currentUser });
+      }, 1000);
+    });
+  },
+  signOut: async () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        auth.currentUser = null;
+        resolve();
+      }, 500);
+    });
+  },
+  onAuthStateChanged: (callback) => {
+    callback(auth.currentUser);
+    return () => {};
+  }
+};
+
+const db = {
+  collection: (path) => ({
+    add: async (data) => {
+      const id = Date.now().toString();
+      const docData = { id, ...data, createdAt: new Date(), updatedAt: new Date() };
+      const existingData = JSON.parse(localStorage.getItem(path) || '[]');
+      existingData.push(docData);
+      localStorage.setItem(path, JSON.stringify(existingData));
+      return { id };
+    },
+    doc: (id) => ({
+      update: async (data) => {
+        const existingData = JSON.parse(localStorage.getItem(path) || '[]');
+        const index = existingData.findIndex(item => item.id === id);
+        if (index !== -1) {
+          existingData[index] = { ...existingData[index], ...data, updatedAt: new Date() };
+          localStorage.setItem(path, JSON.stringify(existingData));
+        }
+      },
+      delete: async () => {
+        const existingData = JSON.parse(localStorage.getItem(path) || '[]');
+        const filtered = existingData.filter(item => item.id !== id);
+        localStorage.setItem(path, JSON.stringify(filtered));
+      }
+    }),
+    onSnapshot: (callback) => {
+      const data = JSON.parse(localStorage.getItem(path) || '[]');
+      callback({ docs: data.map(item => ({ id: item.id, data: () => item })) });
+      return () => {};
+    }
+  })
+};
 // --- Data ---
 const initialCustomers = [
     { id: 1, name: "Synergy Management", type: "National Account", contact: { name: "Sarah Connor", email: "s.connor@synergy.com", phone: "555-0101" }, billingAddress: { street: "100 Main St", city: "Southfield", state: "MI", zip: "48075" }, locations: [{name: "Lane Bryant", locNum: "4826", city: "LIVONIA", state: "MI"}, {name: "Lane Bryant", locNum: "6065", city: "LATHRUP VLG", state: "MI"}] },
@@ -50,7 +124,91 @@ const getPriorityStyles = (p) => ({'emergency':'bg-red-100 text-red-800 border-r
 const getStatusStyles = (s) => ({'completed':'bg-green-100 text-green-800','scheduled':'bg-blue-100 text-blue-800','open':'bg-yellow-100 text-yellow-800','in progress':'bg-purple-100 text-purple-800','on hold':'bg-pink-100 text-pink-800','cancelled':'bg-red-100 text-red-800',}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 const getCustomerTypeStyles = (t) => ({'national account':'bg-blue-100 text-blue-800','commercial':'bg-purple-100 text-purple-800','residential':'bg-green-100 text-green-800','maintenance':'bg-yellow-100 text-yellow-800',}[t?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 const getTechStatusStyles = (s) => ({'available': 'bg-green-100 text-green-800', 'on site': 'bg-blue-100 text-blue-800', 'en route': 'bg-yellow-100 text-yellow-800', 'on break': 'bg-gray-100 text-gray-800', 'on call': 'bg-teal-100 text-teal-800', 'day off': 'bg-slate-200 text-slate-800'}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
+// Add this AuthModal component before your existing CreateInvoiceModal
+const AuthModal = ({ onAuthSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      if (isLogin) {
+        await auth.signInWithEmailAndPassword(email, password);
+      } else {
+        await auth.createUserWithEmailAndPassword(email, password);
+      }
+      onAuthSuccess();
+    } catch (err) {
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="p-6 border-b">
+          <h2 className="text-2xl font-bold text-gray-800 text-center">
+            {isLogin ? 'Sign In' : 'Create Account'}
+          </h2>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-600 block mb-1">Email</label>
+            <input 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+              className="w-full p-3 border border-gray-300 rounded-lg"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-600 block mb-1">Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+              className="w-full p-3 border border-gray-300 rounded-lg"
+              required
+            />
+          </div>
+          {error && (
+            <div className="text-red-600 text-sm bg-red-50 p-2 rounded">{error}</div>
+          )}
+          <button 
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+          </button>
+          <div className="text-center">
+            <button 
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-blue-600 hover:underline"
+            >
+              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            </button>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg text-sm">
+            <p className="font-medium text-gray-700">Demo Credentials:</p>
+            <p>Email: demo@hvacservice.com</p>
+            <p>Password: demo123</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 // --- Modal Components (Defined First) ---
 const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
     const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
@@ -706,8 +864,58 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
 };
 
 // --- Child Components ---
-const Header = ({ currentView, setCurrentView, onAddOrderClick }) => (
-    <header className="bg-white shadow-sm sticky top-0 z-10"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"><div className="flex items-center justify-between"><div className="flex items-center space-x-3">{currentView !== 'dashboard' ? <button onClick={() => setCurrentView('dashboard')} className="p-2 rounded-full hover:bg-gray-100"><ArrowLeft size={24} /></button> : <Wrench className="h-8 w-8 text-blue-600" />}<h1 className="text-2xl font-bold text-gray-800">HVAC Schedule Dashboard</h1></div><div className="flex items-center gap-2"><button onClick={() => setCurrentView('billing')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><FileText size={20} /> Billing</button><button onClick={() => setCurrentView('reporting')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><BarChart2 size={20} /> Reporting</button><button onClick={() => setCurrentView('route')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Map size={20} /> Route</button><button onClick={() => setCurrentView('dispatch')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><CalendarIcon size={20} /> Dispatch</button><button onClick={() => setCurrentView('customers')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Users size={20} /> Customers</button><button onClick={() => setCurrentView('technicians')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><User size={20} /> Technicians</button><button onClick={onAddOrderClick} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"><PlusCircle size={20} /> Add Work Order</button></div></div></div></header>
+const Header = ({ currentView, setCurrentView, onAddOrderClick, user, onSignOut }) => (
+    <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    {currentView !== 'dashboard' ? 
+                        <button onClick={() => setCurrentView('dashboard')} className="p-2 rounded-full hover:bg-gray-100">
+                            <ArrowLeft size={24} />
+                        </button> : 
+                        <Wrench className="h-8 w-8 text-blue-600" />
+                    }
+                    <h1 className="text-2xl font-bold text-gray-800">HVAC Schedule Dashboard</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setCurrentView('billing')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors">
+                        <FileText size={20} /> Billing
+                    </button>
+                    <button onClick={() => setCurrentView('reporting')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors">
+                        <BarChart2 size={20} /> Reporting
+                    </button>
+                    <button onClick={() => setCurrentView('route')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Map size={20} /> Route
+                    </button>
+                    <button onClick={() => setCurrentView('dispatch')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Calendar size={20} /> Dispatch
+                    </button>
+                    <button onClick={() => setCurrentView('customers')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Users size={20} /> Customers
+                    </button>
+                    <button onClick={() => setCurrentView('technicians')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors">
+                        <User size={20} /> Technicians
+                    </button>
+                    <button onClick={onAddOrderClick} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        <PlusCircle size={20} /> Add Work Order
+                    </button>
+                    
+                    {/* NEW: User Menu Section */}
+                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-200">
+                        <span className="text-sm text-gray-600">
+                            {user?.email || 'demo@hvacservice.com'}
+                        </span>
+                        <button 
+                            onClick={onSignOut}
+                            className="flex items-center gap-2 text-red-600 font-semibold py-2 px-3 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                            <LogOut size={16} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 );
 
 const OrderCard = ({ order, onSelectOrder }) => (
@@ -1712,14 +1920,28 @@ const WorkOrderManagement = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-screen font-sans">
-            <Header currentView={currentView} setCurrentView={setCurrentView} onAddOrderClick={() => setIsAddingOrder(true)} />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {renderContent()}
-            </main>
-            {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
-            {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
-        </div>
+    <div className="bg-gray-50 min-h-screen font-sans">
+        {showAuthModal && (
+            <AuthModal onAuthSuccess={() => setShowAuthModal(false)} />
+        )}
+        
+        {user && (
+            <>
+                <Header 
+                    currentView={currentView} 
+                    setCurrentView={setCurrentView} 
+                    onAddOrderClick={() => setIsAddingOrder(true)}
+                    user={user}                    // NEW
+                    onSignOut={handleSignOut}      // NEW
+                />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {renderContent()}
+                </main>
+                {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
+                {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
+            </>
+        )}
+    </div>
     );
 };
 
