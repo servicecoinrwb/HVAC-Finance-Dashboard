@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw } from 'lucide-react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import Papa from 'papaparse';
 
 // --- Data ---
@@ -558,9 +557,6 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
     const [viewType, setViewType] = useState('today'); // 'today', '3-day', 'week', 'custom'
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
-    
-    // Google Maps API Key
-    const googleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
     const jobsForRange = useMemo(() => {
         let startDate = new Date();
@@ -592,10 +588,10 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
 
         const filtered = workOrders.filter(wo => {
             const jobDate = excelToJSDate(wo['Schedule Date']);
-            return jobDate >= startDate && jobDate <= endDate;
+            return jobDate && jobDate >= startDate && jobDate <= endDate;
         });
         
-        const techName = technicians.find(t => t.id === selectedTechId)?.name;
+        const techName = technicians.find(t => t.id === Number(selectedTechId))?.name;
         if (selectedTechId !== 'ALL') {
             return filtered.filter(wo => wo.technician.includes(techName)).sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
         }
@@ -619,37 +615,63 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
 
     const handlePrint = () => window.print();
 
-    // Initialize Google Map
-    useEffect(() => {
-        if (window.google && window.google.maps && googleMapsApiKey) {
-            const mapElement = document.getElementById('route-map');
-            if (mapElement) {
-                const map = new window.google.maps.Map(mapElement, {
-                    zoom: 10,
-                    center: { lat: 42.4668, lng: -83.1632 }, // Southfield, MI area
-                    mapTypeId: 'roadmap'
-                });
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6 print:hidden">
+                <h2 className="text-2xl font-bold text-gray-800">Route Planning</h2>
+                <div className="flex items-center gap-4">
+                    <select value={viewType} onChange={e => setViewType(e.target.value)} className="p-2 border border-gray-300 rounded-lg">
+                        <option value="today">Today</option>
+                        <option value="3-day">Next 3 Days</option>
+                        <option value="week">This Week</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    {viewType === 'custom' && (
+                        <>
+                            <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
+                            <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
+                        </>
+                    )}
+                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value)} className="p-2 border border-gray-300 rounded-lg">
+                        <option value="ALL">All Technicians</option>
+                        {technicians.filter(t=>t.name !== 'Unassigned').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"><Printer size={20} /> Print Route</button>
+                </div>
+            </div>
+            
+            <div className="md:col-span-1 print:col-span-3">
+                <h3 className="font-bold text-lg mb-2">Job Order</h3>
+                {Object.keys(groupedJobs).length > 0 ? (
+                    Object.entries(groupedJobs).map(([date, techJobs]) => (
+                        <div key={date} className="mb-4">
+                            <h4 className="font-bold text-xl mb-2 p-2 bg-gray-200 rounded-md sticky top-20">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4>
+                            {Object.entries(techJobs).map(([techName, jobs]) => (
+                                <div key={techName} className="mb-4">
+                                    {selectedTechId === 'ALL' && <h5 className="font-bold text-md mb-2 p-2 bg-gray-100 rounded-md">{techName}</h5>}
+                                    <div className="space-y-2">
+                                        {jobs.map((job, index) => (
+                                            <div key={job.id} className="p-3 border rounded-lg flex items-center gap-4">
+                                                <span className="text-xl font-bold text-gray-400">{index + 1}</span>
+                                                <div><p className="font-bold">{formatTime(job.startTime)} - {formatTime(job.endTime)}</p><p>{job.Company} - {job.City}</p><p className="text-sm text-gray-600">{job.Task}</p></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ))
+                ) : <p>No jobs scheduled for this selection.</p>}
+            </div>
 
-                // Add markers for scheduled jobs
-                Object.entries(groupedJobs).forEach(([date, techJobs]) => {
-                    Object.entries(techJobs).forEach(([techName, jobs]) => {
-                        jobs.forEach((job, index) => {
-                            // For now using approximate coordinates - you'd want to geocode actual addresses
-                            const lat = 42.4668 + (Math.random() - 0.5) * 0.2; // Random positions around Southfield
-                            const lng = -83.1632 + (Math.random() - 0.5) * 0.2;
-                            
-                            new window.google.maps.Marker({
-                                position: { lat, lng },
-                                map: map,
-                                title: `${job.Company} - ${job.Task}`,
-                                label: String(index + 1)
-                            });
-                        });
-                    });
-                });
-            }
-        }
-    }, [groupedJobs, googleMapsApiKey]);
+            <style>{`@media print { body * { visibility: hidden; } .print-container, .print-container * { visibility: visible; } .print-container { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
+            <div className="print-container hidden print:block">
+                 <h2 className="text-2xl font-bold mb-4">Route for {selectedTechId === 'ALL' ? 'All Technicians' : technicians.find(t=>t.id === Number(selectedTechId))?.name} on {new Date(customStartDate + 'T00:00:00').toLocaleDateString()}</h2>
+                 {Object.entries(groupedJobs).map(([date, techJobs]) => (<div key={date} className="mb-4"><h3 className="font-bold text-lg mt-4 border-t pt-2">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>{Object.entries(techJobs).map(([techName, jobs]) => (<div key={techName} className="mb-2"><h4 className="font-semibold text-md mt-2">{techName}</h4>{jobs.map((job, index) => (<div key={job.id} className="p-2 border-b"><p><strong>{index + 1}. {formatTime(job.startTime)} - {formatTime(job.endTime)}: {job.Company}</strong></p><p>{job.Task} at {job.City}, {job.State}</p></div>))}</div>))}</div>))}
+            </div>
+        </div>
+    );
+};
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -714,7 +736,6 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
             </div>
         </div>
     );
-};
 
 const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, onAddLocation }) => {
     const [isAddingCustomer, setIsAddingCustomer] = useState(false);
