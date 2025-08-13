@@ -555,15 +555,30 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [clientWO, setClientWO] = useState('');
+    
+    // NEW: State for creating location on the fly
+    const [needsLocation, setNeedsLocation] = useState(false);
+    const [newLocationName, setNewLocationName] = useState('');
+    const [newLocationNum, setNewLocationNum] = useState('');
+    const [newLocationCity, setNewLocationCity] = useState('');
+    const [newLocationState, setNewLocationState] = useState('MI');
 
     const selectedClient = useMemo(() => customers.find(c => c.id === clientId), [clientId, customers]);
     
     useEffect(() => {
-        if (selectedClient?.locations?.[0]) {
+        if (selectedClient?.locations?.length > 0) {
             const loc = selectedClient.locations[0];
             setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
+            setNeedsLocation(false);
         } else {
+            // NEW: If no locations exist, show location creation form
             setLocationIdentifier('');
+            setNeedsLocation(true);
+            // Auto-populate with default values
+            setNewLocationName(selectedClient?.type === 'Residential' ? 'Primary Residence' : 'Main Location');
+            setNewLocationNum(selectedClient?.type === 'Residential' ? 'N/A' : '001');
+            setNewLocationCity('');
+            setNewLocationState('MI');
         }
     }, [selectedClient]);
 
@@ -573,10 +588,52 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
-        const location = selectedClient.locations.find(l => l.name === company && l.locNum === locNum);
-        if (!clientId || !location || !task) { alert('Please fill out all required fields.'); return; }
-        onAddOrder({ Client: selectedClient.name, Company: location.name, 'Loc #': location.locNum, Task: task, Priority: priority, Category: category, City: location.city, State: location.state, NTE: parseFloat(nte) || 0, 'Schedule Date': yyyymmddToExcel(scheduleDate), startTime, endTime, clientWO });
+        
+        let location;
+        
+        if (needsLocation) {
+            // NEW: Create location object from form inputs
+            if (!newLocationName.trim() || !newLocationCity.trim()) {
+                alert('Please fill out the location name and city.');
+                return;
+            }
+            location = {
+                name: newLocationName.trim(),
+                locNum: newLocationNum.trim() || 'N/A',
+                city: newLocationCity.trim(),
+                state: newLocationState.trim()
+            };
+        } else {
+            // Existing logic for customers with locations
+            const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
+            location = selectedClient.locations.find(l => l.name === company && l.locNum === locNum);
+        }
+        
+        if (!clientId || !location || !task) { 
+            alert('Please fill out all required fields.'); 
+            return; 
+        }
+        
+        // NEW: Pass the location data that will be saved
+        const orderData = { 
+            Client: selectedClient.name, 
+            Company: location.name, 
+            'Loc #': location.locNum, 
+            Task: task, 
+            Priority: priority, 
+            Category: category, 
+            City: location.city, 
+            State: location.state, 
+            NTE: parseFloat(nte) || 0, 
+            'Schedule Date': yyyymmddToExcel(scheduleDate), 
+            startTime, 
+            endTime, 
+            clientWO,
+            // NEW: Include flag if this creates a new location
+            _newLocation: needsLocation ? location : null
+        };
+        
+        onAddOrder(orderData);
     };
 
     return (
@@ -595,14 +652,72 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                             {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
+                    
+                    {/* NEW: Conditional location selection or creation */}
                     {selectedClient && (
                         <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location</label>
-                            <select value={locationIdentifier} onChange={e => handleLocationChange(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
-                                {selectedClient.locations.map((l, index) => <option key={`${l.name}-${l.locNum}-${index}`} value={`${l.name}-${l.locNum}-${index}`}>{l.name} (#{l.locNum})</option>)}
-                            </select>
+                            {needsLocation ? (
+                                <div className="space-y-4 p-4 border border-yellow-300 dark:border-yellow-600 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                                    <h3 className="text-md font-semibold text-yellow-800 dark:text-yellow-200">
+                                        Create Service Location for {selectedClient.name}
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location Name</label>
+                                            <input 
+                                                type="text" 
+                                                value={newLocationName} 
+                                                onChange={e => setNewLocationName(e.target.value)} 
+                                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                                placeholder="e.g., Main Office, Primary Residence"
+                                                required 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location #</label>
+                                            <input 
+                                                type="text" 
+                                                value={newLocationNum} 
+                                                onChange={e => setNewLocationNum(e.target.value)} 
+                                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                                placeholder="e.g., 001, N/A"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">City</label>
+                                            <input 
+                                                type="text" 
+                                                value={newLocationCity} 
+                                                onChange={e => setNewLocationCity(e.target.value)} 
+                                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                                placeholder="e.g., Southfield"
+                                                required 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">State</label>
+                                            <input 
+                                                type="text" 
+                                                value={newLocationState} 
+                                                onChange={e => setNewLocationState(e.target.value)} 
+                                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                                placeholder="MI"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location</label>
+                                    <select value={locationIdentifier} onChange={e => handleLocationChange(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                        {selectedClient.locations.map((l, index) => <option key={`${l.name}-${l.locNum}-${index}`} value={`${l.name}-${l.locNum}-${index}`}>{l.name} (#{l.locNum})</option>)}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     )}
+                    
+                    
                     <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client WO#</label>
                         <input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
@@ -2171,19 +2286,39 @@ const WorkOrderManagement = () => {
     };
     
     const handleAddNewOrder = (newOrderData) => { 
-        const newId = `WO-${Date.now()}`; 
-        const newOrder = { 
-            ...newOrderData, 
-            "WO#": newId, 
-            id: newId, 
-            "Created Date": jsDateToExcel(new Date()), 
-            "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', 
-            notes: [], 
-            technician: [] 
-        }; 
-        setWorkOrders(p => [newOrder, ...p]); 
-        setIsAddingOrder(false); 
-    };
+    const newId = `WO-${Date.now()}`; 
+    
+    // Handle new location creation if needed
+    if (newOrderData._newLocation) {
+        const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
+        if (customerToUpdate) {
+            // Add the new location to the customer
+            const updatedCustomer = {
+                ...customerToUpdate,
+                locations: [...customerToUpdate.locations, newOrderData._newLocation]
+            };
+            setCustomers(prevCustomers => 
+                prevCustomers.map(c => c.id === customerToUpdate.id ? updatedCustomer : c)
+            );
+        }
+    }
+    
+    // Create the work order (remove the _newLocation field)
+    const { _newLocation, ...orderData } = newOrderData;
+    
+    const newOrder = { 
+        ...orderData, 
+        "WO#": newId, 
+        id: newId, 
+        "Created Date": jsDateToExcel(new Date()), 
+        "Order Status": orderData['Schedule Date'] ? 'Scheduled' : 'Open', 
+        notes: [], 
+        technician: [] 
+    }; 
+    
+    setWorkOrders(p => [newOrder, ...p]); 
+    setIsAddingOrder(false); 
+};
     
     const handleAddCustomer = (customerData) => {
         if (Array.isArray(customerData)) {
