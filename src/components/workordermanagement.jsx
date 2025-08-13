@@ -84,10 +84,10 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Create Invoice</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create Invoice</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
@@ -101,7 +101,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                                 onChange={() => setUseCustomCustomer(false)}
                                 className="mr-2" 
                             />
-                            From Work Order
+                            <span className="text-gray-700 dark:text-gray-300">From Work Order</span>
                         </label>
                         <label className="flex items-center">
                             <input 
@@ -110,13 +110,13 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                                 onChange={() => setUseCustomCustomer(true)}
                                 className="mr-2" 
                             />
-                            Custom Invoice
+                            <span className="text-gray-700 dark:text-gray-300">Custom Invoice</span>
                         </label>
                     </div>
 
                     {!useCustomCustomer ? (
                         <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-1">Select Completed Work Order</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Completed Work Order</label>
                             <select 
                                 value={selectedWorkOrder} 
                                 onChange={(e) => {
@@ -127,7 +127,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                                         setDescription(order.Task || '');
                                     }
                                 }}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 required
                             >
                                 <option value="">Select a work order...</option>
@@ -138,22 +138,22 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                                 ))}
                             </select>
                             {selectedOrder && (
-                                <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-                                    <p><strong>Customer:</strong> {selectedOrder.Client}</p>
-                                    <p><strong>Location:</strong> {selectedOrder.Company}</p>
-                                    <p><strong>Task:</strong> {selectedOrder.Task}</p>
-                                    <p><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
+                                <div className="mt-2 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg text-sm">
+                                    <p className="text-gray-700 dark:text-gray-300"><strong>Customer:</strong> {selectedOrder.Client}</p>
+                                    <p className="text-gray-700 dark:text-gray-300"><strong>Location:</strong> {selectedOrder.Company}</p>
+                                    <p className="text-gray-700 dark:text-gray-300"><strong>Task:</strong> {selectedOrder.Task}</p>
+                                    <p className="text-gray-700 dark:text-gray-300"><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
                                 </div>
                             )}
                         </div>
                     ) : (
                         <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
                             <input 
                                 type="text" 
                                 value={customCustomer} 
                                 onChange={(e) => setCustomCustomer(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                                 placeholder="Enter customer name"
                                 required
                             />
@@ -161,42 +161,42 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                     )}
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Invoice Amount</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice Amount</label>
                         <input 
                             type="number" 
                             step="0.01"
                             value={amount} 
                             onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             placeholder="0.00"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Description</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
                         <textarea 
                             value={description} 
                             onChange={(e) => setDescription(e.target.value)}
                             rows="3"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             placeholder="Invoice description..."
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Due Date</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Due Date</label>
                         <input 
                             type="date" 
                             value={dueDate} 
                             onChange={(e) => setDueDate(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         />
                     </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
                         Cancel
                     </button>
                     <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
@@ -236,21 +236,21 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Create Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create Quote</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto space-y-4">
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Customer</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer</label>
                         <select 
                             value={customerName} 
                             onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             required
                         >
                             <option value="">Select a customer...</option>
@@ -266,61 +266,61 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
                                 type="text" 
                                 placeholder="Enter customer name"
                                 onChange={(e) => setCustomerName(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg mt-2"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white mt-2"
                                 required
                             />
                         )}
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Quote Amount</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote Amount</label>
                         <input 
                             type="number" 
                             step="0.01"
                             value={amount} 
                             onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             placeholder="0.00"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Description of Work</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description of Work</label>
                         <textarea 
                             value={description} 
                             onChange={(e) => setDescription(e.target.value)}
                             rows="4"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             placeholder="Describe the work to be performed..."
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Valid Until</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Valid Until</label>
                         <input 
                             type="date" 
                             value={validUntil} 
                             onChange={(e) => setValidUntil(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">Additional Notes</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Additional Notes</label>
                         <textarea 
                             value={notes} 
                             onChange={(e) => setNotes(e.target.value)}
                             rows="3"
-                            className="w-full p-2 border border-gray-300 rounded-lg"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             placeholder="Any additional notes or terms..."
                         />
                     </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 border-t flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
                         Cancel
                     </button>
                     <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
@@ -349,7 +349,75 @@ const AddCustomerModal = ({ onClose, onAddCustomer }) => {
         onAddCustomer({ name, type, contact: { name: contactName, email: contactEmail, phone: contactPhone }, billingAddress: { street, city, state, zip }, locations: [] });
         onClose();
     };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add New Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Type</label><select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">Name</label><input value={contactName} onChange={e=>setContactName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Email</label><input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} type="email" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Phone</label><input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} type="tel" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Billing Address</h3><div className="mt-2"><label className="text-xs">Street</label><input value={street} onChange={e=>setStreet(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">City</label><input value={city} onChange={e=>setCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">State</label><input value={state} onChange={e=>setState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Zip</label><input value={zip} onChange={e=>setZip(e.target.value)} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Customer</button></div></form></div>);
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Customer</h2>
+                </div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label>
+                            <select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option>Commercial</option>
+                                <option>Residential</option>
+                                <option>National Account</option>
+                                <option>Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Name</label>
+                                <input value={contactName} onChange={e=>setContactName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Email</label>
+                                <input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} type="email" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Phone</label>
+                                <input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} type="tel" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Billing Address</h3>
+                        <div className="mt-2">
+                            <label className="text-xs text-gray-600 dark:text-gray-400">Street</label>
+                            <input value={street} onChange={e=>setStreet(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">City</label>
+                                <input value={city} onChange={e=>setCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">State</label>
+                                <input value={state} onChange={e=>setState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Zip</label>
+                                <input value={zip} onChange={e=>setZip(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const EditCustomerModal = ({ customer, onClose, onUpdateCustomer }) => {
@@ -363,7 +431,75 @@ const EditCustomerModal = ({ customer, onClose, onUpdateCustomer }) => {
         }
     };
     const handleSubmit = (e) => { e.preventDefault(); onUpdateCustomer(formData); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Customer Type</label><select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">Name</label><input name="name" value={formData.contact.name} onChange={e => handleChange(e, 'contact')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Email</label><input name="email" value={formData.contact.email} onChange={e => handleChange(e, 'contact')} type="email" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Phone</label><input name="phone" value={formData.contact.phone} onChange={e => handleChange(e, 'contact')} type="tel" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="pt-4 border-t"><h3 className="font-semibold">Billing Address</h3><div className="mt-2"><label className="text-xs">Street</label><input name="street" value={formData.billingAddress.street} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs">City</label><input name="city" value={formData.billingAddress.city} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">State</label><input name="state" value={formData.billingAddress.state} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-xs">Zip</label><input name="zip" value={formData.billingAddress.zip} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Customer</h2>
+                </div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                            <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label>
+                            <select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option>Commercial</option>
+                                <option>Residential</option>
+                                <option>National Account</option>
+                                <option>Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Name</label>
+                                <input name="name" value={formData.contact.name} onChange={e => handleChange(e, 'contact')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Email</label>
+                                <input name="email" value={formData.contact.email} onChange={e => handleChange(e, 'contact')} type="email" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Phone</label>
+                                <input name="phone" value={formData.contact.phone} onChange={e => handleChange(e, 'contact')} type="tel" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Billing Address</h3>
+                        <div className="mt-2">
+                            <label className="text-xs text-gray-600 dark:text-gray-400">Street</label>
+                            <input name="street" value={formData.billingAddress.street} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">City</label>
+                                <input name="city" value={formData.billingAddress.city} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">State</label>
+                                <input name="state" value={formData.billingAddress.state} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Zip</label>
+                                <input name="zip" value={formData.billingAddress.zip} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
@@ -372,7 +508,40 @@ const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
     const [city, setCity] = useState('');
     const [state, setState] = useState('MI');
     const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) { alert("Location name cannot be empty."); return; } onAddLocation(customer.id, { name, locNum, city, state }); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Location Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Location #</label><input type="text" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">City</label><input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">State</label><input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add Location to {customer.name}</h2>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location Name</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location #</label>
+                        <input type="text" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">City</label>
+                            <input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">State</label>
+                            <input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
@@ -410,7 +579,84 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
         onAddOrder({ Client: selectedClient.name, Company: location.name, 'Loc #': location.locNum, Task: task, Priority: priority, Category: category, City: location.city, State: location.state, NTE: parseFloat(nte) || 0, 'Schedule Date': yyyymmddToExcel(scheduleDate), startTime, endTime, clientWO });
     };
 
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Add New Work Order</h2><button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={28} /></button></div><div className="p-6 overflow-y-auto space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Client</label><select value={clientId} onChange={(e) => setClientId(parseInt(e.target.value))} className="w-full p-2 border border-gray-300 rounded-lg">{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>{selectedClient && <div><label className="text-sm font-medium text-gray-600 block mb-1">Location</label><select value={locationIdentifier} onChange={e => handleLocationChange(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg">{selectedClient.locations.map((l, index) => <option key={`${l.name}-${l.locNum}-${index}`} value={`${l.name}-${l.locNum}-${index}`}>{l.name} (#{l.locNum})</option>)}</select></div>}<div><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Task / Issue</label><textarea value={task} onChange={e => setTask(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded-lg" required></textarea></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Priority</label><select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Regular</option><option>Low</option><option>Urgent</option><option>Emergency</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Heating & Cooling</option><option>Refrigeration</option><option>Maintenance</option><option>Plumbing</option><option>Other</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">NTE Amount ($)</label><input type="number" value={nte} onChange={e => setNte(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="e.g., 500" /></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t mt-auto"><button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button></div></form></div>);
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Work Order</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                        <X size={28} />
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client</label>
+                        <select value={clientId} onChange={(e) => setClientId(parseInt(e.target.value))} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    {selectedClient && (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Location</label>
+                            <select value={locationIdentifier} onChange={e => handleLocationChange(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                {selectedClient.locations.map((l, index) => <option key={`${l.name}-${l.locNum}-${index}`} value={`${l.name}-${l.locNum}-${index}`}>{l.name} (#{l.locNum})</option>)}
+                            </select>
+                        </div>
+                    )}
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client WO#</label>
+                        <input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Task / Issue</label>
+                        <textarea value={task} onChange={e => setTask(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required></textarea>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Priority</label>
+                            <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option>Regular</option>
+                                <option>Low</option>
+                                <option>Urgent</option>
+                                <option>Emergency</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Category</label>
+                            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option>Heating & Cooling</option>
+                                <option>Refrigeration</option>
+                                <option>Maintenance</option>
+                                <option>Plumbing</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">NTE Amount ($)</label>
+                            <input type="number" value={nte} onChange={e => setNte(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" placeholder="e.g., 500" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Schedule Date</label>
+                            <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Start Time</label>
+                            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">End Time</label>
+                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 mt-auto">
+                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const AddTechnicianModal = ({ onClose, onAdd }) => {
@@ -418,14 +664,79 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) return; onAdd({ name, email, phone, status: 'Available' }); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add New Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Technician</button></div></form></div>);
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Technician</h2>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Name</label>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Email</label>
+                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Technician</button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const EditTechnicianModal = ({ technician, onClose, onUpdate }) => {
     const [formData, setFormData] = useState(technician);
     const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleSubmit = (e) => { e.preventDefault(); onUpdate(formData); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Edit Technician</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Email</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Phone</label><input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg"><option>Available</option><option>En Route</option><option>On Site</option><option>On Break</option><option>On Call</option><option>Day Off</option></select></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Technician</h2>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Name</label>
+                        <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Email</label>
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
+                        <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                        <select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                            <option>Available</option>
+                            <option>En Route</option>
+                            <option>On Site</option>
+                            <option>On Break</option>
+                            <option>On Call</option>
+                            <option>Day Off</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const CSVImportModal = ({ type, onClose, onImport }) => {
@@ -585,10 +896,10 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800">Import {type.charAt(0).toUpperCase() + type.slice(1)} from CSV</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Import {type.charAt(0).toUpperCase() + type.slice(1)} from CSV</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
@@ -596,39 +907,39 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                 <div className="p-6 overflow-y-auto flex-1">
                     <div className="space-y-6">
                         <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-2">Upload CSV File</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">Upload CSV File</label>
                             <input 
                                 type="file" 
                                 accept=".csv" 
                                 onChange={handleFileUpload}
-                                className="w-full p-2 border border-gray-300 rounded-lg"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                             />
                         </div>
 
-                        <div className="text-center text-gray-500">OR</div>
+                        <div className="text-center text-gray-500 dark:text-gray-400">OR</div>
 
                         <div>
-                            <label className="text-sm font-medium text-gray-600 block mb-2">Paste CSV Data</label>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">Paste CSV Data</label>
                             <textarea
                                 value={csvData}
                                 onChange={(e) => setCsvData(e.target.value)}
                                 placeholder={`Paste your CSV data here...\n\nExpected format:\n${sampleData[type]}`}
                                 rows="8"
-                                className="w-full p-3 border border-gray-300 rounded-lg font-mono text-sm"
+                                className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white font-mono text-sm"
                             />
                         </div>
 
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-blue-800 mb-2">Required CSV Format for {type.charAt(0).toUpperCase() + type.slice(1)}:</h4>
-                            <pre className="text-sm text-blue-700 bg-blue-100 p-2 rounded overflow-x-auto">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                            <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Required CSV Format for {type.charAt(0).toUpperCase() + type.slice(1)}:</h4>
+                            <pre className="text-sm text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/30 p-2 rounded overflow-x-auto">
                                 {sampleData[type]}
                             </pre>
                         </div>
 
                         {errors.length > 0 && (
-                            <div className="bg-red-50 p-4 rounded-lg">
-                                <h4 className="font-medium text-red-800 mb-2">Validation Errors:</h4>
-                                <ul className="text-sm text-red-700 space-y-1">
+                            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                                <h4 className="font-medium text-red-800 dark:text-red-200 mb-2">Validation Errors:</h4>
+                                <ul className="text-sm text-red-700 dark:text-red-300 space-y-1">
                                     {errors.map((error, index) => (
                                         <li key={index} className="flex items-start">
                                             <span className="text-red-500 mr-2">•</span>
@@ -640,14 +951,14 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                         )}
 
                         {showPreview && parsedData.length > 0 && (
-                            <div className="bg-green-50 p-4 rounded-lg">
-                                <h4 className="font-medium text-green-800 mb-2">Preview ({parsedData.length} records ready to import):</h4>
+                            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                                <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">Preview ({parsedData.length} records ready to import):</h4>
                                 <div className="max-h-40 overflow-y-auto">
-                                    <table className="w-full text-sm border border-green-200 rounded">
-                                        <thead className="bg-green-100">
+                                    <table className="w-full text-sm border border-green-200 dark:border-green-700 rounded">
+                                        <thead className="bg-green-100 dark:bg-green-800/30">
                                             <tr>
                                                 {Object.keys(parsedData[0] || {}).map(key => (
-                                                    <th key={key} className="p-2 text-left font-medium text-green-800">
+                                                    <th key={key} className="p-2 text-left font-medium text-green-800 dark:text-green-200">
                                                         {key}
                                                     </th>
                                                 ))}
@@ -655,9 +966,9 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                                         </thead>
                                         <tbody>
                                             {parsedData.slice(0, 3).map((row, index) => (
-                                                <tr key={index} className="border-t border-green-200">
+                                                <tr key={index} className="border-t border-green-200 dark:border-green-700">
                                                     {Object.values(row).map((value, colIndex) => (
-                                                        <td key={colIndex} className="p-2 text-green-700">
+                                                        <td key={colIndex} className="p-2 text-green-700 dark:text-green-300">
                                                             {String(value)}
                                                         </td>
                                                     ))}
@@ -666,7 +977,7 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                                         </tbody>
                                     </table>
                                     {parsedData.length > 3 && (
-                                        <p className="text-green-600 text-center mt-2">
+                                        <p className="text-green-600 dark:text-green-400 text-center mt-2">
                                             ... and {parsedData.length - 3} more records
                                         </p>
                                     )}
@@ -676,7 +987,7 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                     </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 border-t flex justify-between gap-4">
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-between gap-4">
                     <button 
                         onClick={parseCSV}
                         disabled={!csvData.trim()}
@@ -687,7 +998,7 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                     <div className="flex gap-4">
                         <button 
                             onClick={onClose} 
-                            className="text-gray-700 font-bold py-2 px-4"
+                            className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4"
                         >
                             Cancel
                         </button>
@@ -706,16 +1017,62 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
 };
 
 // --- Child Components ---
-const Header = ({ currentView, setCurrentView, onAddOrderClick }) => (
-    <header className="bg-white shadow-sm sticky top-0 z-10"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"><div className="flex items-center justify-between"><div className="flex items-center space-x-3">{currentView !== 'dashboard' ? <button onClick={() => setCurrentView('dashboard')} className="p-2 rounded-full hover:bg-gray-100"><ArrowLeft size={24} /></button> : <Wrench className="h-8 w-8 text-blue-600" />}<h1 className="text-2xl font-bold text-gray-800">HVAC Schedule Dashboard</h1></div><div className="flex items-center gap-2"><button onClick={() => setCurrentView('billing')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><FileText size={20} /> Billing</button><button onClick={() => setCurrentView('reporting')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><BarChart2 size={20} /> Reporting</button><button onClick={() => setCurrentView('route')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Map size={20} /> Route</button><button onClick={() => setCurrentView('dispatch')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><CalendarIcon size={20} /> Dispatch</button><button onClick={() => setCurrentView('customers')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><Users size={20} /> Customers</button><button onClick={() => setCurrentView('technicians')} className="flex items-center gap-2 text-gray-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"><User size={20} /> Technicians</button><button onClick={onAddOrderClick} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"><PlusCircle size={20} /> Add Work Order</button></div></div></div></header>
-);
-
 const OrderCard = ({ order, onSelectOrder }) => (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}><div className="p-5"><div className="flex justify-between items-start"><span className={`text-xs font-bold uppercase px-2 py-1 rounded-full ${getPriorityStyles(order.Priority)}`}>{order.Priority}</span><span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusStyles(order['Order Status'])}`}>{order['Order Status']}</span></div><p className="text-xs text-gray-500 font-semibold mt-3 flex items-center"><Briefcase size={12} className="mr-1.5"/> {order.Client}</p><h3 className="text-lg font-bold text-gray-800">{order.Company} - #{order['Loc #']}</h3><p className="text-sm text-gray-500 font-medium">{order.Task}</p><div className="mt-4 space-y-2 text-sm text-gray-600"><div className="flex items-center"><User className="w-4 h-4 mr-2 text-gray-400" /><span>{order.technician?.join(', ') || 'Unassigned'}</span></div><div className="flex items-center"><CalendarIcon className="w-4 h-4 mr-2 text-gray-400" /><span>Scheduled: {excelDateToJSDateString(order['Schedule Date']) || 'Not Set'} {order.startTime && `(${formatTime(order.startTime)})`}</span></div>{order.clientWO && <div className="flex items-center"><span className="font-bold mr-2">Client WO:</span><span>{order.clientWO}</span></div>}</div></div><div className="bg-gray-50 px-5 py-3"><button onClick={() => onSelectOrder(order)} className="w-full text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">View Details</button></div></div>
+    <div className="bg-white dark:bg-slate-700 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}>
+        <div className="p-5">
+            <div className="flex justify-between items-start">
+                <span className={`text-xs font-bold uppercase px-2 py-1 rounded-full ${getPriorityStyles(order.Priority)}`}>{order.Priority}</span>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusStyles(order['Order Status'])}`}>{order['Order Status']}</span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mt-3 flex items-center"><Briefcase size={12} className="mr-1.5"/> {order.Client}</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white">{order.Company} - #{order['Loc #']}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{order.Task}</p>
+            <div className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                <div className="flex items-center"><User className="w-4 h-4 mr-2 text-gray-400" /><span>{order.technician?.join(', ') || 'Unassigned'}</span></div>
+                <div className="flex items-center"><CalendarIcon className="w-4 h-4 mr-2 text-gray-400" /><span>Scheduled: {excelDateToJSDateString(order['Schedule Date']) || 'Not Set'} {order.startTime && `(${formatTime(order.startTime)})`}</span></div>
+                {order.clientWO && <div className="flex items-center"><span className="font-bold mr-2">Client WO:</span><span>{order.clientWO}</span></div>}
+            </div>
+        </div>
+        <div className="bg-gray-50 dark:bg-slate-600 px-5 py-3">
+            <button onClick={() => onSelectOrder(order)} className="w-full text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">View Details</button>
+        </div>
+    </div>
 );
 
 const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm, statusFilter, setStatusFilter }) => (
-    <><div className="bg-white p-4 rounded-lg shadow-sm mb-8"><div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="relative md:col-span-2"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="text" placeholder="Search by WO#, Client, Location, Tech..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div><div className="relative"><Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full appearance-none pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"><option>All</option><option>Open</option><option>Scheduled</option><option>In Progress</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /></div></div></div>{orders.length > 0 ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={onSelectOrder} />)}</div> : <div className="text-center py-16 px-6 bg-white rounded-lg shadow-sm"><h3 className="text-xl font-semibold text-gray-700">No Work Orders Found</h3><p className="text-gray-500 mt-2">Try adjusting your search or filter criteria.</p></div>}</>
+    <>
+        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative md:col-span-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input type="text" placeholder="Search by WO#, Client, Location, Tech..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                </div>
+                <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full appearance-none pl-10 pr-8 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <option>All</option>
+                        <option>Open</option>
+                        <option>Scheduled</option>
+                        <option>In Progress</option>
+                        <option>On Hold</option>
+                        <option>Completed</option>
+                        <option>Cancelled</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                </div>
+            </div>
+        </div>
+        {orders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={onSelectOrder} />)}
+            </div>
+        ) : (
+            <div className="text-center py-16 px-6 bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Work Orders Found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
+            </div>
+        )}
+    </>
 );
 
 const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder }) => {
@@ -778,13 +1135,13 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-800">Dispatch Board</h2>
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
+            <div className="bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm flex justify-between items-center">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Dispatch Board</h3>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
             </div>
             <div className="flex gap-4">
-                <div className="w-1/4 bg-white p-4 rounded-lg shadow-sm" onDrop={handleUnassignDrop} onDragOver={handleDragOver}>
-                    <h3 className="text-lg font-bold mb-4">Unassigned Jobs</h3>
+                <div className="w-1/4 bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm" onDrop={handleUnassignDrop} onDragOver={handleDragOver}>
+                    <h4 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Unassigned Jobs</h4>
                     <div className="space-y-2 max-h-[70vh] overflow-y-auto">
                         {unscheduledOrders.map(order => (
                             <div key={order.id} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 border-l-4 rounded cursor-grab ${getPriorityStyles(order.Priority)}`}>
@@ -794,32 +1151,45 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
                         ))}
                     </div>
                 </div>
-                <div className="w-3/4 bg-white p-4 rounded-lg shadow-sm overflow-x-auto">
-                    <div className="grid gap-px bg-gray-200 min-w-max" style={{gridTemplateColumns: `60px repeat(${activeTechnicians.length}, minmax(200px, 1fr))`, gridTemplateRows: `auto repeat(${hours.length * 4}, 20px)`}}>
-                        <div className="bg-gray-100 sticky top-0 z-10"></div>
-                        {activeTechnicians.map(tech => (<div key={tech.id} className="bg-gray-100 text-center font-bold p-2 sticky top-0 z-10 flex flex-col"><span>{tech.name}</span><span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${getTechStatusStyles(tech.status)}`}>{tech.status}</span></div>))}
-                        {hours.map(hour => (<React.Fragment key={hour}><div className="row-start-auto bg-gray-50 text-right pr-2 text-xs text-gray-500 -translate-y-2 sticky left-0 z-10" style={{ gridRow: (hour - 7) * 4 + 2 }}>{hour > 12 ? hour - 12 : hour}:00 {hour >= 12 ? 'PM' : 'AM'}</div>
-                            {activeTechnicians.map((tech, techIndex) => (
-                                <React.Fragment key={tech.id}>
-                                    {Array.from({length: 4}).map((_, i) => (
-                                        <div 
-                                            key={`${tech.id}-${hour}-${i}`}
-                                            onDrop={(e) => handleDrop(e, tech.name, `${String(hour).padStart(2, '0')}:${String(i*15).padStart(2,'0')}`)} 
-                                            onDragOver={handleDragOver} 
-                                            className="border-t border-gray-200" 
-                                            style={{ gridRow: (hour - 7) * 4 + i + 2, gridColumn: techIndex + 2 }}>
-                                        </div>
-                                    ))}
-                                </React.Fragment>
-                            ))}
-                        </React.Fragment>))}
+                <div className="w-3/4 bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm overflow-x-auto">
+                    <div className="grid gap-px bg-gray-200 dark:bg-slate-600 min-w-max" style={{gridTemplateColumns: `60px repeat(${activeTechnicians.length}, minmax(200px, 1fr))`, gridTemplateRows: `auto repeat(${hours.length * 4}, 20px)`}}>
+                        <div className="bg-gray-100 dark:bg-slate-600 sticky top-0 z-10"></div>
+                        {activeTechnicians.map(tech => (
+                            <div key={tech.id} className="bg-gray-100 dark:bg-slate-600 text-center font-bold p-2 sticky top-0 z-10 flex flex-col">
+                                <span className="text-gray-800 dark:text-white">{tech.name}</span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${getTechStatusStyles(tech.status)}`}>{tech.status}</span>
+                            </div>
+                        ))}
+                        {hours.map(hour => (
+                            <React.Fragment key={hour}>
+                                <div className="row-start-auto bg-gray-50 dark:bg-slate-600 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 -translate-y-2 sticky left-0 z-10" style={{ gridRow: (hour - 7) * 4 + 2 }}>{hour > 12 ? hour - 12 : hour}:00 {hour >= 12 ? 'PM' : 'AM'}</div>
+                                {activeTechnicians.map((tech, techIndex) => (
+                                    <React.Fragment key={tech.id}>
+                                        {Array.from({length: 4}).map((_, i) => (
+                                            <div 
+                                                key={`${tech.id}-${hour}-${i}`}
+                                                onDrop={(e) => handleDrop(e, tech.name, `${String(hour).padStart(2, '0')}:${String(i*15).padStart(2,'0')}`)} 
+                                                onDragOver={handleDragOver} 
+                                                className="border-t border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700" 
+                                                style={{ gridRow: (hour - 7) * 4 + i + 2, gridColumn: techIndex + 2 }}>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </React.Fragment>
+                        ))}
                         {scheduledOrders.flatMap(order => 
                             order.technician.map(techName => {
                                 const gridColumn = getTechnicianColumn(techName);
                                 const rowStart = timeToRow(order.startTime);
                                 const rowEnd = timeToRow(order.endTime);
                                 if (gridColumn < 0 || !rowStart || !rowEnd || rowEnd <= rowStart) return null;
-                                return (<div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getPriorityStyles(order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => onSelectOrder(order)}><p className="font-bold truncate">{order.Company}</p><p className="truncate">{order.Task}</p></div>);
+                                return (
+                                    <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getPriorityStyles(order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => onSelectOrder(order)}>
+                                        <p className="font-bold truncate">{order.Company}</p>
+                                        <p className="truncate">{order.Task}</p>
+                                    </div>
+                                );
                             })
                         )}
                     </div>
@@ -831,12 +1201,9 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
 
 const RoutePlanningView = ({ workOrders, technicians }) => {
     const [selectedTechId, setSelectedTechId] = useState('ALL');
-    const [viewType, setViewType] = useState('today'); // 'today', '3-day', 'week', 'custom'
+    const [viewType, setViewType] = useState('today');
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
-    
-    // Google Maps API Key
-    const googleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
     const jobsForRange = useMemo(() => {
         let startDate = new Date();
@@ -895,44 +1262,12 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
 
     const handlePrint = () => window.print();
 
-    // Initialize Google Map
-    useEffect(() => {
-        if (window.google && window.google.maps && googleMapsApiKey) {
-            const mapElement = document.getElementById('route-map');
-            if (mapElement) {
-                const map = new window.google.maps.Map(mapElement, {
-                    zoom: 10,
-                    center: { lat: 42.4668, lng: -83.1632 }, // Southfield, MI area
-                    mapTypeId: 'roadmap'
-                });
-
-                // Add markers for scheduled jobs
-                Object.entries(groupedJobs).forEach(([date, techJobs]) => {
-                    Object.entries(techJobs).forEach(([techName, jobs]) => {
-                        jobs.forEach((job, index) => {
-                            // For now using approximate coordinates - you'd want to geocode actual addresses
-                            const lat = 42.4668 + (Math.random() - 0.5) * 0.2; // Random positions around Southfield
-                            const lng = -83.1632 + (Math.random() - 0.5) * 0.2;
-                            
-                            new window.google.maps.Marker({
-                                position: { lat, lng },
-                                map: map,
-                                title: `${job.Company} - ${job.Task}`,
-                                label: String(index + 1)
-                            });
-                        });
-                    });
-                });
-            }
-        }
-    }, [groupedJobs, googleMapsApiKey]);
-
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6 print:hidden">
-                <h2 className="text-2xl font-bold text-gray-800">Route Planning</h2>
+        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Route Planning</h3>
                 <div className="flex items-center gap-4">
-                    <select value={viewType} onChange={e => setViewType(e.target.value)} className="p-2 border border-gray-300 rounded-lg">
+                    <select value={viewType} onChange={e => setViewType(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
                         <option value="today">Today</option>
                         <option value="3-day">Next 3 Days</option>
                         <option value="week">This Week</option>
@@ -940,32 +1275,40 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
                     </select>
                     {viewType === 'custom' && (
                         <>
-                            <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
-                            <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border border-gray-300 rounded-lg" />
+                            <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                         </>
                     )}
-                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} className="p-2 border border-gray-300 rounded-lg">
+                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
                         <option value="ALL">All Technicians</option>
                         {technicians.filter(t=>t.name !== 'Unassigned').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
-                    <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"><Printer size={20} /> Print Route</button>
+                    <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700">
+                        <Printer size={20} /> Print Route
+                    </button>
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1 print:col-span-3">
-                    <h3 className="font-bold text-lg mb-2">Job Order</h3>
+                <div className="md:col-span-1">
+                    <h4 className="font-bold text-lg mb-2 text-gray-800 dark:text-white">Job Order</h4>
                     {Object.keys(groupedJobs).length > 0 ? (
                         Object.entries(groupedJobs).map(([date, techJobs]) => (
                             <div key={date} className="mb-4">
-                                <h4 className="font-bold text-xl mb-2 p-2 bg-gray-200 rounded-md sticky top-20">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4>
+                                <h5 className="font-bold text-lg mb-2 p-2 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-white rounded-md sticky top-20">
+                                    {new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                </h5>
                                 {Object.entries(techJobs).map(([techName, jobs]) => (
                                     <div key={techName} className="mb-4">
-                                        {selectedTechId === 'ALL' && <h5 className="font-bold text-md mb-2 p-2 bg-gray-100 rounded-md">{techName}</h5>}
+                                        {selectedTechId === 'ALL' && <h6 className="font-bold text-md mb-2 p-2 bg-gray-100 dark:bg-slate-600 text-gray-800 dark:text-white rounded-md">{techName}</h6>}
                                         <div className="space-y-2">
                                             {jobs.map((job, index) => (
-                                                <div key={job.id} className="p-3 border rounded-lg flex items-center gap-4">
-                                                    <span className="text-xl font-bold text-gray-400">{index + 1}</span>
-                                                    <div><p className="font-bold">{formatTime(job.startTime)} - {formatTime(job.endTime)}</p><p>{job.Company} - {job.City}</p><p className="text-sm text-gray-600">{job.Task}</p></div>
+                                                <div key={job.id} className="p-3 border border-gray-200 dark:border-slate-600 rounded-lg flex items-center gap-4 bg-white dark:bg-slate-700">
+                                                    <span className="text-xl font-bold text-gray-400 dark:text-gray-500">{index + 1}</span>
+                                                    <div>
+                                                        <p className="font-bold text-gray-800 dark:text-white">{formatTime(job.startTime)} - {formatTime(job.endTime)}</p>
+                                                        <p className="text-gray-700 dark:text-gray-300">{job.Company} - {job.City}</p>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400">{job.Task}</p>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -973,20 +1316,17 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
                                 ))}
                             </div>
                         ))
-                    ) : <p>No jobs scheduled for this selection.</p>}
+                    ) : (
+                        <p className="text-gray-600 dark:text-gray-400">No jobs scheduled for this selection.</p>
+                    )}
                 </div>
-                <div className="md:col-span-2 bg-gray-200 rounded-lg flex items-center justify-center h-96 print:hidden">
+                <div className="md:col-span-2 bg-gray-200 dark:bg-slate-600 rounded-lg flex items-center justify-center h-96">
                     <div id="route-map" className="w-full h-full rounded-lg">
-                        <p className="text-gray-500 flex items-center justify-center h-full">
+                        <p className="text-gray-500 dark:text-gray-400 flex items-center justify-center h-full">
                             Map will load here once Google Maps API key is configured
                         </p>
                     </div>
                 </div>
-            </div>
-            <style>{`@media print { body * { visibility: hidden; } .print-container, .print-container * { visibility: visible; } .print-container { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
-            <div className="print-container hidden print:block">
-                 <h2 className="text-2xl font-bold mb-4">Route for {selectedTechId === 'ALL' ? 'All Technicians' : technicians.find(t=>t.id === selectedTechId)?.name} on {new Date(customStartDate + 'T00:00:00').toLocaleDateString()}</h2>
-                 {Object.entries(groupedJobs).map(([date, techJobs]) => (<div key={date} className="mb-4"><h3 className="font-bold text-lg mt-4 border-t pt-2">{new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>{Object.entries(techJobs).map(([techName, jobs]) => (<div key={techName} className="mb-2"><h4 className="font-semibold text-md mt-2">{techName}</h4>{jobs.map((job, index) => (<div key={job.id} className="p-2 border-b"><p><strong>{index + 1}. {formatTime(job.startTime)} - {formatTime(job.endTime)}: {job.Company}</strong></p><p>{job.Task} at {job.City}, {job.State}</p></div>))}</div>))}</div>))}
             </div>
         </div>
     );
@@ -1027,9 +1367,9 @@ const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, on
     };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Customer Management</h2>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Customer Management</h3>
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setShowImportModal(true)}
@@ -1051,19 +1391,57 @@ const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, on
                     </button>
                 </div>
             </div>
-            <div className="space-y-4">{customers.map(customer => (<div key={customer.id} className="border border-gray-200 rounded-lg p-4"><div className="flex justify-between items-center"><div className="flex items-center gap-4"><h3 className="text-lg font-bold text-gray-900">{customer.name}</h3><span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span></div><div className="flex items-center gap-2"><button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 hover:underline">Edit Details</button><button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 hover:underline">Add Location</button></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div className="text-sm"><p className="font-semibold text-gray-600">Primary Contact</p><p className="flex items-center gap-2"><User size={14}/> {customer.contact.name}</p><p className="flex items-center gap-2"><Mail size={14}/> {customer.contact.email}</p><p className="flex items-center gap-2"><Phone size={14}/> {customer.contact.phone}</p></div><div className="text-sm"><p className="font-semibold text-gray-600">Billing Address</p><p>{customer.billingAddress.street}</p><p>{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p></div></div><div className="mt-3 pt-3 border-t"><h4 className="text-sm font-semibold text-gray-600 mb-1">Service Locations ({customer.locations.length})</h4><div className="pl-4 border-l-2 space-y-1">{customer.locations.map((loc, index) => (<div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700"><span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}</div>))}</div></div></div>))}</div>
-        {isAddingCustomer && <AddCustomerModal onAddCustomer={onAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
-        {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={onUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
-        {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={onAddLocation} onClose={() => setAddingLocationTo(null)} />}
-        {showImportModal && (
-            <CSVImportModal 
-                type="customers"
-                onClose={() => setShowImportModal(false)}
-                onImport={(data) => {
-                    data.forEach(customer => onAddCustomer(customer));
-                }}
-            />
-        )}
+            <div className="space-y-4">
+                {customers.map(customer => (
+                    <div key={customer.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <h4 className="text-lg font-bold text-gray-900 dark:text-white">{customer.name}</h4>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 hover:underline">Edit Details</button>
+                                <button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 hover:underline">Add Location</button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div className="text-sm">
+                                <p className="font-semibold text-gray-600 dark:text-gray-400">Primary Contact</p>
+                                <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><User size={14}/> {customer.contact.name}</p>
+                                <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Mail size={14}/> {customer.contact.email}</p>
+                                <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Phone size={14}/> {customer.contact.phone}</p>
+                            </div>
+                            <div className="text-sm">
+                                <p className="font-semibold text-gray-600 dark:text-gray-400">Billing Address</p>
+                                <p className="text-gray-700 dark:text-gray-300">{customer.billingAddress.street}</p>
+                                <p className="text-gray-700 dark:text-gray-300">{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p>
+                            </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-600">
+                            <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Service Locations ({customer.locations.length})</h5>
+                            <div className="pl-4 border-l-2 border-gray-200 dark:border-slate-600 space-y-1">
+                                {customer.locations.map((loc, index) => (
+                                    <div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700 dark:text-gray-300">
+                                        <span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {isAddingCustomer && <AddCustomerModal onAddCustomer={onAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
+            {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={onUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
+            {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={onAddLocation} onClose={() => setAddingLocationTo(null)} />}
+            {showImportModal && (
+                <CSVImportModal 
+                    type="customers"
+                    onClose={() => setShowImportModal(false)}
+                    onImport={(data) => {
+                        data.forEach(customer => onAddCustomer(customer));
+                    }}
+                />
+            )}
         </div>
     );
 };
@@ -1071,23 +1449,34 @@ const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, on
 const TechnicianManagementView = ({ technicians, onAddTechnician, onUpdateTechnician, onDeleteTechnician }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [editing, setEditing] = useState(null);
+    
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-gray-800">Technician Management</h2><button onClick={() => setIsAdding(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><PlusCircle size={20} /> Add New Technician</button></div>
+        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Technician Management</h3>
+                <button onClick={() => setIsAdding(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">
+                    <PlusCircle size={20} /> Add New Technician
+                </button>
+            </div>
             <div className="space-y-4">
                 {technicians.map(tech => (
-                    <div key={tech.id} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center">
+                    <div key={tech.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4 flex justify-between items-center">
                         <div>
-                            <h3 className="text-lg font-bold text-gray-900">{tech.name}</h3>
-                            <div className="text-sm text-gray-600 flex items-center gap-4 mt-1">
+                            <h4 className="text-lg font-bold text-gray-900 dark:text-white">{tech.name}</h4>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-4 mt-1">
                                 <span className="flex items-center gap-1.5"><Mail size={14}/> {tech.email}</span>
                                 <span className="flex items-center gap-1.5"><Phone size={14}/> {tech.phone}</span>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTechStatusStyles(tech.status)}`}>{tech.status}</span>
                             </div>
                         </div>
                         {tech.name !== 'Unassigned' && (
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setEditing(tech)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-full"><Edit size={16}/></button>
-                                <button onClick={() => onDeleteTechnician(tech.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-full"><Trash2 size={16}/></button>
+                                <button onClick={() => setEditing(tech)} className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-full">
+                                    <Edit size={16}/>
+                                </button>
+                                <button onClick={() => onDeleteTechnician(tech.id)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-full">
+                                    <Trash2 size={16}/>
+                                </button>
                             </div>
                         )}
                     </div>
@@ -1118,7 +1507,10 @@ const WorkOrderDetailModal = ({ order, onClose, onUpdate, onAddNote, technicians
 
     const handleSaveChanges = () => {
         const payload = {};
-        if (newStatus !== order['Order Status']) { payload['Order Status'] = newStatus; if (newStatus === 'Completed' && !order['Completed Date']) payload['Completed Date'] = jsDateToExcel(new Date()); }
+        if (newStatus !== order['Order Status']) { 
+            payload['Order Status'] = newStatus; 
+            if (newStatus === 'Completed' && !order['Completed Date']) payload['Completed Date'] = jsDateToExcel(new Date()); 
+        }
         if (JSON.stringify(assignedTechnicians) !== JSON.stringify(order.technician)) payload['technician'] = assignedTechnicians;
         const newScheduleDateExcel = yyyymmddToExcel(scheduleDate);
         if (newScheduleDateExcel !== order['Schedule Date'] || startTime !== order.startTime || endTime !== order.endTime) {
@@ -1131,8 +1523,127 @@ const WorkOrderDetailModal = ({ order, onClose, onUpdate, onAddNote, technicians
         if (Object.keys(payload).length > 0) onUpdate(order.id, payload);
     };
 
-    const details = [ { label: "Work Order #", value: order['WO#'], icon: <Wrench/> }, { label: "Client WO#", value: order.clientWO, icon: <Briefcase />}, { label: "Location", value: `${order.Company} (#${order['Loc #']})`, icon: <Building/> }, { label: "Address", value: `${order.City}, ${order.State}`, icon: <MapPin/> }, { label: "Priority", value: order.Priority, icon: <AlertTriangle/>, style: getPriorityStyles(order.Priority) + ' px-2 py-0.5 rounded-full text-xs font-semibold' }, { label: "Task", value: order.Task }, { label: "NTE Amount", value: formatCurrency(order.NTE) }, { label: "Created Date", value: excelDateToJSDateString(order['Created Date']) }, ];
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Work Order Details</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={28} /></button></div><div className="p-6 overflow-y-auto"><div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{details.map(d => (<div key={d.label} className="flex flex-col"><span className="text-xs text-gray-500 font-medium">{d.label}</span><span className={`text-base text-gray-900 font-semibold flex items-center gap-2 mt-1 ${d.style || ''}`}>{d.icon && <span className="text-gray-400">{React.cloneElement(d.icon, { size: 16 })}</span>}<span className={d.style || ''}>{d.value}</span></span></div>))}</div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3">Job Management</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-sm font-medium text-gray-600 block mb-1">Status</label><select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg"><option>Open</option><option>Scheduled</option><option>In Progress</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Assigned Technicians</label><div className="border p-2 rounded-lg max-h-24 overflow-y-auto">{technicians.filter(t=>t.name !== 'Unassigned').map(t => (<div key={t.id} className="flex items-center"><input type="checkbox" id={`tech-${t.id}`} checked={assignedTechnicians.includes(t.name)} onChange={() => handleTechChange(t.name)} className="mr-2" /><label htmlFor={`tech-${t.id}`}>{t.name}</label></div>))}</div></div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Schedule Date</label><input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Start Time</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">End Time</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div><div className="mt-4"><label className="text-sm font-medium text-gray-600 block mb-1">Client WO#</label><input type="text" value={clientWO} onChange={e => setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="mt-4 flex justify-end"><button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></div><div className="mt-6 pt-6 border-t"><h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center"><MessageSquare size={20} className="mr-2"/>Work Notes</h3><div className="space-y-3 max-h-48 overflow-y-auto bg-gray-50 p-3 rounded-lg">{order.notes && order.notes.length > 0 ? order.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (<div key={index} className="text-sm bg-white p-2 rounded shadow-sm"><p className="text-gray-800">{note.text}</p><p className="text-xs text-gray-500 mt-1 text-right">{formatTimestamp(note.timestamp)}</p></div>)) : <p className="text-sm text-gray-500 text-center py-4">No notes for this job yet.</p>}</div><div className="mt-4"><textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add a new note..." rows="3" className="w-full p-2 border border-gray-300 rounded-lg"></textarea><div className="flex justify-end mt-2"><button onClick={() => onAddNote(order.id, newNote, () => setNewNote(''))} disabled={!newNote.trim()} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400">Add Note</button></div></div></div></div></div></div>);
+    const details = [ 
+        { label: "Work Order #", value: order['WO#'], icon: <Wrench/> }, 
+        { label: "Client WO#", value: order.clientWO, icon: <Briefcase />}, 
+        { label: "Location", value: `${order.Company} (#${order['Loc #']})`, icon: <Building/> }, 
+        { label: "Address", value: `${order.City}, ${order.State}`, icon: <MapPin/> }, 
+        { label: "Priority", value: order.Priority, icon: <AlertTriangle/>, style: getPriorityStyles(order.Priority) + ' px-2 py-0.5 rounded-full text-xs font-semibold' }, 
+        { label: "Task", value: order.Task }, 
+        { label: "NTE Amount", value: formatCurrency(order.NTE) }, 
+        { label: "Created Date", value: excelDateToJSDateString(order['Created Date']) }
+    ];
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Work Order Details</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={28} />
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        {details.map(d => (
+                            <div key={d.label} className="flex flex-col">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{d.label}</span>
+                                <span className={`text-base text-gray-900 dark:text-white font-semibold flex items-center gap-2 mt-1 ${d.style || ''}`}>
+                                    {d.icon && <span className="text-gray-400">{React.cloneElement(d.icon, { size: 16 })}</span>}
+                                    <span className={d.style || ''}>{d.value}</span>
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">Job Management</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                    <option>Open</option>
+                                    <option>Scheduled</option>
+                                    <option>In Progress</option>
+                                    <option>On Hold</option>
+                                    <option>Completed</option>
+                                    <option>Cancelled</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Assigned Technicians</label>
+                                <div className="border border-gray-300 dark:border-slate-600 p-2 rounded-lg max-h-24 overflow-y-auto bg-white dark:bg-slate-700">
+                                    {technicians.filter(t=>t.name !== 'Unassigned').map(t => (
+                                        <div key={t.id} className="flex items-center">
+                                            <input 
+                                                type="checkbox" 
+                                                id={`tech-${t.id}`} 
+                                                checked={assignedTechnicians.includes(t.name)} 
+                                                onChange={() => handleTechChange(t.name)} 
+                                                className="mr-2" 
+                                            />
+                                            <label htmlFor={`tech-${t.id}`} className="text-gray-900 dark:text-white">{t.name}</label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Schedule Date</label>
+                                <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Start Time</label>
+                                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">End Time</label>
+                                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client WO#</label>
+                            <input type="text" value={clientWO} onChange={e => setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                            <button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
+                        </div>
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                            <MessageSquare size={20} className="mr-2"/>Work Notes
+                        </h3>
+                        <div className="space-y-3 max-h-48 overflow-y-auto bg-gray-50 dark:bg-slate-700 p-3 rounded-lg">
+                            {order.notes && order.notes.length > 0 ? order.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (
+                                <div key={index} className="text-sm bg-white dark:bg-slate-600 p-2 rounded shadow-sm">
+                                    <p className="text-gray-800 dark:text-gray-200">{note.text}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">{formatTimestamp(note.timestamp)}</p>
+                                </div>
+                            )) : <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No notes for this job yet.</p>}
+                        </div>
+                        <div className="mt-4">
+                            <textarea 
+                                value={newNote} 
+                                onChange={(e) => setNewNote(e.target.value)} 
+                                placeholder="Add a new note..." 
+                                rows="3" 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            />
+                            <div className="flex justify-end mt-2">
+                                <button 
+                                    onClick={() => onAddNote(order.id, newNote, () => setNewNote(''))} 
+                                    disabled={!newNote.trim()} 
+                                    className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                                >
+                                    Add Note
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const ReportingView = ({ workOrders, technicians }) => {
@@ -1161,53 +1672,48 @@ const ReportingView = ({ workOrders, technicians }) => {
     };
 
     const handleDownloadPdf = () => {
-        const input = document.getElementById('reporting-view');
-        html2canvas(input).then((canvas) => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jspdf.jsPDF();
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save("hvac-report.pdf");
-        });
+        alert("PDF download functionality would be implemented here with a proper PDF library");
     };
 
     return (
-        <>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-            <div id="reporting-view" className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">Reporting Dashboard</h2>
-                    <button onClick={handleDownloadPdf} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"><Download size={20} /> Download PDF</button>
+        <div id="reporting-view" className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Reporting Dashboard</h3>
+                <button onClick={handleDownloadPdf} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700">
+                    <Download size={20} /> Download PDF
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                    <h4 className="text-lg font-semibold text-gray-600 dark:text-gray-400">Completed Jobs</h4>
+                    <p className="text-5xl font-bold text-green-600">{completedOrders.length}</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Open/Active Jobs</h3><p className="text-5xl font-bold text-yellow-600">{openOrders.length}</p></div>
-                    <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Completed Jobs</h3><p className="text-5xl font-bold text-green-600">{completedOrders.length}</p></div>
-                    <div className="p-4 border rounded-lg text-center"><h3 className="text-lg font-semibold text-gray-600">Potential Revenue</h3><p className="text-5xl font-bold text-blue-600">{formatCurrency(totalRevenue)}</p></div>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                    <h3 className="text-xl font-bold mb-4">Technician Leaderboard</h3>
-                    <div className="space-y-4">
-                        {jobsByTech.map((tech, index) => (
-                            <div key={tech.name} className="flex items-center gap-4">
-                                <div className="w-10 text-center">
-                                    {index < 3 ? <Award size={24} className={medalColor(index)} /> : <span className="text-lg font-bold text-gray-400">{index + 1}</span>}
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-bold">{tech.name}</p>
-                                    <div className="w-full bg-gray-200 rounded-full h-4 mt-1">
-                                        <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${maxJobs > 0 ? (tech.count / maxJobs) * 100 : 0}%` }}></div>
-                                    </div>
-                                </div>
-                                <div className="w-12 text-right font-bold text-lg">{tech.count}</div>
-                            </div>
-                        ))}
-                    </div>
+                <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                    <h4 className="text-lg font-semibold text-gray-600 dark:text-gray-400">Potential Revenue</h4>
+                    <p className="text-5xl font-bold text-blue-600">{formatCurrency(totalRevenue)}</p>
                 </div>
             </div>
-        </>
+            
+            <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg">
+                <h4 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Technician Leaderboard</h4>
+                <div className="space-y-4">
+                    {jobsByTech.map((tech, index) => (
+                        <div key={tech.name} className="flex items-center gap-4">
+                            <div className="w-10 text-center">
+                                {index < 3 ? <Award size={24} className={medalColor(index)} /> : <span className="text-lg font-bold text-gray-400 dark:text-gray-500">{index + 1}</span>}
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-bold text-gray-800 dark:text-white">{tech.name}</p>
+                                <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-4 mt-1">
+                                    <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${maxJobs > 0 ? (tech.count / maxJobs) * 100 : 0}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="w-12 text-right font-bold text-lg text-gray-800 dark:text-white">{tech.count}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -1301,9 +1807,9 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
     return (
         <div className="space-y-6">
             {/* Header with Summary Stats */}
-            <div className="bg-white p-6 rounded-lg shadow-sm">
+            <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">Billing & Invoicing</h2>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white">Billing & Invoicing</h3>
                     <div className="flex gap-3">
                         <button 
                             onClick={() => setShowCreateInvoice(true)}
@@ -1322,39 +1828,39 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="p-4 border rounded-lg text-center">
-                        <h3 className="text-sm font-medium text-gray-600">Total Invoices</h3>
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoices</h4>
                         <p className="text-2xl font-bold text-blue-600">{invoices.length}</p>
-                        <p className="text-sm text-gray-500">{formatCurrency(totalInvoiceAmount)}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(totalInvoiceAmount)}</p>
                     </div>
-                    <div className="p-4 border rounded-lg text-center">
-                        <h3 className="text-sm font-medium text-gray-600">Paid Invoices</h3>
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Paid Invoices</h4>
                         <p className="text-2xl font-bold text-green-600">{paidInvoices.length}</p>
-                        <p className="text-sm text-gray-500">{formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
                     </div>
-                    <div className="p-4 border rounded-lg text-center">
-                        <h3 className="text-sm font-medium text-gray-600">Outstanding</h3>
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Outstanding</h4>
                         <p className="text-2xl font-bold text-red-600">{unpaidInvoices.length}</p>
-                        <p className="text-sm text-gray-500">{formatCurrency(unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
                     </div>
-                    <div className="p-4 border rounded-lg text-center">
-                        <h3 className="text-sm font-medium text-gray-600">Pending Quotes</h3>
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Quotes</h4>
                         <p className="text-2xl font-bold text-yellow-600">{pendingQuotes.length}</p>
-                        <p className="text-sm text-gray-500">{formatCurrency(pendingQuotes.reduce((sum, q) => sum + q.amount, 0))}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(pendingQuotes.reduce((sum, q) => sum + q.amount, 0))}</p>
                     </div>
                 </div>
             </div>
 
             {/* Tabs and Content */}
-            <div className="bg-white rounded-lg shadow-sm">
-                <div className="border-b border-gray-200">
+            <div className="bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                <div className="border-b border-gray-200 dark:border-slate-600">
                     <nav className="-mb-px flex gap-6 px-6">
                         <button 
                             onClick={() => setActiveTab('invoices')} 
                             className={`py-4 px-1 border-b-2 font-medium text-sm ${
                                 activeTab === 'invoices' 
                                     ? 'border-blue-500 text-blue-600' 
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
                             }`}
                         >
                             Invoices ({invoices.length})
@@ -1364,7 +1870,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             className={`py-4 px-1 border-b-2 font-medium text-sm ${
                                 activeTab === 'quotes' 
                                     ? 'border-blue-500 text-blue-600' 
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
                             }`}
                         >
                             Quotes ({quotes.length})
@@ -1376,26 +1882,26 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     {activeTab === 'invoices' && (
                         <div>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-semibold text-gray-800">Invoice Management</h3>
+                                <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Invoice Management</h4>
                                 <div className="flex gap-2">
                                     <button 
                                         onClick={() => {
                                             setImportType('invoices');
                                             setShowImportModal(true);
                                         }}
-                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
                                         <Upload size={16} /> Import
                                     </button>
                                     <button 
                                         onClick={exportInvoicesToCSV}
-                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
                                         <Download size={16} /> Export
                                     </button>
                                     <button 
                                         onClick={() => window.location.reload()}
-                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
                                         <RefreshCw size={16} /> Refresh
                                     </button>
@@ -1404,28 +1910,28 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             
                             {invoices.length > 0 ? (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border border-gray-200 rounded-lg">
-                                        <thead className="bg-gray-50">
+                                    <table className="w-full border border-gray-200 dark:border-slate-600 rounded-lg">
+                                        <thead className="bg-gray-50 dark:bg-slate-600">
                                             <tr>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Invoice #</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Work Order</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Customer</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Amount</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Invoice #</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Work Order</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Amount</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200">
+                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
                                             {invoices.map(invoice => (
-                                                <tr key={invoice.id} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{invoice.id}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">{invoice.workOrderId || 'N/A'}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900">{invoice.customerName}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-slate-600">
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{invoice.id}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{invoice.workOrderId || 'N/A'}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{invoice.customerName}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                                                         {new Date(invoice.date).toLocaleDateString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                                                         {formatCurrency(invoice.amount)}
                                                     </td>
                                                     <td className="px-4 py-3 text-sm">
@@ -1449,7 +1955,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                             </button>
                                                             <button 
                                                                 onClick={() => alert(`Edit functionality for invoice ${invoice.id} would open in a modal`)}
-                                                                className="text-gray-600 hover:text-gray-800 font-medium"
+                                                                className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
                                                             >
                                                                 Edit
                                                             </button>
@@ -1463,8 +1969,8 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             ) : (
                                 <div className="text-center py-12">
                                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Invoices Yet</h3>
-                                    <p className="text-gray-500 mb-4">Create your first invoice from a completed work order.</p>
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Invoices Yet</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first invoice from a completed work order.</p>
                                     <button 
                                         onClick={() => setShowCreateInvoice(true)}
                                         className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700"
@@ -1479,26 +1985,26 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     {activeTab === 'quotes' && (
                         <div>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-semibold text-gray-800">Quote Management</h3>
+                                <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Quote Management</h4>
                                 <div className="flex gap-2">
                                     <button 
                                         onClick={() => {
                                             setImportType('quotes');
                                             setShowImportModal(true);
                                         }}
-                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
                                         <Upload size={16} /> Import
                                     </button>
                                     <button 
                                         onClick={exportQuotesToCSV}
-                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
                                         <Download size={16} /> Export
                                     </button>
                                     <button 
                                         onClick={() => window.location.reload()}
-                                        className="flex items-center gap-2 text-gray-600 bg-gray-100 py-2 px-3 rounded-lg hover:bg-gray-200"
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
                                         <RefreshCw size={16} /> Refresh
                                     </button>
@@ -1507,28 +2013,28 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             
                             {quotes.length > 0 ? (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border border-gray-200 rounded-lg">
-                                        <thead className="bg-gray-50">
+                                    <table className="w-full border border-gray-200 dark:border-slate-600 rounded-lg">
+                                        <thead className="bg-gray-50 dark:bg-slate-600">
                                             <tr>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Quote #</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Customer</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Description</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Amount</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Quote #</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Description</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Amount</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200">
+                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
                                             {quotes.map(quote => (
-                                                <tr key={quote.id} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{quote.id}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900">{quote.customerName}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">{quote.description}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">
+                                                <tr key={quote.id} className="hover:bg-gray-50 dark:hover:bg-slate-600">
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{quote.id}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{quote.customerName}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{quote.description}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                                                         {new Date(quote.date).toLocaleDateString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                                                         {formatCurrency(quote.amount)}
                                                     </td>
                                                     <td className="px-4 py-3 text-sm">
@@ -1552,7 +2058,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                             </button>
                                                             <button 
                                                                 onClick={() => alert(`Edit functionality for quote ${quote.id} would open in a modal`)}
-                                                                className="text-gray-600 hover:text-gray-800 font-medium"
+                                                                className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
                                                             >
                                                                 Edit
                                                             </button>
@@ -1572,8 +2078,8 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                             ) : (
                                 <div className="text-center py-12">
                                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Quotes Yet</h3>
-                                    <p className="text-gray-500 mb-4">Create your first quote for potential customers.</p>
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Quotes Yet</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first quote for potential customers.</p>
                                     <button 
                                         onClick={() => setShowCreateQuote(true)}
                                         className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700"
@@ -1650,9 +2156,34 @@ const WorkOrderManagement = () => {
     
     const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
     
-    const handleUpdateOrder = (orderId, payload) => { setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); setSelectedOrder(p => ({ ...p, ...payload })); };
-    const handleAddNote = (orderId, noteText, callback) => { if (!noteText.trim()) return; const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); setWorkOrders(updatedOrders); setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); callback(); };
-    const handleAddNewOrder = (newOrderData) => { const newId = `WO-${Date.now()}`; const newOrder = { ...newOrderData, "WO#": newId, id: newId, "Created Date": jsDateToExcel(new Date()), "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', notes: [], technician: [] }; setWorkOrders(p => [newOrder, ...p]); setIsAddingOrder(false); };
+    const handleUpdateOrder = (orderId, payload) => { 
+        setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); 
+        setSelectedOrder(p => ({ ...p, ...payload })); 
+    };
+    
+    const handleAddNote = (orderId, noteText, callback) => { 
+        if (!noteText.trim()) return; 
+        const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; 
+        const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); 
+        setWorkOrders(updatedOrders); 
+        setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); 
+        callback(); 
+    };
+    
+    const handleAddNewOrder = (newOrderData) => { 
+        const newId = `WO-${Date.now()}`; 
+        const newOrder = { 
+            ...newOrderData, 
+            "WO#": newId, 
+            id: newId, 
+            "Created Date": jsDateToExcel(new Date()), 
+            "Order Status": newOrderData['Schedule Date'] ? 'Scheduled' : 'Open', 
+            notes: [], 
+            technician: [] 
+        }; 
+        setWorkOrders(p => [newOrder, ...p]); 
+        setIsAddingOrder(false); 
+    };
     
     const handleAddCustomer = (customerData) => {
         if (Array.isArray(customerData)) {
@@ -1663,10 +2194,23 @@ const WorkOrderManagement = () => {
         }
     };
 
-    const handleUpdateCustomer = (updatedCustomer) => { setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); };
-    const handleAddLocationToCustomer = (customerId, newLocation) => { setCustomers(customers.map(c => c.id === customerId ? { ...c, locations: [...c.locations, newLocation] } : c)); };
-    const handleAddTechnician = (newTechData) => { const newTech = { ...newTechData, id: Date.now() }; setTechnicians(p => [...p, newTech]); };
-    const handleUpdateTechnician = (updatedTech) => { setTechnicians(technicians.map(t => t.id === updatedTech.id ? updatedTech : t)); };
+    const handleUpdateCustomer = (updatedCustomer) => { 
+        setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); 
+    };
+    
+    const handleAddLocationToCustomer = (customerId, newLocation) => { 
+        setCustomers(customers.map(c => c.id === customerId ? { ...c, locations: [...c.locations, newLocation] } : c)); 
+    };
+    
+    const handleAddTechnician = (newTechData) => { 
+        const newTech = { ...newTechData, id: Date.now() }; 
+        setTechnicians(p => [...p, newTech]); 
+    };
+    
+    const handleUpdateTechnician = (updatedTech) => { 
+        setTechnicians(technicians.map(t => t.id === updatedTech.id ? updatedTech : t)); 
+    };
+    
     const handleDeleteTechnician = (techId) => {
         const techToDelete = technicians.find(t => t.id === techId);
         if (techToDelete) {
@@ -1712,13 +2256,57 @@ const WorkOrderManagement = () => {
     };
 
     return (
-        <div className="bg-gray-50 min-h-screen font-sans">
-            <Header currentView={currentView} setCurrentView={setCurrentView} onAddOrderClick={() => setIsAddingOrder(true)} />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Work Order Management</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setCurrentView('dashboard')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Dashboard
+                        </button>
+                        <button onClick={() => setCurrentView('dispatch')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'dispatch' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Dispatch
+                        </button>
+                        <button onClick={() => setCurrentView('route')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'route' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Route
+                        </button>
+                        <button onClick={() => setCurrentView('customers')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'customers' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Customers
+                        </button>
+                        <button onClick={() => setCurrentView('technicians')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'technicians' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Technicians
+                        </button>
+                        <button onClick={() => setCurrentView('billing')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'billing' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Billing
+                        </button>
+                        <button onClick={() => setCurrentView('reporting')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'reporting' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Reports
+                        </button>
+                        <button onClick={() => setIsAddingOrder(true)} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                            <PlusCircle size={20} /> Add Work Order
+                        </button>
+                    </div>
+                </div>
                 {renderContent()}
-            </main>
-            {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handleUpdateOrder} onAddNote={handleAddNote} technicians={technicians} />}
-            {isAddingOrder && <AddWorkOrderModal customers={customers} onAddOrder={handleAddNewOrder} onClose={() => setIsAddingOrder(false)} />}
+            </div>
+            
+            {/* Modals */}
+            {selectedOrder && (
+                <WorkOrderDetailModal 
+                    order={selectedOrder} 
+                    onClose={() => setSelectedOrder(null)} 
+                    onUpdate={handleUpdateOrder} 
+                    onAddNote={handleAddNote} 
+                    technicians={technicians} 
+                />
+            )}
+            {isAddingOrder && (
+                <AddWorkOrderModal 
+                    customers={customers} 
+                    onAddOrder={handleAddNewOrder} 
+                    onClose={() => setIsAddingOrder(false)} 
+                />
+            )}
         </div>
     );
 };
