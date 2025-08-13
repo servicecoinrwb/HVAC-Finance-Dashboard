@@ -562,8 +562,25 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     const [newLocationNum, setNewLocationNum] = useState('');
     const [newLocationCity, setNewLocationCity] = useState('');
     const [newLocationState, setNewLocationState] = useState('MI');
+    
+    // NEW: Force refresh state
+    const [refreshKey, setRefreshKey] = useState(0);
 
-    const selectedClient = useMemo(() => customers.find(c => c.id === clientId), [clientId, customers]);
+    const selectedClient = useMemo(() => {
+        const client = customers.find(c => c.id === clientId);
+        console.log('Selected client:', client); // Debug logging
+        console.log('Available customers:', customers); // Debug logging
+        return client;
+    }, [clientId, customers, refreshKey]);
+    
+    // NEW: Auto-select the most recently added customer if none selected
+    useEffect(() => {
+        if (!clientId && customers.length > 0) {
+            const mostRecentCustomer = customers[customers.length - 1];
+            console.log('Auto-selecting most recent customer:', mostRecentCustomer);
+            setClientId(mostRecentCustomer.id);
+        }
+    }, [customers, clientId]);
     
     useEffect(() => {
         if (selectedClient?.locations?.length > 0) {
@@ -571,7 +588,7 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
             setNeedsLocation(false);
         } else {
-            // NEW: If no locations exist, show location creation form
+            // If no locations exist, show location creation form
             setLocationIdentifier('');
             setNeedsLocation(true);
             // Auto-populate with default values
@@ -585,14 +602,29 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     const handleLocationChange = (identifier) => {
         setLocationIdentifier(identifier);
     };
+    
+    // NEW: Refresh function
+    const handleRefreshCustomers = () => {
+        console.log('Refreshing customer list...');
+        setRefreshKey(prev => prev + 1);
+        alert(`Refreshed customer list. Found ${customers.length} customers.`);
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         
+        console.log('Form submission:', {
+            clientId,
+            selectedClient,
+            needsLocation,
+            task,
+            customers: customers.length
+        }); // Debug logging
+        
         let location;
         
         if (needsLocation) {
-            // NEW: Create location object from form inputs
+            // Create location object from form inputs
             if (!newLocationName.trim() || !newLocationCity.trim()) {
                 alert('Please fill out the location name and city.');
                 return;
@@ -609,12 +641,18 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             location = selectedClient.locations.find(l => l.name === company && l.locNum === locNum);
         }
         
-        if (!clientId || !location || !task) { 
-            alert('Please fill out all required fields.'); 
+        if (!clientId || !selectedClient || !location || !task) { 
+            console.error('Validation failed:', {
+                clientId: !!clientId,
+                selectedClient: !!selectedClient,
+                location: !!location,
+                task: !!task
+            });
+            alert('Please fill out all required fields. Make sure you have selected a customer.'); 
             return; 
         }
         
-        // NEW: Pass the location data that will be saved
+        // Pass the location data that will be saved
         const orderData = { 
             Client: selectedClient.name, 
             Company: location.name, 
@@ -629,10 +667,11 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             startTime, 
             endTime, 
             clientWO,
-            // NEW: Include flag if this creates a new location
+            // Include flag if this creates a new location
             _newLocation: needsLocation ? location : null
         };
         
+        console.log('Submitting order data:', orderData); // Debug logging
         onAddOrder(orderData);
     };
 
@@ -646,14 +685,40 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                     </button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-4">
+                    {/* NEW: Customer selection with refresh button */}
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client</label>
-                        <select value={clientId} onChange={(e) => setClientId(parseInt(e.target.value))} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
-                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Client</label>
+                            <button 
+                                type="button" 
+                                onClick={handleRefreshCustomers}
+                                className="text-xs bg-gray-100 dark:bg-slate-600 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-slate-500"
+                            >
+                                🔄 Refresh ({customers.length} customers)
+                            </button>
+                        </div>
+                        <select 
+                            value={clientId} 
+                            onChange={(e) => {
+                                const newClientId = parseInt(e.target.value);
+                                console.log('Client changed to:', newClientId);
+                                setClientId(newClientId);
+                            }} 
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="">Select a customer...</option>
+                            {customers.map(c => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name} ({c.type}) - {c.locations?.length || 0} locations
+                                </option>
+                            ))}
                         </select>
+                        {customers.length === 0 && (
+                            <p className="text-red-500 text-sm mt-1">No customers found. Please add a customer first.</p>
+                        )}
                     </div>
                     
-                    {/* NEW: Conditional location selection or creation */}
+                    {/* Conditional location selection or creation */}
                     {selectedClient && (
                         <div>
                             {needsLocation ? (
@@ -717,7 +782,7 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                         </div>
                     )}
                     
-                    
+                    {/* Rest of the form remains the same */}
                     <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client WO#</label>
                         <input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
