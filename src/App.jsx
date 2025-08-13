@@ -12,6 +12,7 @@ import CalendarSection from './components/CalendarSection';
 import { StatCard } from './components/StatCard';
 import { ItemFormModal } from './components/ItemFormModal';
 import { InvoiceManagement } from './components/InvoiceManagement';
+import WorkOrderManagement from './components/workordermanagement';
 import { ClientManagement } from './components/ClientManagement';
 import VehicleManagement from './components/VehicleManagement';
 import ValuationCalculator from './components/ValuationCalculator';
@@ -349,7 +350,7 @@ const App = () => {
         handleEnhancedExportCSV(templateData, 'appsheet_template', ['Job Name', 'Revenue', 'Material Cost', 'Labor Cost', 'Date', 'Customer', 'Notes']);
     };
 
-    useEffect(() => {
+   useEffect(() => {
         document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
@@ -722,6 +723,7 @@ const App = () => {
                     <button onClick={() => setActiveSection('invoices')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'invoices' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Invoices</button>
                     <button onClick={() => setActiveSection('jobs')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'jobs' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Jobs</button>
                     <button onClick={() => setActiveSection('recurring')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'recurring' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Recurring</button>
+                    <button onClick={() => setActiveSection('workorder')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'workorder' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Workorder</button>
                     <button onClick={() => setActiveSection('clients')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'clients' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Clients</button>
                     <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
                     <button onClick={() => setActiveSection('inventory')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'inventory' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Inventory</button>
@@ -749,6 +751,7 @@ const App = () => {
                     {activeSection === 'clients' && <ClientManagement clients={clients} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleImportCSV={handleEnhancedCSVImport} handleExportCSV={handleEnhancedExportCSV} handleBulkUpdate={(updates) => handleBulkUpdate('client', updates)} />}
                     {activeSection === 'jobs' && <JobsSection jobs={jobs} clients={clients} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
                     {activeSection === 'recurring' && <RecurringWorkSection recurringWork={sortedData} openModal={openModal} handleDelete={handleDelete} handleEnhancedExportCSV={handleEnhancedExportCSV} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                    {activeSection === 'workorder' && <WorkOrderManagement />} 
                     {activeSection === 'vehicles' && <VehicleManagement vehicles={vehicles} maintenanceLogs={maintenanceLogs} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                     {activeSection === 'inventory' && <InventoryManagement inventory={inventory} openModal={openModal} handleDelete={handleDelete} handleBulkDelete={handleBulkDelete} selectedIds={selectedIds} setSelectedIds={setSelectedIds} searchTerm={searchTerm} setSearchTerm={setSearchTerm} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
                     {activeSection === 'debts' && <DebtManagement debts={debts} openModal={openModal} handleDelete={handleDelete} searchTerm={searchTerm} setSearchTerm={setSearchTerm} debtPayoffStrategies={debtPayoffStrategies} handleEnhancedExportCSV={handleEnhancedExportCSV} />}
