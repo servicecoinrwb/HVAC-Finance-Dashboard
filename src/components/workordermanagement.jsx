@@ -564,6 +564,11 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
     const jobsForRange = useMemo(() => {
         let startDate = new Date();
         let endDate = new Date();
+    
+    const { isLoaded } = useJsApiLoader({
+            id: 'google-map-script',
+            googleMapsApiKey: "AIzaSyCljshlbFqLxy3p7uK2CAIYS9l284OWh_8" // Replace with your real API key
+            });    
         
         switch(viewType) {
             case 'today':
