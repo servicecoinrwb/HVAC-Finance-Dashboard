@@ -875,6 +875,8 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
     const [activeTab, setActiveTab] = useState('invoices');
     const [showCreateInvoice, setShowCreateInvoice] = useState(false);
     const [showCreateQuote, setShowCreateQuote] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importType, setImportType] = useState('invoices');
     
     // Calculate summary statistics
     const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
