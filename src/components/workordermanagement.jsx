@@ -567,11 +567,17 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     const [refreshKey, setRefreshKey] = useState(0);
 
     const selectedClient = useMemo(() => {
-        const client = customers.find(c => c.id === clientId);
-        console.log('Selected client:', client); // Debug logging
-        console.log('Available customers:', customers); // Debug logging
+        console.log('Looking for customer with ID:', clientId, typeof clientId);
+        console.log('Available customers:', customers.map(c => ({ id: c.id, name: c.name, idType: typeof c.id })));
+    
+    const client = customers.find(c => {
+        console.log('Comparing:', c.id, 'with', clientId, '===', c.id === clientId);
+        return c.id === clientId;
+        });
+    
+    console.log('Selected client result:', client);
         return client;
-    }, [clientId, customers, refreshKey]);
+        }, [clientId, customers]);
     
     // NEW: Auto-select the most recently added customer if none selected
     useEffect(() => {
@@ -2386,13 +2392,37 @@ const WorkOrderManagement = () => {
 };
     
     const handleAddCustomer = (customerData) => {
-        if (Array.isArray(customerData)) {
-            setCustomers(prev => [...prev, ...customerData]);
-        } else {
-            const newCustomer = { ...customerData, id: Date.now() + Math.random() };
-            setCustomers(prev => [...prev, newCustomer]);
-        }
-    };
+    console.log('Adding customer:', customerData);
+    
+    if (Array.isArray(customerData)) {
+        const processedData = customerData.map(customer => ({
+            ...customer,
+            id: Math.floor(Date.now() + Math.random() * 1000),
+            locations: customer.locations || []
+        }));
+        
+        setCustomers(prev => {
+            const updated = [...prev, ...processedData];
+            console.log('Updated customers (array):', updated);
+            return updated;
+        });
+    } else {
+        const newCustomer = { 
+            ...customerData, 
+            id: Math.floor(Date.now() + Math.random() * 1000),
+            locations: customerData.locations || []
+        };
+        
+        setCustomers(prev => {
+            const updated = [...prev, newCustomer];
+            console.log('Updated customers (single):', updated);
+            console.log('New customer with ID:', newCustomer);
+            return updated;
+        });
+        
+        alert(`Customer "${newCustomer.name}" has been successfully added with ID ${newCustomer.id}!`);
+    }
+};
 
     const handleUpdateCustomer = (updatedCustomer) => { 
         setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); 
