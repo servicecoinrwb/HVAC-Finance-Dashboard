@@ -53,11 +53,494 @@ const getTechStatusStyles = (s) => ({'available': 'bg-green-100 text-green-800',
 
 // --- PDF Generation Functions ---
 const generateInvoicePDF = (invoice, workOrder = null) => {
-    // ... (your PDF generation code here)
+    if (!window.jspdf) {
+        alert('PDF library is still loading. Please try again in a moment.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+
+    // Company Header
+    doc.setFontSize(24);
+    doc.setFont(undefined, 'bold');
+    doc.text('MECHANICAL TEMP', 20, 30);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text('23093 Telegraph Rd', 20, 40);
+    doc.text('Southfield, MI 48033', 20, 47);
+    doc.text('Phone: (313) 282-4758', 20, 54);
+    doc.text('Email: office@mechanicaltemp.com', 20, 61);
+    doc.text('Web: www.mechanicaltemp.com', 20, 68);
+
+    // Invoice Title
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('INVOICE', 200, 30, { align: 'right' });
+    
+    // Invoice Info
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Invoice #: ${invoice.id}`, 200, 45, { align: 'right' });
+    doc.text(`Date: ${new Date(invoice.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
+    if (invoice.dueDate) {
+        doc.text(`Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`, 200, 59, { align: 'right' });
+    }
+
+    y = 90;
+
+    // Customer Information
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Bill To:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    doc.text(invoice.customerName, 20, y);
+
+    // Work Order Information (if available)
+    if (workOrder) {
+        y += 15;
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Service Details:', 20, y);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(12);
+        y += 10;
+        doc.text(`Work Order: ${workOrder['WO#']}`, 20, y);
+        y += 7;
+        doc.text(`Location: ${workOrder.Company} - ${workOrder.City}, ${workOrder.State}`, 20, y);
+        y += 7;
+        doc.text(`Service: ${workOrder.Task}`, 20, y);
+        if (workOrder['Schedule Date']) {
+            y += 7;
+            doc.text(`Service Date: ${excelDateToJSDateString(workOrder['Schedule Date'])}`, 20, y);
+        }
+    }
+
+    y += 20;
+
+    // Invoice Details Table
+    if (window.jspdf && doc.autoTable) {
+        const tableData = [
+            ['Description', 'Amount'],
+            [invoice.description || 'Service Rendered', `$${invoice.amount.toFixed(2)}`]
+        ];
+
+        doc.autoTable({
+            startY: y,
+            head: [tableData[0]],
+            body: [tableData[1]],
+            theme: 'striped',
+            styles: { fontSize: 12 },
+            headStyles: { fillColor: [41, 128, 185] },
+            margin: { left: 20, right: 20 }
+        });
+
+        y = doc.lastAutoTable.finalY + 20;
+    } else {
+        // Fallback without autoTable
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Description', 20, y);
+        doc.text('Amount', 150, y);
+        y += 7;
+        doc.setFont(undefined, 'normal');
+        doc.text(invoice.description || 'Service Rendered', 20, y);
+        doc.text(`$${invoice.amount.toFixed(2)}`, 150, y);
+        y += 20;
+    }
+
+    // Total
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Total Amount Due:', 120, y);
+    doc.text(`$${invoice.amount.toFixed(2)}`, 200, y, { align: 'right' });
+
+    // Footer
+    y += 30;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Thank you for choosing Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
+    doc.text('Payment is due within 30 days of invoice date.', 105, y + 7, { align: 'center' });
+
+    // Save the PDF
+    doc.save(`Invoice-${invoice.id}.pdf`);
 };
 
 const generateQuotePDF = (quote) => {
-    // ... (your PDF generation code here)
+    if (!window.jspdf) {
+        alert('PDF library is still loading. Please try again in a moment.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+
+    // Company Header
+    doc.setFontSize(24);
+    doc.setFont(undefined, 'bold');
+    doc.text('MECHANICAL TEMP', 20, 30);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text('23093 Telegraph Rd', 20, 40);
+    doc.text('Southfield, MI 48033', 20, 47);
+    doc.text('Phone: (313) 282-4758', 20, 54);
+    doc.text('Email: office@mechanicaltemp.com', 20, 61);
+    doc.text('Web: www.mechanicaltemp.com', 20, 68);
+
+    // Quote Title
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('QUOTE', 200, 30, { align: 'right' });
+    
+    // Quote Info
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Quote #: ${quote.id}`, 200, 45, { align: 'right' });
+    doc.text(`Date: ${new Date(quote.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
+    if (quote.validUntil) {
+        doc.text(`Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}`, 200, 59, { align: 'right' });
+    }
+
+    y = 90;
+
+    // Customer Information
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Quote For:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    doc.text(quote.customerName, 20, y);
+
+    y += 20;
+
+    // Quote Details
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Work Description:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    
+    // Split long descriptions into multiple lines
+    const splitText = doc.splitTextToSize(quote.description, 170);
+    splitText.forEach(line => {
+        doc.text(line, 20, y);
+        y += 7;
+    });
+
+    y += 15;
+
+    // Quote Table
+    if (window.jspdf && doc.autoTable) {
+        const tableData = [
+            ['Description', 'Amount'],
+            [quote.description, `$${quote.amount.toFixed(2)}`]
+        ];
+
+        doc.autoTable({
+            startY: y,
+            head: [tableData[0]],
+            body: [tableData[1]],
+            theme: 'striped',
+            styles: { fontSize: 12 },
+            headStyles: { fillColor: [46, 125, 50] },
+            margin: { left: 20, right: 20 }
+        });
+
+        y = doc.lastAutoTable.finalY + 20;
+    } else {
+        // Fallback without autoTable
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Service Description', 20, y);
+        doc.text('Quoted Amount', 150, y);
+        y += 7;
+        doc.setFont(undefined, 'normal');
+        doc.text(quote.description, 20, y);
+        doc.text(`$${quote.amount.toFixed(2)}`, 150, y);
+        y += 20;
+    }
+
+    // Total
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Total Quote Amount:', 120, y);
+    doc.text(`$${quote.amount.toFixed(2)}`, 200, y, { align: 'right' });
+
+    // Terms and Conditions
+    y += 25;
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Terms & Conditions:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    y += 10;
+    
+    const terms = [
+        '• Quote is valid for 30 days from date issued',
+        '• Final pricing may vary based on actual conditions found',
+        '• Work includes all labor and materials as specified',
+        '• Payment is due upon completion of work',
+        '• All work performed comes with a 1-year warranty on parts and labor'
+    ];
+
+    terms.forEach(term => {
+        doc.text(term, 20, y);
+        y += 7;
+    });
+
+    // Notes (if any)
+    if (quote.notes && quote.notes.trim()) {
+        y += 10;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Additional Notes:', 20, y);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        y += 7;
+        const notesText = doc.splitTextToSize(quote.notes, 170);
+        notesText.forEach(line => {
+            doc.text(line, 20, y);
+            y += 7;
+        });
+    }
+
+    // Footer
+    y += 15;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Thank you for considering Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
+    doc.text('Call us at (313) 282-4758 to schedule your service.', 105, y + 7, { align: 'center' });
+
+    // Save the PDF
+    doc.save(`Quote-${quote.id}.pdf`);
+};
+
+// 2. ADD EDIT MODAL COMPONENTS (add these after your existing modals)
+
+const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
+    const [formData, setFormData] = useState(invoice);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onUpdateInvoice(formData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice #</label>
+                        <input 
+                            type="text" 
+                            name="id"
+                            value={formData.id} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            disabled
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                        <input 
+                            type="text" 
+                            name="customerName"
+                            value={formData.customerName} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            name="amount"
+                            value={formData.amount} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                        <select 
+                            name="status"
+                            value={formData.status} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="Draft">Draft</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
+                        <textarea 
+                            name="description"
+                            value={formData.description || ''} 
+                            onChange={handleChange}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="Invoice description..."
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
+    const [formData, setFormData] = useState(quote);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onUpdateQuote(formData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote #</label>
+                        <input 
+                            type="text" 
+                            name="id"
+                            value={formData.id} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            disabled
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                        <input 
+                            type="text" 
+                            name="customerName"
+                            value={formData.customerName} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            name="amount"
+                            value={formData.amount} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                        <select 
+                            name="status"
+                            value={formData.status} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="Draft">Draft</option>
+                            <option value="Sent">Sent</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Accepted">Accepted</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
+                        <textarea 
+                            name="description"
+                            value={formData.description} 
+                            onChange={handleChange}
+                            rows="4"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="Quote description..."
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Notes</label>
+                        <textarea 
+                            name="notes"
+                            value={formData.notes || ''} 
+                            onChange={handleChange}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="Additional notes..."
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 // --- Modal Components (Defined First) ---
@@ -72,22 +555,17 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
     const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
 
+    const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
+    const [formData, setFormData] = useState(invoice);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!amount || (!selectedWorkOrder && !customCustomer)) return;
-
-        const invoiceData = {
-            id: `INV-${Date.now()}`,
-            workOrderId: selectedWorkOrder || null,
-            customerName: useCustomCustomer ? customCustomer : selectedOrder?.Client || '',
-            date: new Date().toISOString(),
-            amount: parseFloat(amount),
-            status: 'Draft',
-            description: description || selectedOrder?.Task || '',
-            dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        };
-
-        onAddInvoice(invoiceData);
+        onUpdateInvoice(formData);
         onClose();
     };
 
@@ -95,111 +573,74 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create Invoice</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice</h2>
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto space-y-4">
-                    <div className="flex items-center gap-4">
-                        <label className="flex items-center">
-                            <input 
-                                type="radio" 
-                                checked={!useCustomCustomer} 
-                                onChange={() => setUseCustomCustomer(false)}
-                                className="mr-2" 
-                            />
-                            <span className="text-gray-700 dark:text-gray-300">From Work Order</span>
-                        </label>
-                        <label className="flex items-center">
-                            <input 
-                                type="radio" 
-                                checked={useCustomCustomer} 
-                                onChange={() => setUseCustomCustomer(true)}
-                                className="mr-2" 
-                            />
-                            <span className="text-gray-700 dark:text-gray-300">Custom Invoice</span>
-                        </label>
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice #</label>
+                        <input 
+                            type="text" 
+                            name="id"
+                            value={formData.id} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            disabled
+                        />
                     </div>
 
-                    {!useCustomCustomer ? (
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Completed Work Order</label>
-                            <select 
-                                value={selectedWorkOrder} 
-                                onChange={(e) => {
-                                    setSelectedWorkOrder(e.target.value);
-                                    const order = completedOrders.find(wo => wo.id === e.target.value);
-                                    if (order) {
-                                        setAmount(order.NTE || '');
-                                        setDescription(order.Task || '');
-                                    }
-                                }}
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                required
-                            >
-                                <option value="">Select a work order...</option>
-                                {completedOrders.map(wo => (
-                                    <option key={wo.id} value={wo.id}>
-                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
-                                    </option>
-                                ))}
-                            </select>
-                            {selectedOrder && (
-                                <div className="mt-2 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg text-sm">
-                                    <p className="text-gray-700 dark:text-gray-300"><strong>Customer:</strong> {selectedOrder.Client}</p>
-                                    <p className="text-gray-700 dark:text-gray-300"><strong>Location:</strong> {selectedOrder.Company}</p>
-                                    <p className="text-gray-700 dark:text-gray-300"><strong>Task:</strong> {selectedOrder.Task}</p>
-                                    <p className="text-gray-700 dark:text-gray-300"><strong>Amount:</strong> {formatCurrency(selectedOrder.NTE)}</p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                            <input 
-                                type="text" 
-                                value={customCustomer} 
-                                onChange={(e) => setCustomCustomer(e.target.value)}
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                placeholder="Enter customer name"
-                                required
-                            />
-                        </div>
-                    )}
-
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice Amount</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
                         <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
+                            type="text" 
+                            name="customerName"
+                            value={formData.customerName} 
+                            onChange={handleChange}
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="0.00"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="3"
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            name="amount"
+                            value={formData.amount} 
+                            onChange={handleChange}
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Invoice description..."
+                            required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Due Date</label>
-                        <input 
-                            type="date" 
-                            value={dueDate} 
-                            onChange={(e) => setDueDate(e.target.value)}
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                        <select 
+                            name="status"
+                            value={formData.status} 
+                            onChange={handleChange}
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="Draft">Draft</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
+                        <textarea 
+                            name="description"
+                            value={formData.description || ''} 
+                            onChange={handleChange}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="Invoice description..."
                         />
                     </div>
                 </div>
@@ -209,7 +650,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                         Cancel
                     </button>
                     <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Create Invoice
+                        Save Changes
                     </button>
                 </div>
             </form>
@@ -217,29 +658,17 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
     );
 };
 
-const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
-    const [customerName, setCustomerName] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [validUntil, setValidUntil] = useState('');
-    const [notes, setNotes] = useState('');
+const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
+    const [formData, setFormData] = useState(quote);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!customerName || !amount || !description) return;
-
-        const quoteData = {
-            id: `QT-${Date.now()}`,
-            customerName,
-            date: new Date().toISOString(),
-            amount: parseFloat(amount),
-            description,
-            status: 'Draft',
-            validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            notes
-        };
-
-        onAddQuote(quoteData);
+        onUpdateQuote(formData);
         onClose();
     };
 
@@ -247,7 +676,7 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create Quote</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote</h2>
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
@@ -255,75 +684,80 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
                 
                 <div className="p-6 overflow-y-auto space-y-4">
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer</label>
-                        <select 
-                            value={customerName} 
-                            onChange={(e) => setCustomerName(e.target.value)}
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote #</label>
+                        <input 
+                            type="text" 
+                            name="id"
+                            value={formData.id} 
+                            onChange={handleChange}
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        >
-                            <option value="">Select a customer...</option>
-                            {customers.map(customer => (
-                                <option key={customer.id} value={customer.name}>
-                                    {customer.name}
-                                </option>
-                            ))}
-                            <option value="custom">Other (Enter below)</option>
-                        </select>
-                        {customerName === 'custom' && (
-                            <input 
-                                type="text" 
-                                placeholder="Enter customer name"
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white mt-2"
-                                required
-                            />
-                        )}
+                            disabled
+                        />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote Amount</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                        <input 
+                            type="text" 
+                            name="customerName"
+                            value={formData.customerName} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
                         <input 
                             type="number" 
                             step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
+                            name="amount"
+                            value={formData.amount} 
+                            onChange={handleChange}
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="0.00"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description of Work</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                        <select 
+                            name="status"
+                            value={formData.status} 
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        >
+                            <option value="Draft">Draft</option>
+                            <option value="Sent">Sent</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Accepted">Accepted</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
                         <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
+                            name="description"
+                            value={formData.description} 
+                            onChange={handleChange}
                             rows="4"
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Describe the work to be performed..."
+                            placeholder="Quote description..."
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Valid Until</label>
-                        <input 
-                            type="date" 
-                            value={validUntil} 
-                            onChange={(e) => setValidUntil(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Additional Notes</label>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Notes</label>
                         <textarea 
-                            value={notes} 
-                            onChange={(e) => setNotes(e.target.value)}
+                            name="notes"
+                            value={formData.notes || ''} 
+                            onChange={handleChange}
                             rows="3"
                             className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Any additional notes or terms..."
+                            placeholder="Additional notes..."
                         />
                     </div>
                 </div>
@@ -333,96 +767,8 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
                         Cancel
                     </button>
                     <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Create Quote
+                        Save Changes
                     </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const AddCustomerModal = ({ onClose, onAddCustomer }) => {
-    const [name, setName] = useState('');
-    const [type, setType] = useState('Commercial');
-    const [contactName, setContactName] = useState('');
-    const [contactEmail, setContactEmail] = useState('');
-    const [contactPhone, setContactPhone] = useState('');
-    const [street, setStreet] = useState('');
-    const [city, setCity] = useState('');
-    const [state, setState] = useState('MI');
-    const [zip, setZip] = useState('');
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!name.trim()) { alert("Customer name cannot be empty."); return; }
-        onAddCustomer({ name, type, contact: { name: contactName, email: contactEmail, phone: contactPhone }, billingAddress: { street, city, state, zip }, locations: [] });
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Customer</h2>
-                </div>
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label>
-                            <select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
-                                <option>Commercial</option>
-                                <option>Residential</option>
-                                <option>National Account</option>
-                                <option>Maintenance</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
-                        <h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                            <div>
-                                <label className="text-xs text-gray-600 dark:text-gray-400">Name</label>
-                                <input value={contactName} onChange={e=>setContactName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-600 dark:text-gray-400">Email</label>
-                                <input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} type="email" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-600 dark:text-gray-400">Phone</label>
-                                <input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} type="tel" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
-                        <h3 className="font-semibold text-gray-800 dark:text-white">Billing Address</h3>
-                        <div className="mt-2">
-                            <label className="text-xs text-gray-600 dark:text-gray-400">Street</label>
-                            <input value={street} onChange={e=>setStreet(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                            <div>
-                                <label className="text-xs text-gray-600 dark:text-gray-400">City</label>
-                                <input value={city} onChange={e=>setCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-600 dark:text-gray-400">State</label>
-                                <input value={state} onChange={e=>setState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                            </div>
-                            <div>
-                                <label className="text-xs text-gray-600 dark:text-gray-400">Zip</label>
-                                <input value={zip} onChange={e=>setZip(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
-                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Customer</button>
                 </div>
             </form>
         </div>
@@ -2375,319 +2721,32 @@ const WorkOrderManagement = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isAddingOrder, setIsAddingOrder] = useState(false);
     const [currentView, setCurrentView] = useState('dashboard');
+    const [editingInvoice, setEditingInvoice] = useState(null);
+    const [editingQuote, setEditingQuote] = useState(null);
     
-    // 1. UPDATE YOUR useEffect TO LOAD PDF LIBRARIES (Replace existing PapaParse useEffect)
-useEffect(() => {
-    // Load PapaParse
-    if (!window.Papa) {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
-        script.async = true;
-        document.head.appendChild(script);
-    }
-    
-    // Load jsPDF for PDF generation
-    if (!window.jspdf) {
-        const pdfScript = document.createElement('script');
-        pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        pdfScript.async = true;
-        document.head.appendChild(pdfScript);
-        
-        const autoTableScript = document.createElement('script');
-        autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
-        autoTableScript.async = true;
-        document.head.appendChild(autoTableScript);
-    }
-}, []);
-
-// 2. COMPANY LOGO (Convert your logo to base64 and replace this)
-const COMPANY_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="; // Replace with your actual logo
-
-// 3. COMPLETE PDF GENERATION FUNCTIONS (Replace your empty placeholders)
-const generateInvoicePDF = (invoice, workOrder = null) => {
-    if (!window.jspdf) {
-        alert('PDF library is still loading. Please try again in a moment.');
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    let y = 20;
-
-    // Company Header
-    try {
-        // Add logo (replace COMPANY_LOGO with your actual base64 logo)
-        // doc.addImage(COMPANY_LOGO, 'PNG', 20, 15, 40, 25);
-        
-        // Use text header for now
-        doc.setFontSize(24);
-        doc.setFont(undefined, 'bold');
-        doc.text('MECHANICAL TEMP', 20, 30);
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
-        doc.text('23093 Telegraph Rd', 20, 40);
-        doc.text('Southfield, MI 48033', 20, 47);
-        doc.text('Phone: (313) 282-4758', 20, 54);
-        doc.text('Email: office@mechanicaltemp.com', 20, 61);
-        doc.text('Web: www.mechanicaltemp.com', 20, 68);
-    } catch (error) {
-        console.error('Error adding logo:', error);
-    }
-
-    // Invoice Title
-    doc.setFontSize(20);
-    doc.setFont(undefined, 'bold');
-    doc.text('INVOICE', 200, 30, { align: 'right' });
-    
-    // Invoice Info
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Invoice #: ${invoice.id}`, 200, 45, { align: 'right' });
-    doc.text(`Date: ${new Date(invoice.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
-    if (invoice.dueDate) {
-        doc.text(`Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`, 200, 59, { align: 'right' });
-    }
-
-    y = 90;
-
-    // Customer Information
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Bill To:', 20, y);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(12);
-    y += 10;
-    doc.text(invoice.customerName, 20, y);
-
-    // Work Order Information (if available)
-    if (workOrder) {
-        y += 15;
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Service Details:', 20, y);
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(12);
-        y += 10;
-        doc.text(`Work Order: ${workOrder['WO#']}`, 20, y);
-        y += 7;
-        doc.text(`Location: ${workOrder.Company} - ${workOrder.City}, ${workOrder.State}`, 20, y);
-        y += 7;
-        doc.text(`Service: ${workOrder.Task}`, 20, y);
-        if (workOrder['Schedule Date']) {
-            y += 7;
-            doc.text(`Service Date: ${excelDateToJSDateString(workOrder['Schedule Date'])}`, 20, y);
+    // Load PDF and CSV libraries
+    useEffect(() => {
+        // Load PapaParse
+        if (!window.Papa) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
+            script.async = true;
+            document.head.appendChild(script);
         }
-    }
-
-    y += 20;
-
-    // Invoice Details Table
-    if (window.jspdf && doc.autoTable) {
-        const tableData = [
-            ['Description', 'Amount'],
-            [invoice.description || 'Service Rendered', `$${invoice.amount.toFixed(2)}`]
-        ];
-
-        doc.autoTable({
-            startY: y,
-            head: [tableData[0]],
-            body: [tableData[1]],
-            theme: 'striped',
-            styles: { fontSize: 12 },
-            headStyles: { fillColor: [41, 128, 185] },
-            margin: { left: 20, right: 20 }
-        });
-
-        y = doc.lastAutoTable.finalY + 20;
-    } else {
-        // Fallback without autoTable
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('Description', 20, y);
-        doc.text('Amount', 150, y);
-        y += 7;
-        doc.setFont(undefined, 'normal');
-        doc.text(invoice.description || 'Service Rendered', 20, y);
-        doc.text(`$${invoice.amount.toFixed(2)}`, 150, y);
-        y += 20;
-    }
-
-    // Total
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Total Amount Due:', 120, y);
-    doc.text(`$${invoice.amount.toFixed(2)}`, 200, y, { align: 'right' });
-
-    // Footer
-    y += 30;
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text('Thank you for choosing Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
-    doc.text('Payment is due within 30 days of invoice date.', 105, y + 7, { align: 'center' });
-
-    // Save the PDF
-    doc.save(`Invoice-${invoice.id}.pdf`);
-};
-
-const generateQuotePDF = (quote) => {
-    if (!window.jspdf) {
-        alert('PDF library is still loading. Please try again in a moment.');
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    let y = 20;
-
-    // Company Header
-    try {
-        // Add logo (replace COMPANY_LOGO with your actual base64 logo)
-        // doc.addImage(COMPANY_LOGO, 'PNG', 20, 15, 40, 25);
         
-        // Use text header for now
-        doc.setFontSize(24);
-        doc.setFont(undefined, 'bold');
-        doc.text('MECHANICAL TEMP', 20, 30);
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'normal');
-        doc.text('23093 Telegraph Rd', 20, 40);
-        doc.text('Southfield, MI 48033', 20, 47);
-        doc.text('Phone: (313) 282-4758', 20, 54);
-        doc.text('Email: office@mechanicaltemp.com', 20, 61);
-        doc.text('Web: www.mechanicaltemp.com', 20, 68);
-    } catch (error) {
-        console.error('Error adding logo:', error);
-    }
-
-    // Quote Title
-    doc.setFontSize(20);
-    doc.setFont(undefined, 'bold');
-    doc.text('QUOTE', 200, 30, { align: 'right' });
-    
-    // Quote Info
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Quote #: ${quote.id}`, 200, 45, { align: 'right' });
-    doc.text(`Date: ${new Date(quote.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
-    if (quote.validUntil) {
-        doc.text(`Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}`, 200, 59, { align: 'right' });
-    }
-
-    y = 90;
-
-    // Customer Information
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Quote For:', 20, y);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(12);
-    y += 10;
-    doc.text(quote.customerName, 20, y);
-
-    y += 20;
-
-    // Quote Details
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Work Description:', 20, y);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(12);
-    y += 10;
-    
-    // Split long descriptions into multiple lines
-    const splitText = doc.splitTextToSize(quote.description, 170);
-    splitText.forEach(line => {
-        doc.text(line, 20, y);
-        y += 7;
-    });
-
-    y += 15;
-
-    // Quote Table
-    if (window.jspdf && doc.autoTable) {
-        const tableData = [
-            ['Description', 'Amount'],
-            [quote.description, `$${quote.amount.toFixed(2)}`]
-        ];
-
-        doc.autoTable({
-            startY: y,
-            head: [tableData[0]],
-            body: [tableData[1]],
-            theme: 'striped',
-            styles: { fontSize: 12 },
-            headStyles: { fillColor: [46, 125, 50] },
-            margin: { left: 20, right: 20 }
-        });
-
-        y = doc.lastAutoTable.finalY + 20;
-    } else {
-        // Fallback without autoTable
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('Service Description', 20, y);
-        doc.text('Quoted Amount', 150, y);
-        y += 7;
-        doc.setFont(undefined, 'normal');
-        doc.text(quote.description, 20, y);
-        doc.text(`$${quote.amount.toFixed(2)}`, 150, y);
-        y += 20;
-    }
-
-    // Total
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Total Quote Amount:', 120, y);
-    doc.text(`$${quote.amount.toFixed(2)}`, 200, y, { align: 'right' });
-
-    // Terms and Conditions
-    y += 25;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text('Terms & Conditions:', 20, y);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(10);
-    y += 10;
-    
-    const terms = [
-        '• Quote is valid for 30 days from date issued',
-        '• Final pricing may vary based on actual conditions found',
-        '• Work includes all labor and materials as specified',
-        '• Payment is due upon completion of work',
-        '• All work performed comes with a 1-year warranty on parts and labor'
-    ];
-
-    terms.forEach(term => {
-        doc.text(term, 20, y);
-        y += 7;
-    });
-
-    // Notes (if any)
-    if (quote.notes && quote.notes.trim()) {
-        y += 10;
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('Additional Notes:', 20, y);
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(10);
-        y += 7;
-        const notesText = doc.splitTextToSize(quote.notes, 170);
-        notesText.forEach(line => {
-            doc.text(line, 20, y);
-            y += 7;
-        });
-    }
-
-    // Footer
-    y += 15;
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text('Thank you for considering Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
-    doc.text('Call us at (313) 282-4758 to schedule your service.', 105, y + 7, { align: 'center' });
-
-    // Save the PDF
-    doc.save(`Quote-${quote.id}.pdf`);
-};
+        // Load jsPDF for PDF generation
+        if (!window.jspdf) {
+            const pdfScript = document.createElement('script');
+            pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            pdfScript.async = true;
+            document.head.appendChild(pdfScript);
+            
+            const autoTableScript = document.createElement('script');
+            autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+            autoTableScript.async = true;
+            document.head.appendChild(autoTableScript);
+        }
+    }, []);
     
     // Save data to localStorage whenever it changes
     useEffect(() => {
@@ -2727,72 +2786,72 @@ const generateQuotePDF = (quote) => {
     };
     
     const handleAddNewOrder = (newOrderData) => { 
-    const newId = `WO-${Date.now()}`; 
-    
-    // Handle new location creation if needed
-    if (newOrderData._newLocation) {
-        const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
-        if (customerToUpdate) {
-            // Add the new location to the customer
-            const updatedCustomer = {
-                ...customerToUpdate,
-                locations: [...customerToUpdate.locations, newOrderData._newLocation]
-            };
-            setCustomers(prevCustomers => 
-                prevCustomers.map(c => c.id === customerToUpdate.id ? updatedCustomer : c)
-            );
+        const newId = `WO-${Date.now()}`; 
+        
+        // Handle new location creation if needed
+        if (newOrderData._newLocation) {
+            const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
+            if (customerToUpdate) {
+                // Add the new location to the customer
+                const updatedCustomer = {
+                    ...customerToUpdate,
+                    locations: [...customerToUpdate.locations, newOrderData._newLocation]
+                };
+                setCustomers(prevCustomers => 
+                    prevCustomers.map(c => c.id === customerToUpdate.id ? updatedCustomer : c)
+                );
+            }
         }
-    }
-    
-    // Create the work order (remove the _newLocation field)
-    const { _newLocation, ...orderData } = newOrderData;
-    
-    const newOrder = { 
-        ...orderData, 
-        "WO#": newId, 
-        id: newId, 
-        "Created Date": jsDateToExcel(new Date()), 
-        "Order Status": orderData['Schedule Date'] ? 'Scheduled' : 'Open', 
-        notes: [], 
-        technician: [] 
-    }; 
-    
-    setWorkOrders(p => [newOrder, ...p]); 
-    setIsAddingOrder(false); 
-};
+        
+        // Create the work order (remove the _newLocation field)
+        const { _newLocation, ...orderData } = newOrderData;
+        
+        const newOrder = { 
+            ...orderData, 
+            "WO#": newId, 
+            id: newId, 
+            "Created Date": jsDateToExcel(new Date()), 
+            "Order Status": orderData['Schedule Date'] ? 'Scheduled' : 'Open', 
+            notes: [], 
+            technician: [] 
+        }; 
+        
+        setWorkOrders(p => [newOrder, ...p]); 
+        setIsAddingOrder(false); 
+    };
     
     const handleAddCustomer = (customerData) => {
-    console.log('Adding customer:', customerData);
-    
-    if (Array.isArray(customerData)) {
-        const processedData = customerData.map(customer => ({
-            ...customer,
-            id: Math.floor(Date.now() + Math.random() * 1000),
-            locations: customer.locations || []
-        }));
+        console.log('Adding customer:', customerData);
         
-        setCustomers(prev => {
-            const updated = [...prev, ...processedData];
-            console.log('Updated customers (array):', updated);
-            return updated;
-        });
-    } else {
-        const newCustomer = { 
-            ...customerData, 
-            id: Math.floor(Date.now() + Math.random() * 1000),
-            locations: customerData.locations || []
-        };
-        
-        setCustomers(prev => {
-            const updated = [...prev, newCustomer];
-            console.log('Updated customers (single):', updated);
-            console.log('New customer with ID:', newCustomer);
-            return updated;
-        });
-        
-        alert(`Customer "${newCustomer.name}" has been successfully added with ID ${newCustomer.id}!`);
-    }
-};
+        if (Array.isArray(customerData)) {
+            const processedData = customerData.map(customer => ({
+                ...customer,
+                id: Math.floor(Date.now() + Math.random() * 1000),
+                locations: customer.locations || []
+            }));
+            
+            setCustomers(prev => {
+                const updated = [...prev, ...processedData];
+                console.log('Updated customers (array):', updated);
+                return updated;
+            });
+        } else {
+            const newCustomer = { 
+                ...customerData, 
+                id: Math.floor(Date.now() + Math.random() * 1000),
+                locations: customerData.locations || []
+            };
+            
+            setCustomers(prev => {
+                const updated = [...prev, newCustomer];
+                console.log('Updated customers (single):', updated);
+                console.log('New customer with ID:', newCustomer);
+                return updated;
+            });
+            
+            alert(`Customer "${newCustomer.name}" has been successfully added with ID ${newCustomer.id}!`);
+        }
+    };
 
     const handleUpdateCustomer = (updatedCustomer) => { 
         setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); 
@@ -2835,6 +2894,14 @@ const generateQuotePDF = (quote) => {
         }
     };
 
+    const handleUpdateInvoice = (updatedInvoice) => {
+        setInvoices(invoices.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
+    };
+
+    const handleUpdateQuote = (updatedQuote) => {
+        setQuotes(quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
+    };
+
     const renderContent = () => {
         switch(currentView) {
             case 'customers':
@@ -2843,12 +2910,39 @@ const generateQuotePDF = (quote) => {
                 return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
             case 'technicians':
                 return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
-             case 'route':
+            case 'route':
                 return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
             case 'reporting':
                 return <ReportingView workOrders={workOrders} technicians={technicians} />;
             case 'billing':
-                return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handleAddInvoice} onAddQuote={handleAddQuote} />;
+                return (
+                    <>
+                        <BillingView 
+                            invoices={invoices} 
+                            quotes={quotes} 
+                            workOrders={workOrders} 
+                            customers={customers} 
+                            onAddInvoice={handleAddInvoice} 
+                            onAddQuote={handleAddQuote}
+                            onEditInvoice={setEditingInvoice}
+                            onEditQuote={setEditingQuote}
+                        />
+                        {editingInvoice && (
+                            <EditInvoiceModal 
+                                invoice={editingInvoice}
+                                onClose={() => setEditingInvoice(null)}
+                                onUpdateInvoice={handleUpdateInvoice}
+                            />
+                        )}
+                        {editingQuote && (
+                            <EditQuoteModal 
+                                quote={editingQuote}
+                                onClose={() => setEditingQuote(null)}
+                                onUpdateQuote={handleUpdateQuote}
+                            />
+                        )}
+                    </>
+                );
             case 'dashboard':
             default:
                 return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
@@ -2907,7 +3001,7 @@ const generateQuotePDF = (quote) => {
                     onClose={() => setIsAddingOrder(false)} 
                 />
             )}
-        </div>
+       </div>
     );
 };
 
