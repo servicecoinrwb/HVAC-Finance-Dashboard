@@ -321,19 +321,43 @@ const generateQuotePDF = (quote) => {
     doc.save(`Quote-${quote.id}.pdf`);
 };
 
-// 2. ADD EDIT MODAL COMPONENTS (add these after your existing modals)
-
-const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
-    const [formData, setFormData] = useState(invoice);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+// --- Modal Components ---
+const AddCustomerModal = ({ onAddCustomer, onClose }) => {
+    const [name, setName] = useState('');
+    const [type, setType] = useState('Commercial');
+    const [contactName, setContactName] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+    const [contactPhone, setContactPhone] = useState('');
+    const [street, setStreet] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('MI');
+    const [zip, setZip] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onUpdateInvoice(formData);
+        if (!name.trim()) {
+            alert("Customer name cannot be empty.");
+            return;
+        }
+
+        const newCustomer = {
+            name,
+            type,
+            contact: {
+                name: contactName,
+                email: contactEmail,
+                phone: contactPhone
+            },
+            billingAddress: {
+                street,
+                city,
+                state,
+                zip
+            },
+            locations: []
+        };
+
+        onAddCustomer(newCustomer);
         onClose();
     };
 
@@ -341,192 +365,114 @@ const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Customer</h2>
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
                 
                 <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice #</label>
-                        <input 
-                            type="text" 
-                            name="id"
-                            value={formData.id} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            disabled
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                            <input 
+                                type="text" 
+                                value={name} 
+                                onChange={(e) => setName(e.target.value)} 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                required 
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label>
+                            <select 
+                                value={type} 
+                                onChange={(e) => setType(e.target.value)} 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            >
+                                <option>Commercial</option>
+                                <option>Residential</option>
+                                <option>National Account</option>
+                                <option>Maintenance</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                        <input 
-                            type="text" 
-                            name="customerName"
-                            value={formData.customerName} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
+                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Primary Contact</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Contact Name</label>
+                                <input 
+                                    type="text" 
+                                    value={contactName} 
+                                    onChange={(e) => setContactName(e.target.value)} 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Email</label>
+                                <input 
+                                    type="email" 
+                                    value={contactEmail} 
+                                    onChange={(e) => setContactEmail(e.target.value)} 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
+                                <input 
+                                    type="tel" 
+                                    value={contactPhone} 
+                                    onChange={(e) => setContactPhone(e.target.value)} 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            name="amount"
-                            value={formData.amount} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            name="status"
-                            value={formData.status} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Draft">Draft</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Overdue">Overdue</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
-                        <textarea 
-                            name="description"
-                            value={formData.description || ''} 
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Invoice description..."
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
-    const [formData, setFormData] = useState(quote);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onUpdateQuote(formData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote #</label>
-                        <input 
-                            type="text" 
-                            name="id"
-                            value={formData.id} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            disabled
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                        <input 
-                            type="text" 
-                            name="customerName"
-                            value={formData.customerName} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            name="amount"
-                            value={formData.amount} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            name="status"
-                            value={formData.status} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Draft">Draft</option>
-                            <option value="Sent">Sent</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Accepted">Accepted</option>
-                            <option value="Rejected">Rejected</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
-                        <textarea 
-                            name="description"
-                            value={formData.description} 
-                            onChange={handleChange}
-                            rows="4"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Quote description..."
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Notes</label>
-                        <textarea 
-                            name="notes"
-                            value={formData.notes || ''} 
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Additional notes..."
-                        />
+                    <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="font-semibold text-gray-800 dark:text-white mb-3">Billing Address</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Street Address</label>
+                                <input 
+                                    type="text" 
+                                    value={street} 
+                                    onChange={(e) => setStreet(e.target.value)} 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">City</label>
+                                    <input 
+                                        type="text" 
+                                        value={city} 
+                                        onChange={(e) => setCity(e.target.value)} 
+                                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">State</label>
+                                    <input 
+                                        type="text" 
+                                        value={state} 
+                                        onChange={(e) => setState(e.target.value)} 
+                                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Zip Code</label>
+                                    <input 
+                                        type="text" 
+                                        value={zip} 
+                                        onChange={(e) => setZip(e.target.value)} 
+                                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -535,7 +481,7 @@ const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
                         Cancel
                     </button>
                     <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Save Changes
+                        Add Customer
                     </button>
                 </div>
             </form>
@@ -543,7 +489,6 @@ const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
     );
 };
 
-// --- Modal Components (Defined First) ---
 const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
     const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
     const [customCustomer, setCustomCustomer] = useState('');
@@ -555,7 +500,247 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
     const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
 
-    const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        const invoiceData = {
+            id: `INV-${Date.now()}`,
+            workOrderId: selectedWorkOrder || null,
+            customerName: useCustomCustomer ? customCustomer : (selectedOrder ? selectedOrder.Client : ''),
+            date: new Date().toISOString(),
+            amount: parseFloat(amount),
+            status: 'Draft',
+            description: description || 'Service rendered',
+            dueDate: dueDate ? new Date(dueDate).toISOString() : null
+        };
+
+        onAddInvoice(invoiceData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Invoice</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="flex items-center gap-2 mb-3">
+                            <input 
+                                type="checkbox" 
+                                checked={useCustomCustomer} 
+                                onChange={(e) => setUseCustomCustomer(e.target.checked)}
+                            />
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Create invoice for custom customer (not from work order)</span>
+                        </label>
+                    </div>
+
+                    {!useCustomCustomer ? (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Completed Work Order</label>
+                            <select 
+                                value={selectedWorkOrder} 
+                                onChange={(e) => setSelectedWorkOrder(e.target.value)}
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                required={!useCustomCustomer}
+                            >
+                                <option value="">Select a completed work order...</option>
+                                {completedOrders.map(wo => (
+                                    <option key={wo.id} value={wo.id}>
+                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                            <input 
+                                type="text" 
+                                value={customCustomer} 
+                                onChange={(e) => setCustomCustomer(e.target.value)}
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                required={useCustomCustomer}
+                                placeholder="Enter customer name"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                            placeholder={selectedOrder ? selectedOrder.NTE : "0.00"}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
+                        <textarea 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder={selectedOrder ? selectedOrder.Task : "Service description..."}
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Due Date (Optional)</label>
+                        <input 
+                            type="date" 
+                            value={dueDate} 
+                            onChange={(e) => setDueDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        />
+                    </div>
+
+                    {selectedOrder && (
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Work Order Details:</h4>
+                            <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                                <p><span className="font-medium">WO#:</span> {selectedOrder['WO#']}</p>
+                                <p><span className="font-medium">Customer:</span> {selectedOrder.Client}</p>
+                                <p><span className="font-medium">Location:</span> {selectedOrder.Company}</p>
+                                <p><span className="font-medium">Service:</span> {selectedOrder.Task}</p>
+                                <p><span className="font-medium">Amount:</span> {formatCurrency(selectedOrder.NTE)}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
+                        Create Invoice
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
+    const [customerName, setCustomerName] = useState('');
+    const [description, setDescription] = useState('');
+    const [amount, setAmount] = useState('');
+    const [validUntil, setValidUntil] = useState('');
+    const [notes, setNotes] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        const quoteData = {
+            id: `QT-${Date.now()}`,
+            customerName,
+            description,
+            date: new Date().toISOString(),
+            amount: parseFloat(amount),
+            status: 'Draft',
+            validUntil: validUntil ? new Date(validUntil).toISOString() : null,
+            notes
+        };
+
+        onAddQuote(quoteData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Quote</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={28} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                        <input 
+                            type="text" 
+                            value={customerName} 
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                            placeholder="Enter customer name"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Service Description</label>
+                        <textarea 
+                            value={description} 
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows="4"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                            placeholder="Describe the service or work to be performed..."
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote Amount</label>
+                        <input 
+                            type="number" 
+                            step="0.01"
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            required
+                            placeholder="0.00"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Valid Until (Optional)</label>
+                        <input 
+                            type="date" 
+                            value={validUntil} 
+                            onChange={(e) => setValidUntil(e.target.value)}
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Additional Notes</label>
+                        <textarea 
+                            value={notes} 
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows="3"
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            placeholder="Any additional notes or terms..."
+                        />
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
+                        Cancel
+                    </button>
+                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
+                        Create Quote
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
     const [formData, setFormData] = useState(invoice);
 
     const handleChange = (e) => {
@@ -917,7 +1102,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     const [newLocationCity, setNewLocationCity] = useState('');
     const [newLocationState, setNewLocationState] = useState('MI');
     
-    // NEW: Force refresh state
     const [refreshKey, setRefreshKey] = useState(0);
 
     const selectedClient = useMemo(() => {
@@ -933,7 +1117,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
         return client;
         }, [clientId, customers]);
     
-    // NEW: Auto-select the most recently added customer if none selected
     useEffect(() => {
         if (!clientId && customers.length > 0) {
             const mostRecentCustomer = customers[customers.length - 1];
@@ -948,10 +1131,8 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
             setNeedsLocation(false);
         } else {
-            // If no locations exist, show location creation form
             setLocationIdentifier('');
             setNeedsLocation(true);
-            // Auto-populate with default values
             setNewLocationName(selectedClient?.type === 'Residential' ? 'Primary Residence' : 'Main Location');
             setNewLocationNum(selectedClient?.type === 'Residential' ? 'N/A' : '001');
             setNewLocationCity('');
@@ -963,7 +1144,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
         setLocationIdentifier(identifier);
     };
     
-    // NEW: Refresh function
     const handleRefreshCustomers = () => {
         console.log('Refreshing customer list...');
         setRefreshKey(prev => prev + 1);
@@ -979,12 +1159,11 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             needsLocation,
             task,
             customers: customers.length
-        }); // Debug logging
+        });
         
         let location;
         
         if (needsLocation) {
-            // Create location object from form inputs
             if (!newLocationName.trim() || !newLocationCity.trim()) {
                 alert('Please fill out the location name and city.');
                 return;
@@ -996,7 +1175,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                 state: newLocationState.trim()
             };
         } else {
-            // Existing logic for customers with locations
             const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
             location = selectedClient.locations.find(l => l.name === company && l.locNum === locNum);
         }
@@ -1012,7 +1190,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             return; 
         }
         
-        // Pass the location data that will be saved
         const orderData = { 
             Client: selectedClient.name, 
             Company: location.name, 
@@ -1027,11 +1204,10 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
             startTime, 
             endTime, 
             clientWO,
-            // Include flag if this creates a new location
             _newLocation: needsLocation ? location : null
         };
         
-        console.log('Submitting order data:', orderData); // Debug logging
+        console.log('Submitting order data:', orderData);
         onAddOrder(orderData);
     };
 
@@ -1045,7 +1221,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                     </button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-4">
-                    {/* NEW: Customer selection with refresh button */}
                     <div>
                         <div className="flex justify-between items-center mb-1">
                             <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Client</label>
@@ -1078,7 +1253,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                         )}
                     </div>
                     
-                    {/* Conditional location selection or creation */}
                     {selectedClient && (
                         <div>
                             {needsLocation ? (
@@ -1142,7 +1316,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
                         </div>
                     )}
                     
-                    {/* Rest of the form remains the same */}
                     <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client WO#</label>
                         <input type="text" value={clientWO} onChange={e=>setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
@@ -1308,7 +1481,6 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
             return;
         }
 
-        // Simple CSV parser fallback if PapaParse is not available
         const simpleParse = (csvText) => {
             const lines = csvText.trim().split('\n');
             const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
@@ -1323,7 +1495,6 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
             return { data, errors: [] };
         };
 
-        // Try to use PapaParse if available, otherwise use simple parser
         let result;
         if (window.Papa) {
             result = window.Papa.parse(csvData, {
@@ -1340,7 +1511,6 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
             return;
         }
 
-        // Validate required fields based on type
         const validationErrors = [];
         const validatedData = [];
 
@@ -1428,7 +1598,6 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
 
         onImport(processedData);
         
-        // Show success message
         alert(`Successfully imported ${processedData.length} ${type}!`);
         
         onClose();
@@ -1617,7 +1786,7 @@ const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm, statu
 
 const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const hours = Array.from({ length: 13 }, (_, i) => i + 7); // 7 AM to 7 PM
+    const hours = Array.from({ length: 13 }, (_, i) => i + 7);
     const activeTechnicians = technicians.filter(t => t.name !== 'Unassigned');
 
     const getTechnicianColumn = (techName) => {
@@ -2264,7 +2433,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
     const [showImportModal, setShowImportModal] = useState(false);
     const [importType, setImportType] = useState('invoices');
     
-    // Calculate summary statistics
     const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
     const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
     const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
@@ -2346,7 +2514,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
 
     return (
         <div className="space-y-6">
-            {/* Header with Summary Stats */}
             <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800 dark:text-white">Billing & Invoicing</h3>
@@ -2366,7 +2533,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     </div>
                 </div>
                 
-                {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
                         <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoices</h4>
@@ -2391,7 +2557,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                 </div>
             </div>
 
-            {/* Tabs and Content */}
             <div className="bg-white dark:bg-slate-700 rounded-lg shadow-sm">
                 <div className="border-b border-gray-200 dark:border-slate-600">
                     <nav className="-mb-px flex gap-6 px-6">
@@ -2489,9 +2654,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                             </button>
                                                             <button 
                                                                 onClick={() => {
-                                                                    // Find related work order
                                                                     const relatedWorkOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
-                                                                    // Call PDF generation function
                                                                     generateInvoicePDF(invoice, relatedWorkOrder);
                                                                 }}
                                                                 className="text-green-600 hover:text-green-800 font-medium"
@@ -2603,7 +2766,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                             </button>
                                                             <button 
                                                                 onClick={() => {
-                                                                    // Call PDF generation function for quotes
                                                                     generateQuotePDF(quote);
                                                                 }}
                                                                 className="text-green-600 hover:text-green-800 font-medium"
@@ -2653,7 +2815,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                 </div>
             </div>
             
-            {/* Modals */}
             {showCreateInvoice && (
                 <CreateInvoiceModal 
                     workOrders={workOrders}
@@ -2687,6 +2848,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
         </div>
     );
 };
+
 // --- Main WorkOrderManagement Component ---
 const WorkOrderManagement = () => {
     // State with localStorage persistence
@@ -2726,7 +2888,6 @@ const WorkOrderManagement = () => {
     
     // Load PDF and CSV libraries
     useEffect(() => {
-        // Load PapaParse
         if (!window.Papa) {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
@@ -2734,7 +2895,6 @@ const WorkOrderManagement = () => {
             document.head.appendChild(script);
         }
         
-        // Load jsPDF for PDF generation
         if (!window.jspdf) {
             const pdfScript = document.createElement('script');
             pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
@@ -2788,11 +2948,9 @@ const WorkOrderManagement = () => {
     const handleAddNewOrder = (newOrderData) => { 
         const newId = `WO-${Date.now()}`; 
         
-        // Handle new location creation if needed
         if (newOrderData._newLocation) {
             const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
             if (customerToUpdate) {
-                // Add the new location to the customer
                 const updatedCustomer = {
                     ...customerToUpdate,
                     locations: [...customerToUpdate.locations, newOrderData._newLocation]
@@ -2803,7 +2961,6 @@ const WorkOrderManagement = () => {
             }
         }
         
-        // Create the work order (remove the _newLocation field)
         const { _newLocation, ...orderData } = newOrderData;
         
         const newOrder = { 
@@ -2984,7 +3141,6 @@ const WorkOrderManagement = () => {
                 {renderContent()}
             </div>
             
-            {/* Modals */}
             {selectedOrder && (
                 <WorkOrderDetailModal 
                     order={selectedOrder} 
@@ -3001,7 +3157,7 @@ const WorkOrderManagement = () => {
                     onClose={() => setIsAddingOrder(false)} 
                 />
             )}
-       </div>
+        </div>
     );
 };
 
