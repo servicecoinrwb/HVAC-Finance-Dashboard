@@ -51,6 +51,15 @@ const getStatusStyles = (s) => ({'completed':'bg-green-100 text-green-800','sche
 const getCustomerTypeStyles = (t) => ({'national account':'bg-blue-100 text-blue-800','commercial':'bg-purple-100 text-purple-800','residential':'bg-green-100 text-green-800','maintenance':'bg-yellow-100 text-yellow-800',}[t?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 const getTechStatusStyles = (s) => ({'available': 'bg-green-100 text-green-800', 'on site': 'bg-blue-100 text-blue-800', 'en route': 'bg-yellow-100 text-yellow-800', 'on break': 'bg-gray-100 text-gray-800', 'on call': 'bg-teal-100 text-teal-800', 'day off': 'bg-slate-200 text-slate-800'}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 
+// --- PDF Generation Functions ---
+const generateInvoicePDF = (invoice, workOrder = null) => {
+    // ... (your PDF generation code here)
+};
+
+const generateQuotePDF = (quote) => {
+    // ... (your PDF generation code here)
+};
+
 // --- Modal Components (Defined First) ---
 const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
     const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
@@ -2133,8 +2142,19 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                                 View
                                                             </button>
                                                             <button 
-                                                                onClick={() => alert(`Sending invoice ${invoice.id} to ${invoice.customerName}`)}
+                                                                onClick={() => {
+                                                                    // Find related work order
+                                                                    const relatedWorkOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
+                                                                    // Call PDF generation function
+                                                                    generateInvoicePDF(invoice, relatedWorkOrder);
+                                                                }}
                                                                 className="text-green-600 hover:text-green-800 font-medium"
+                                                            >
+                                                                PDF
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => alert(`Sending invoice ${invoice.id} to ${invoice.customerName}`)}
+                                                                className="text-purple-600 hover:text-purple-800 font-medium"
                                                             >
                                                                 Send
                                                             </button>
@@ -2236,8 +2256,17 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                                 View
                                                             </button>
                                                             <button 
-                                                                onClick={() => alert(`Sending quote ${quote.id} to ${quote.customerName}`)}
+                                                                onClick={() => {
+                                                                    // Call PDF generation function for quotes
+                                                                    generateQuotePDF(quote);
+                                                                }}
                                                                 className="text-green-600 hover:text-green-800 font-medium"
+                                                            >
+                                                                PDF
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => alert(`Sending quote ${quote.id} to ${quote.customerName}`)}
+                                                                className="text-purple-600 hover:text-purple-800 font-medium"
                                                             >
                                                                 Send
                                                             </button>
@@ -2249,7 +2278,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                             </button>
                                                             <button 
                                                                 onClick={() => alert(`Converting quote ${quote.id} to invoice for ${quote.customerName}`)}
-                                                                className="text-purple-600 hover:text-purple-800 font-medium"
+                                                                className="text-orange-600 hover:text-orange-800 font-medium"
                                                             >
                                                                 Convert
                                                             </button>
@@ -2312,7 +2341,6 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
         </div>
     );
 };
-
 // --- Main WorkOrderManagement Component ---
 const WorkOrderManagement = () => {
     // State with localStorage persistence
@@ -2348,18 +2376,318 @@ const WorkOrderManagement = () => {
     const [isAddingOrder, setIsAddingOrder] = useState(false);
     const [currentView, setCurrentView] = useState('dashboard');
     
-    // Load PapaParse library for CSV functionality
-    useEffect(() => {
-        if (!window.Papa) {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
-            script.async = true;
-            document.head.appendChild(script);
-            return () => {
-                document.head.removeChild(script);
-            };
+    // 1. UPDATE YOUR useEffect TO LOAD PDF LIBRARIES (Replace existing PapaParse useEffect)
+useEffect(() => {
+    // Load PapaParse
+    if (!window.Papa) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
+        script.async = true;
+        document.head.appendChild(script);
+    }
+    
+    // Load jsPDF for PDF generation
+    if (!window.jspdf) {
+        const pdfScript = document.createElement('script');
+        pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        pdfScript.async = true;
+        document.head.appendChild(pdfScript);
+        
+        const autoTableScript = document.createElement('script');
+        autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+        autoTableScript.async = true;
+        document.head.appendChild(autoTableScript);
+    }
+}, []);
+
+// 2. COMPANY LOGO (Convert your logo to base64 and replace this)
+const COMPANY_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="; // Replace with your actual logo
+
+// 3. COMPLETE PDF GENERATION FUNCTIONS (Replace your empty placeholders)
+const generateInvoicePDF = (invoice, workOrder = null) => {
+    if (!window.jspdf) {
+        alert('PDF library is still loading. Please try again in a moment.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+
+    // Company Header
+    try {
+        // Add logo (replace COMPANY_LOGO with your actual base64 logo)
+        // doc.addImage(COMPANY_LOGO, 'PNG', 20, 15, 40, 25);
+        
+        // Use text header for now
+        doc.setFontSize(24);
+        doc.setFont(undefined, 'bold');
+        doc.text('MECHANICAL TEMP', 20, 30);
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text('23093 Telegraph Rd', 20, 40);
+        doc.text('Southfield, MI 48033', 20, 47);
+        doc.text('Phone: (313) 282-4758', 20, 54);
+        doc.text('Email: office@mechanicaltemp.com', 20, 61);
+        doc.text('Web: www.mechanicaltemp.com', 20, 68);
+    } catch (error) {
+        console.error('Error adding logo:', error);
+    }
+
+    // Invoice Title
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('INVOICE', 200, 30, { align: 'right' });
+    
+    // Invoice Info
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Invoice #: ${invoice.id}`, 200, 45, { align: 'right' });
+    doc.text(`Date: ${new Date(invoice.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
+    if (invoice.dueDate) {
+        doc.text(`Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`, 200, 59, { align: 'right' });
+    }
+
+    y = 90;
+
+    // Customer Information
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Bill To:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    doc.text(invoice.customerName, 20, y);
+
+    // Work Order Information (if available)
+    if (workOrder) {
+        y += 15;
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Service Details:', 20, y);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(12);
+        y += 10;
+        doc.text(`Work Order: ${workOrder['WO#']}`, 20, y);
+        y += 7;
+        doc.text(`Location: ${workOrder.Company} - ${workOrder.City}, ${workOrder.State}`, 20, y);
+        y += 7;
+        doc.text(`Service: ${workOrder.Task}`, 20, y);
+        if (workOrder['Schedule Date']) {
+            y += 7;
+            doc.text(`Service Date: ${excelDateToJSDateString(workOrder['Schedule Date'])}`, 20, y);
         }
-    }, []);
+    }
+
+    y += 20;
+
+    // Invoice Details Table
+    if (window.jspdf && doc.autoTable) {
+        const tableData = [
+            ['Description', 'Amount'],
+            [invoice.description || 'Service Rendered', `$${invoice.amount.toFixed(2)}`]
+        ];
+
+        doc.autoTable({
+            startY: y,
+            head: [tableData[0]],
+            body: [tableData[1]],
+            theme: 'striped',
+            styles: { fontSize: 12 },
+            headStyles: { fillColor: [41, 128, 185] },
+            margin: { left: 20, right: 20 }
+        });
+
+        y = doc.lastAutoTable.finalY + 20;
+    } else {
+        // Fallback without autoTable
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Description', 20, y);
+        doc.text('Amount', 150, y);
+        y += 7;
+        doc.setFont(undefined, 'normal');
+        doc.text(invoice.description || 'Service Rendered', 20, y);
+        doc.text(`$${invoice.amount.toFixed(2)}`, 150, y);
+        y += 20;
+    }
+
+    // Total
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Total Amount Due:', 120, y);
+    doc.text(`$${invoice.amount.toFixed(2)}`, 200, y, { align: 'right' });
+
+    // Footer
+    y += 30;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Thank you for choosing Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
+    doc.text('Payment is due within 30 days of invoice date.', 105, y + 7, { align: 'center' });
+
+    // Save the PDF
+    doc.save(`Invoice-${invoice.id}.pdf`);
+};
+
+const generateQuotePDF = (quote) => {
+    if (!window.jspdf) {
+        alert('PDF library is still loading. Please try again in a moment.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+
+    // Company Header
+    try {
+        // Add logo (replace COMPANY_LOGO with your actual base64 logo)
+        // doc.addImage(COMPANY_LOGO, 'PNG', 20, 15, 40, 25);
+        
+        // Use text header for now
+        doc.setFontSize(24);
+        doc.setFont(undefined, 'bold');
+        doc.text('MECHANICAL TEMP', 20, 30);
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text('23093 Telegraph Rd', 20, 40);
+        doc.text('Southfield, MI 48033', 20, 47);
+        doc.text('Phone: (313) 282-4758', 20, 54);
+        doc.text('Email: office@mechanicaltemp.com', 20, 61);
+        doc.text('Web: www.mechanicaltemp.com', 20, 68);
+    } catch (error) {
+        console.error('Error adding logo:', error);
+    }
+
+    // Quote Title
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('QUOTE', 200, 30, { align: 'right' });
+    
+    // Quote Info
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Quote #: ${quote.id}`, 200, 45, { align: 'right' });
+    doc.text(`Date: ${new Date(quote.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
+    if (quote.validUntil) {
+        doc.text(`Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}`, 200, 59, { align: 'right' });
+    }
+
+    y = 90;
+
+    // Customer Information
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Quote For:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    doc.text(quote.customerName, 20, y);
+
+    y += 20;
+
+    // Quote Details
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Work Description:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    
+    // Split long descriptions into multiple lines
+    const splitText = doc.splitTextToSize(quote.description, 170);
+    splitText.forEach(line => {
+        doc.text(line, 20, y);
+        y += 7;
+    });
+
+    y += 15;
+
+    // Quote Table
+    if (window.jspdf && doc.autoTable) {
+        const tableData = [
+            ['Description', 'Amount'],
+            [quote.description, `$${quote.amount.toFixed(2)}`]
+        ];
+
+        doc.autoTable({
+            startY: y,
+            head: [tableData[0]],
+            body: [tableData[1]],
+            theme: 'striped',
+            styles: { fontSize: 12 },
+            headStyles: { fillColor: [46, 125, 50] },
+            margin: { left: 20, right: 20 }
+        });
+
+        y = doc.lastAutoTable.finalY + 20;
+    } else {
+        // Fallback without autoTable
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Service Description', 20, y);
+        doc.text('Quoted Amount', 150, y);
+        y += 7;
+        doc.setFont(undefined, 'normal');
+        doc.text(quote.description, 20, y);
+        doc.text(`$${quote.amount.toFixed(2)}`, 150, y);
+        y += 20;
+    }
+
+    // Total
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Total Quote Amount:', 120, y);
+    doc.text(`$${quote.amount.toFixed(2)}`, 200, y, { align: 'right' });
+
+    // Terms and Conditions
+    y += 25;
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Terms & Conditions:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    y += 10;
+    
+    const terms = [
+        '• Quote is valid for 30 days from date issued',
+        '• Final pricing may vary based on actual conditions found',
+        '• Work includes all labor and materials as specified',
+        '• Payment is due upon completion of work',
+        '• All work performed comes with a 1-year warranty on parts and labor'
+    ];
+
+    terms.forEach(term => {
+        doc.text(term, 20, y);
+        y += 7;
+    });
+
+    // Notes (if any)
+    if (quote.notes && quote.notes.trim()) {
+        y += 10;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Additional Notes:', 20, y);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        y += 7;
+        const notesText = doc.splitTextToSize(quote.notes, 170);
+        notesText.forEach(line => {
+            doc.text(line, 20, y);
+            y += 7;
+        });
+    }
+
+    // Footer
+    y += 15;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Thank you for considering Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
+    doc.text('Call us at (313) 282-4758 to schedule your service.', 105, y + 7, { align: 'center' });
+
+    // Save the PDF
+    doc.save(`Quote-${quote.id}.pdf`);
+};
     
     // Save data to localStorage whenever it changes
     useEffect(() => {
