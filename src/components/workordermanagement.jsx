@@ -556,7 +556,6 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     const [endTime, setEndTime] = useState('');
     const [clientWO, setClientWO] = useState('');
     
-    // NEW: State for creating location on the fly
     const [needsLocation, setNeedsLocation] = useState(false);
     const [newLocationName, setNewLocationName] = useState('');
     const [newLocationNum, setNewLocationNum] = useState('');
@@ -2316,17 +2315,52 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
 
 // --- Main WorkOrderManagement Component ---
 const WorkOrderManagement = () => {
-    const [workOrders, setWorkOrders] = useState(initialSampleData);
-    const [customers, setCustomers] = useState(initialCustomers);
-    const [technicians, setTechnicians] = useState(initialTechnicians);
-    const [invoices, setInvoices] = useState(initialInvoices);
-    const [quotes, setQuotes] = useState(initialQuotes);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [isAddingOrder, setIsAddingOrder] = useState(false);
-    const [currentView, setCurrentView] = useState('dashboard');
+    const [workOrders, setWorkOrders] = useState(() => {
+    const saved = localStorage.getItem('workOrders');
+    return saved ? JSON.parse(saved) : initialSampleData;
+});
+
+const [customers, setCustomers] = useState(() => {
+    const saved = localStorage.getItem('customers');
+    return saved ? JSON.parse(saved) : initialCustomers;
+});
+
+const [technicians, setTechnicians] = useState(() => {
+    const saved = localStorage.getItem('technicians');
+    return saved ? JSON.parse(saved) : initialTechnicians;
+});
+
+const [invoices, setInvoices] = useState(() => {
+    const saved = localStorage.getItem('invoices');
+    return saved ? JSON.parse(saved) : initialInvoices;
+});
+
+const [quotes, setQuotes] = useState(() => {
+    const saved = localStorage.getItem('quotes');
+    return saved ? JSON.parse(saved) : initialQuotes;
+});
     
+    // Save data to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('workOrders', JSON.stringify(workOrders));
+    }, [workOrders]);
+
+    useEffect(() => {
+        localStorage.setItem('customers', JSON.stringify(customers));
+    }, [customers]);
+
+    useEffect(() => {
+        localStorage.setItem('technicians', JSON.stringify(technicians));
+    }, [technicians]);
+
+    useEffect(() => {
+        localStorage.setItem('invoices', JSON.stringify(invoices));
+    }, [invoices]);
+
+    useEffect(() => {
+        localStorage.setItem('quotes', JSON.stringify(quotes));
+    }, [quotes]);
+
     // Load PapaParse library for CSV functionality
     useEffect(() => {
         if (!window.Papa) {
