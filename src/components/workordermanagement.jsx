@@ -2315,30 +2315,51 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
 
 // --- Main WorkOrderManagement Component ---
 const WorkOrderManagement = () => {
+    // State with localStorage persistence
     const [workOrders, setWorkOrders] = useState(() => {
-    const saved = localStorage.getItem('workOrders');
-    return saved ? JSON.parse(saved) : initialSampleData;
-});
+        const saved = localStorage.getItem('workOrders');
+        return saved ? JSON.parse(saved) : initialSampleData;
+    });
 
-const [customers, setCustomers] = useState(() => {
-    const saved = localStorage.getItem('customers');
-    return saved ? JSON.parse(saved) : initialCustomers;
-});
+    const [customers, setCustomers] = useState(() => {
+        const saved = localStorage.getItem('customers');
+        return saved ? JSON.parse(saved) : initialCustomers;
+    });
 
-const [technicians, setTechnicians] = useState(() => {
-    const saved = localStorage.getItem('technicians');
-    return saved ? JSON.parse(saved) : initialTechnicians;
-});
+    const [technicians, setTechnicians] = useState(() => {
+        const saved = localStorage.getItem('technicians');
+        return saved ? JSON.parse(saved) : initialTechnicians;
+    });
 
-const [invoices, setInvoices] = useState(() => {
-    const saved = localStorage.getItem('invoices');
-    return saved ? JSON.parse(saved) : initialInvoices;
-});
+    const [invoices, setInvoices] = useState(() => {
+        const saved = localStorage.getItem('invoices');
+        return saved ? JSON.parse(saved) : initialInvoices;
+    });
 
-const [quotes, setQuotes] = useState(() => {
-    const saved = localStorage.getItem('quotes');
-    return saved ? JSON.parse(saved) : initialQuotes;
-});
+    const [quotes, setQuotes] = useState(() => {
+        const saved = localStorage.getItem('quotes');
+        return saved ? JSON.parse(saved) : initialQuotes;
+    });
+
+    // UI State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [isAddingOrder, setIsAddingOrder] = useState(false);
+    const [currentView, setCurrentView] = useState('dashboard');
+    
+    // Load PapaParse library for CSV functionality
+    useEffect(() => {
+        if (!window.Papa) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
+            script.async = true;
+            document.head.appendChild(script);
+            return () => {
+                document.head.removeChild(script);
+            };
+        }
+    }, []);
     
     // Save data to localStorage whenever it changes
     useEffect(() => {
@@ -2360,19 +2381,6 @@ const [quotes, setQuotes] = useState(() => {
     useEffect(() => {
         localStorage.setItem('quotes', JSON.stringify(quotes));
     }, [quotes]);
-
-    // Load PapaParse library for CSV functionality
-    useEffect(() => {
-        if (!window.Papa) {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
-            script.async = true;
-            document.head.appendChild(script);
-            return () => {
-                document.head.removeChild(script);
-            };
-        }
-    }, []);
     
     const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
     
