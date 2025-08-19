@@ -23,17 +23,114 @@ const initialTechnicians = [
 ];
 
 const initialInvoices = [
-    { id: 'INV-001', workOrderId: '6694098-01', customerName: 'Retail Maintenance Inc.', date: new Date().toISOString(), amount: 750, status: 'Paid' },
-    { id: 'INV-002', workOrderId: '6748425-01', customerName: 'Synergy Management', date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), amount: 150.5, status: 'Pending' },
-    { id: 'INV-003', workOrderId: '6693039-01', customerName: 'National Service Group', date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), amount: 2500, status: 'Paid' },
-    { id: 'INV-004', workOrderId: null, customerName: 'Mr. Henderson', date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), amount: 425, status: 'Overdue' }
+    { 
+        id: 'INV-001', 
+        workOrderId: '6694098-01', 
+        customerName: 'Retail Maintenance Inc.', 
+        date: new Date().toISOString(), 
+        status: 'Paid',
+        lineItems: [
+            { description: 'AC Repair Service', quantity: 1, rate: 650, amount: 650 },
+            { description: 'Refrigerant Refill', quantity: 2, rate: 50, amount: 100 }
+        ],
+        subtotal: 750,
+        tax: 0,
+        total: 750
+    },
+    { 
+        id: 'INV-002', 
+        workOrderId: '6748425-01', 
+        customerName: 'Synergy Management', 
+        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), 
+        status: 'Pending',
+        lineItems: [
+            { description: 'HVAC Fall Startup', quantity: 1, rate: 150.5, amount: 150.5 }
+        ],
+        subtotal: 150.5,
+        tax: 0,
+        total: 150.5
+    },
+    { 
+        id: 'INV-003', 
+        workOrderId: '6693039-01', 
+        customerName: 'National Service Group', 
+        date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), 
+        status: 'Paid',
+        lineItems: [
+            { description: 'Emergency AC Repair', quantity: 1, rate: 2000, amount: 2000 },
+            { description: 'After Hours Fee', quantity: 1, rate: 500, amount: 500 }
+        ],
+        subtotal: 2500,
+        tax: 0,
+        total: 2500
+    },
+    { 
+        id: 'INV-004', 
+        workOrderId: null, 
+        customerName: 'Mr. Henderson', 
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), 
+        status: 'Overdue',
+        lineItems: [
+            { description: 'Residential HVAC Service', quantity: 1, rate: 425, amount: 425 }
+        ],
+        subtotal: 425,
+        tax: 0,
+        total: 425
+    }
 ];
 
 const initialQuotes = [
-    { id: 'QT-001', customerName: 'Mr. Henderson', date: new Date().toISOString(), amount: 1200, description: 'New AC unit installation', status: 'Sent' },
-    { id: 'QT-002', customerName: 'Synergy Management', date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), amount: 3500, description: 'Complete HVAC system upgrade for Lane Bryant locations', status: 'Pending' },
-    { id: 'QT-003', customerName: 'Retail Maintenance Inc.', date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), amount: 850, description: 'Preventive maintenance contract', status: 'Accepted' },
-    { id: 'QT-004', customerName: 'Downtown Office Complex', date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), amount: 2200, description: 'Rooftop unit replacement', status: 'Draft' }
+    { 
+        id: 'QT-001', 
+        customerName: 'Mr. Henderson', 
+        date: new Date().toISOString(), 
+        status: 'Sent',
+        lineItems: [
+            { description: 'New AC Unit (3-Ton)', quantity: 1, rate: 800, amount: 800 },
+            { description: 'Installation Labor', quantity: 1, rate: 400, amount: 400 }
+        ],
+        subtotal: 1200,
+        tax: 0,
+        total: 1200
+    },
+    { 
+        id: 'QT-002', 
+        customerName: 'Synergy Management', 
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
+        status: 'Pending',
+        lineItems: [
+            { description: 'HVAC System Upgrade - Lane Bryant #4826', quantity: 1, rate: 1750, amount: 1750 },
+            { description: 'HVAC System Upgrade - Lane Bryant #6065', quantity: 1, rate: 1750, amount: 1750 }
+        ],
+        subtotal: 3500,
+        tax: 0,
+        total: 3500
+    },
+    { 
+        id: 'QT-003', 
+        customerName: 'Retail Maintenance Inc.', 
+        date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
+        status: 'Accepted',
+        lineItems: [
+            { description: 'Annual Preventive Maintenance Contract', quantity: 1, rate: 850, amount: 850 }
+        ],
+        subtotal: 850,
+        tax: 0,
+        total: 850
+    },
+    { 
+        id: 'QT-004', 
+        customerName: 'Downtown Office Complex', 
+        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
+        status: 'Draft',
+        lineItems: [
+            { description: 'Rooftop Unit Replacement', quantity: 1, rate: 1800, amount: 1800 },
+            { description: 'Crane Rental', quantity: 1, rate: 400, amount: 400 }
+        ],
+        subtotal: 2200,
+        tax: 0,
+        total: 2200
+    }
 ];
 
 // --- Utility Functions ---
