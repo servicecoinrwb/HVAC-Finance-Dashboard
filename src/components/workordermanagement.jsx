@@ -2,6 +2,130 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
+// Data Migration Functions
+const migrateExistingData = async () => {
+    if (!userId) return;
+    
+    try {
+        // Migrate Clients to Customers
+        const clientsSnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'clients'));
+        const existingClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Migrate Jobs to Work Orders  
+        const jobsSnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'jobs'));
+        const existingJobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Migrate Invoices to New Format
+        const invoicesSnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'invoices'));
+        const existingInvoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const batch = writeBatch(db);
+        let migratedCount = 0;
+        
+        // Migrate Clients -> Customers
+        existingClients.forEach(client => {
+            const customerData = {
+                name: client.name || 'Unknown Customer',
+                type: client.type || 'Commercial',
+                contact: {
+                    name: client.contactName || client.name || '',
+                    email: client.email || '',
+                    phone: client.phone || ''
+                },
+                billingAddress: {
+                    street: client.address || '',
+                    city: client.city || '',
+                    state: client.state || 'MI',
+                    zip: client.zip || ''
+                },
+                locations: [{
+                    name: client.name || 'Main Location',
+                    locNum: '001',
+                    city: client.city || '',
+                    state: client.state || 'MI'
+                }],
+                migratedFrom: 'legacy_clients',
+                migratedAt: serverTimestamp()
+            };
+            
+            const docRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers'));
+            batch.set(docRef, customerData);
+            migratedCount++;
+        });
+        
+        // Migrate Jobs -> Work Orders
+        existingJobs.forEach(job => {
+            const customer = existingClients.find(c => c.id === job.clientId);
+            const workOrderData = {
+                'WO#': `WO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                id: `WO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                clientWO: job.jobNo || '',
+                Client: customer?.name || job.customer || 'Unknown Client',
+                Company: customer?.name || job.customer || 'Unknown Company',
+                'Loc #': '001',
+                Category: 'Heating & Cooling',
+                Task: job.name || job.description || 'Migrated Job',
+                'Created Date': job.date ? jsDateToExcel(new Date(job.date)) : jsDateToExcel(new Date()),
+                'Schedule Date': job.date ? jsDateToExcel(new Date(job.date)) : null,
+                'Completed Date': job.completedOn ? jsDateToExcel(new Date(job.completedOn)) : null,
+                startTime: '09:00',
+                endTime: '17:00',
+                City: customer?.city || '',
+                State: customer?.state || 'MI',
+                NTE: job.revenue || 0,
+                technician: [],
+                notes: job.notes ? [{ 
+                    text: job.notes, 
+                    timestamp: new Date().toISOString() 
+                }] : [],
+                Priority: 'Regular',
+                'Order Status': job.completedOn ? 'Completed' : 'Open',
+                migratedFrom: 'legacy_jobs',
+                migratedAt: serverTimestamp()
+            };
+            
+            const docRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders'));
+            batch.set(docRef, workOrderData);
+            migratedCount++;
+        });
+        
+        // Migrate Invoices -> Line Item Invoices
+        existingInvoices.forEach(invoice => {
+            const relatedJob = existingJobs.find(j => j.id === invoice.jobId);
+            const invoiceData = {
+                id: invoice.id || `INV-${Date.now()}`,
+                workOrderId: relatedJob ? `WO-${relatedJob.id}` : null,
+                customerName: invoice.billTo || invoice.customer || 'Unknown Customer',
+                date: invoice.date || new Date().toISOString(),
+                status: invoice.status || 'Pending',
+                lineItems: [{
+                    description: relatedJob?.name || invoice.description || 'Service Rendered',
+                    quantity: 1,
+                    rate: invoice.grandTotal || invoice.net || invoice.amount || 0,
+                    amount: invoice.grandTotal || invoice.net || invoice.amount || 0
+                }],
+                subtotal: invoice.net || invoice.amount || 0,
+                tax: (invoice.grandTotal || 0) - (invoice.net || invoice.amount || 0),
+                total: invoice.grandTotal || invoice.net || invoice.amount || 0,
+                migratedFrom: 'legacy_invoices',
+                migratedAt: serverTimestamp()
+            };
+            
+            const docRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices'));
+            batch.set(docRef, invoiceData);
+            migratedCount++;
+        });
+        
+        await batch.commit();
+        
+        alert(`Successfully migrated ${migratedCount} records to WorkOrder Management!\n\nMigrated:\n• ${existingClients.length} Clients → Customers\n• ${existingJobs.length} Jobs → Work Orders\n• ${existingInvoices.length} Invoices → Line Item Invoices`);
+        
+    } catch (error) {
+        console.error('Migration error:', error);
+        alert('Migration failed: ' + error.message);
+    }
+};
+
 // --- Data ---
 const initialCustomers = [
     { id: 1, name: "Synergy Management", type: "National Account", contact: { name: "Sarah Connor", email: "s.connor@synergy.com", phone: "555-0101" }, billingAddress: { street: "100 Main St", city: "Southfield", state: "MI", zip: "48075" }, locations: [{name: "Lane Bryant", locNum: "4826", city: "LIVONIA", state: "MI"}, {name: "Lane Bryant", locNum: "6065", city: "LATHRUP VLG", state: "MI"}] },
