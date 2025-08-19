@@ -586,16 +586,44 @@ const AddCustomerModal = ({ onAddCustomer, onClose }) => {
     );
 };
 
+// Updated CreateInvoiceModal with Line Items Support
 const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
     const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
     const [customCustomer, setCustomCustomer] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [useCustomCustomer, setUseCustomCustomer] = useState(false);
+    const [lineItems, setLineItems] = useState([
+        { description: '', quantity: 1, rate: 0, amount: 0 }
+    ]);
+    const [taxRate, setTaxRate] = useState(0);
 
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
     const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
+
+    const addLineItem = () => {
+        setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    };
+
+    const removeLineItem = (index) => {
+        if (lineItems.length > 1) {
+            setLineItems(lineItems.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateLineItem = (index, field, value) => {
+        const updated = [...lineItems];
+        updated[index][field] = value;
+        
+        if (field === 'quantity' || field === 'rate') {
+            updated[index].amount = updated[index].quantity * updated[index].rate;
+        }
+        
+        setLineItems(updated);
+    };
+
+    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -605,9 +633,11 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
             workOrderId: selectedWorkOrder || null,
             customerName: useCustomCustomer ? customCustomer : (selectedOrder ? selectedOrder.Client : ''),
             date: new Date().toISOString(),
-            amount: parseFloat(amount),
             status: 'Draft',
-            description: description || 'Service rendered',
+            lineItems,
+            subtotal,
+            tax,
+            total,
             dueDate: dueDate ? new Date(dueDate).toISOString() : null
         };
 
@@ -617,7 +647,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Invoice</h2>
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -625,7 +655,8 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                     </button>
                 </div>
                 
-                <div className="p-6 overflow-y-auto space-y-4">
+                <div className="p-6 overflow-y-auto space-y-6">
+                    {/* Customer Selection */}
                     <div>
                         <label className="flex items-center gap-2 mb-3">
                             <input 
@@ -649,7 +680,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                                 <option value="">Select a completed work order...</option>
                                 {completedOrders.map(wo => (
                                     <option key={wo.id} value={wo.id}>
-                                        {wo['WO#']} - {wo.Client} - {wo.Company} - {formatCurrency(wo.NTE)}
+                                        {wo['WO#']} - {wo.Client} - {wo.Company}
                                     </option>
                                 ))}
                             </select>
@@ -668,38 +699,123 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                         </div>
                     )}
 
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                            placeholder={selectedOrder ? selectedOrder.NTE : "0.00"}
-                        />
+                    {/* Line Items Section */}
+                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
+                            <button 
+                                type="button" 
+                                onClick={addLineItem}
+                                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+                            >
+                                <PlusCircle size={16} /> Add Item
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {lineItems.map((item, index) => (
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Description</label>
+                                        <input 
+                                            type="text" 
+                                            value={item.description}
+                                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
+                                            placeholder="Service description"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Quantity</label>
+                                        <input 
+                                            type="number" 
+                                            min="1"
+                                            step="1"
+                                            value={item.quantity}
+                                            onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Rate ($)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0"
+                                            step="0.01"
+                                            value={item.rate}
+                                            onChange={(e) => updateLineItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Amount ($)</label>
+                                        <input 
+                                            type="text" 
+                                            value={item.amount.toFixed(2)}
+                                            readOnly
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-gray-100 dark:bg-slate-500 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeLineItem(index)}
+                                            disabled={lineItems.length === 1}
+                                            className="w-full p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder={selectedOrder ? selectedOrder.Task : "Service description..."}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Due Date (Optional)</label>
-                        <input 
-                            type="date" 
-                            value={dueDate} 
-                            onChange={(e) => setDueDate(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        />
+                    {/* Tax and Totals */}
+                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Tax Rate (%)</label>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    step="0.01"
+                                    value={taxRate}
+                                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Due Date (Optional)</label>
+                                <input 
+                                    type="date" 
+                                    value={dueDate} 
+                                    onChange={(e) => setDueDate(e.target.value)}
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-600">
+                            <div className="flex justify-end space-y-2">
+                                <div className="text-right">
+                                    <div className="flex justify-between w-48">
+                                        <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                                        <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between w-48">
+                                        <span className="text-gray-600 dark:text-gray-400">Tax:</span>
+                                        <span className="font-semibold">${tax.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between w-48 text-lg font-bold border-t pt-2">
+                                        <span>Total:</span>
+                                        <span>${total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {selectedOrder && (
@@ -710,7 +826,6 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                                 <p><span className="font-medium">Customer:</span> {selectedOrder.Client}</p>
                                 <p><span className="font-medium">Location:</span> {selectedOrder.Company}</p>
                                 <p><span className="font-medium">Service:</span> {selectedOrder.Task}</p>
-                                <p><span className="font-medium">Amount:</span> {formatCurrency(selectedOrder.NTE)}</p>
                             </div>
                         </div>
                     )}
@@ -729,12 +844,40 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
     );
 };
 
+// Updated CreateQuoteModal with Line Items Support
 const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
     const [customerName, setCustomerName] = useState('');
-    const [description, setDescription] = useState('');
-    const [amount, setAmount] = useState('');
     const [validUntil, setValidUntil] = useState('');
     const [notes, setNotes] = useState('');
+    const [lineItems, setLineItems] = useState([
+        { description: '', quantity: 1, rate: 0, amount: 0 }
+    ]);
+    const [taxRate, setTaxRate] = useState(0);
+
+    const addLineItem = () => {
+        setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    };
+
+    const removeLineItem = (index) => {
+        if (lineItems.length > 1) {
+            setLineItems(lineItems.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateLineItem = (index, field, value) => {
+        const updated = [...lineItems];
+        updated[index][field] = value;
+        
+        if (field === 'quantity' || field === 'rate') {
+            updated[index].amount = updated[index].quantity * updated[index].rate;
+        }
+        
+        setLineItems(updated);
+    };
+
+    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -742,10 +885,12 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
         const quoteData = {
             id: `QT-${Date.now()}`,
             customerName,
-            description,
             date: new Date().toISOString(),
-            amount: parseFloat(amount),
             status: 'Draft',
+            lineItems,
+            subtotal,
+            tax,
+            total,
             validUntil: validUntil ? new Date(validUntil).toISOString() : null,
             notes
         };
@@ -756,7 +901,7 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Quote</h2>
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -764,7 +909,7 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
                     </button>
                 </div>
                 
-                <div className="p-6 overflow-y-auto space-y-4">
+                <div className="p-6 overflow-y-auto space-y-6">
                     <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
                         <input 
@@ -777,50 +922,134 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
                         />
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Service Description</label>
-                        <textarea 
-                            value={description} 
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows="4"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                            placeholder="Describe the service or work to be performed..."
-                        />
+                    {/* Line Items Section */}
+                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
+                            <button 
+                                type="button" 
+                                onClick={addLineItem}
+                                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+                            >
+                                <PlusCircle size={16} /> Add Item
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {lineItems.map((item, index) => (
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Description</label>
+                                        <input 
+                                            type="text" 
+                                            value={item.description}
+                                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
+                                            placeholder="Service description"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Quantity</label>
+                                        <input 
+                                            type="number" 
+                                            min="1"
+                                            step="1"
+                                            value={item.quantity}
+                                            onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Rate ($)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0"
+                                            step="0.01"
+                                            value={item.rate}
+                                            onChange={(e) => updateLineItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 dark:text-gray-400">Amount ($)</label>
+                                        <input 
+                                            type="text" 
+                                            value={item.amount.toFixed(2)}
+                                            readOnly
+                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-gray-100 dark:bg-slate-500 text-gray-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeLineItem(index)}
+                                            disabled={lineItems.length === 1}
+                                            className="w-full p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                            placeholder="0.00"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Valid Until (Optional)</label>
-                        <input 
-                            type="date" 
-                            value={validUntil} 
-                            onChange={(e) => setValidUntil(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Additional Notes</label>
-                        <textarea 
-                            value={notes} 
-                            onChange={(e) => setNotes(e.target.value)}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Any additional notes or terms..."
-                        />
+                    {/* Tax, Dates, and Totals */}
+                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Tax Rate (%)</label>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    step="0.01"
+                                    value={taxRate}
+                                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Valid Until (Optional)</label>
+                                <input 
+                                    type="date" 
+                                    value={validUntil} 
+                                    onChange={(e) => setValidUntil(e.target.value)}
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Additional Notes</label>
+                            <textarea 
+                                value={notes} 
+                                onChange={(e) => setNotes(e.target.value)}
+                                rows="3"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                placeholder="Any additional notes or terms..."
+                            />
+                        </div>
+                        
+                        <div className="pt-4 border-t border-gray-200 dark:border-slate-600">
+                            <div className="flex justify-end space-y-2">
+                                <div className="text-right">
+                                    <div className="flex justify-between w-48">
+                                        <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                                        <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between w-48">
+                                        <span className="text-gray-600 dark:text-gray-400">Tax:</span>
+                                        <span className="font-semibold">${tax.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between w-48 text-lg font-bold border-t pt-2">
+                                        <span>Total:</span>
+                                        <span>${total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -830,226 +1059,6 @@ const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
                     </button>
                     <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
                         Create Quote
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
-    const [formData, setFormData] = useState(invoice);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onUpdateInvoice(formData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Invoice #</label>
-                        <input 
-                            type="text" 
-                            name="id"
-                            value={formData.id} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            disabled
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                        <input 
-                            type="text" 
-                            name="customerName"
-                            value={formData.customerName} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            name="amount"
-                            value={formData.amount} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            name="status"
-                            value={formData.status} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Draft">Draft</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Overdue">Overdue</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
-                        <textarea 
-                            name="description"
-                            value={formData.description || ''} 
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Invoice description..."
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
-    const [formData, setFormData] = useState(quote);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onUpdateQuote(formData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote #</label>
-                        <input 
-                            type="text" 
-                            name="id"
-                            value={formData.id} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            disabled
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                        <input 
-                            type="text" 
-                            name="customerName"
-                            value={formData.customerName} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount</label>
-                        <input 
-                            type="number" 
-                            step="0.01"
-                            name="amount"
-                            value={formData.amount} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            name="status"
-                            value={formData.status} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Draft">Draft</option>
-                            <option value="Sent">Sent</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Accepted">Accepted</option>
-                            <option value="Rejected">Rejected</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Description</label>
-                        <textarea 
-                            name="description"
-                            value={formData.description} 
-                            onChange={handleChange}
-                            rows="4"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Quote description..."
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Notes</label>
-                        <textarea 
-                            name="notes"
-                            value={formData.notes || ''} 
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Additional notes..."
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Save Changes
                     </button>
                 </div>
             </form>
@@ -2523,18 +2532,29 @@ const ReportingView = ({ workOrders, technicians }) => {
     );
 };
 
-const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote }) => {
-    const [activeTab, setActiveTab] = useState('invoices');
+// Updated BillingView component to show line items and fix actions
+const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote, onEditInvoice, onEditQuote }) => {    const [activeTab, setActiveTab] = useState('invoices');
     const [showCreateInvoice, setShowCreateInvoice] = useState(false);
     const [showCreateQuote, setShowCreateQuote] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importType, setImportType] = useState('invoices');
+    const [expandedRows, setExpandedRows] = useState(new Set());
     
-    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || inv.amount || 0), 0);
     const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
     const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
-    const totalQuoteAmount = quotes.reduce((sum, q) => sum + q.amount, 0);
+    const totalQuoteAmount = quotes.reduce((sum, q) => sum + (q.total || q.amount || 0), 0);
     const pendingQuotes = quotes.filter(q => q.status === 'Sent' || q.status === 'Pending');
+
+    const toggleRowExpansion = (id) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedRows(newExpanded);
+    };
 
     const getInvoiceStatusStyles = (status) => {
         const styles = {
@@ -2559,15 +2579,15 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
 
     const exportInvoicesToCSV = () => {
         const csvContent = [
-            ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status', 'Description', 'Due Date'],
+            ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status', 'Line Items', 'Due Date'],
             ...invoices.map(inv => [
                 inv.id,
                 inv.workOrderId || '',
                 inv.customerName,
                 new Date(inv.date).toLocaleDateString(),
-                inv.amount,
+                inv.total || inv.amount || 0,
                 inv.status,
-                inv.description || '',
+                inv.lineItems ? inv.lineItems.length : 0,
                 inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : ''
             ])
         ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -2585,14 +2605,14 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
 
     const exportQuotesToCSV = () => {
         const csvContent = [
-            ['Quote #', 'Customer', 'Description', 'Date', 'Amount', 'Status', 'Valid Until', 'Notes'],
+            ['Quote #', 'Customer', 'Date', 'Amount', 'Status', 'Line Items', 'Valid Until', 'Notes'],
             ...quotes.map(quote => [
                 quote.id,
                 quote.customerName,
-                quote.description,
                 new Date(quote.date).toLocaleDateString(),
-                quote.amount,
+                quote.total || quote.amount || 0,
                 quote.status,
+                quote.lineItems ? quote.lineItems.length : 0,
                 quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '',
                 quote.notes || ''
             ])
@@ -2607,6 +2627,13 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount || 0);
     };
 
     return (
@@ -2639,17 +2666,17 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
                         <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Paid Invoices</h4>
                         <p className="text-2xl font-bold text-green-600">{paidInvoices.length}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(paidInvoices.reduce((sum, inv) => sum + (inv.total || inv.amount || 0), 0))}</p>
                     </div>
                     <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
                         <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Outstanding</h4>
                         <p className="text-2xl font-bold text-red-600">{unpaidInvoices.length}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(unpaidInvoices.reduce((sum, inv) => sum + (inv.total || inv.amount || 0), 0))}</p>
                     </div>
                     <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
                         <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Quotes</h4>
                         <p className="text-2xl font-bold text-yellow-600">{pendingQuotes.length}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(pendingQuotes.reduce((sum, q) => sum + q.amount, 0))}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(pendingQuotes.reduce((sum, q) => sum + (q.total || q.amount || 0), 0))}</p>
                     </div>
                 </div>
             </div>
@@ -2716,9 +2743,9 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                         <thead className="bg-gray-50 dark:bg-slate-600">
                                             <tr>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Invoice #</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Work Order</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Customer</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Items</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Amount</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Actions</th>
@@ -2726,53 +2753,93 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
                                             {invoices.map(invoice => (
-                                                <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-slate-600">
-                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{invoice.id}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{invoice.workOrderId || 'N/A'}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{invoice.customerName}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                                        {new Date(invoice.date).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                                                        {formatCurrency(invoice.amount)}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getInvoiceStatusStyles(invoice.status)}`}>
-                                                            {invoice.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        <div className="flex gap-2">
+                                                <React.Fragment key={invoice.id}>
+                                                    <tr className="hover:bg-gray-50 dark:hover:bg-slate-600">
+                                                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{invoice.id}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{invoice.customerName}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                            {new Date(invoice.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                                                             <button 
-                                                                onClick={() => alert(`Viewing invoice ${invoice.id}\nCustomer: ${invoice.customerName}\nAmount: ${formatCurrency(invoice.amount)}\nStatus: ${invoice.status}`)}
-                                                                className="text-blue-600 hover:text-blue-800 font-medium"
+                                                                onClick={() => toggleRowExpansion(invoice.id)}
+                                                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                                                             >
-                                                                View
+                                                                {invoice.lineItems ? invoice.lineItems.length : 0} items
+                                                                <ChevronDown 
+                                                                    size={16} 
+                                                                    className={`transform transition-transform ${expandedRows.has(invoice.id) ? 'rotate-180' : ''}`}
+                                                                />
                                                             </button>
-                                                            <button 
-                                                                onClick={() => {
-                                                                    const relatedWorkOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
-                                                                    generateInvoicePDF(invoice, relatedWorkOrder);
-                                                                }}
-                                                                className="text-green-600 hover:text-green-800 font-medium"
-                                                            >
-                                                                PDF
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => alert(`Sending invoice ${invoice.id} to ${invoice.customerName}`)}
-                                                                className="text-purple-600 hover:text-purple-800 font-medium"
-                                                            >
-                                                                Send
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => alert(`Edit functionality for invoice ${invoice.id} would open in a modal`)}
-                                                                className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                                                            {formatCurrency(invoice.total || invoice.amount || 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getInvoiceStatusStyles(invoice.status)}`}>
+                                                                {invoice.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <div className="flex gap-2">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const details = `Invoice: ${invoice.id}\nCustomer: ${invoice.customerName}\nTotal: ${formatCurrency(invoice.total || invoice.amount || 0)}\nStatus: ${invoice.status}\nItems: ${invoice.lineItems ? invoice.lineItems.length : 0}`;
+                                                                        alert(details);
+                                                                    }}
+                                                                    className="text-blue-600 hover:text-blue-800 font-medium"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => alert(`Sending invoice ${invoice.id} to ${invoice.customerName}`)}
+                                                                    className="text-purple-600 hover:text-purple-800 font-medium"
+                                                                >
+                                                                    Send
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => onEditInvoice(invoice)}
+                                                                    className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {expandedRows.has(invoice.id) && invoice.lineItems && (
+                                                        <tr>
+                                                            <td colSpan="7" className="px-4 py-3 bg-gray-50 dark:bg-slate-600">
+                                                                <div className="space-y-2">
+                                                                    <h5 className="font-medium text-gray-800 dark:text-white">Line Items:</h5>
+                                                                    {invoice.lineItems.map((item, index) => (
+                                                                        <div key={index} className="flex justify-between items-center py-1 px-3 bg-white dark:bg-slate-700 rounded">
+                                                                            <span className="text-sm text-gray-700 dark:text-gray-300">{item.description}</span>
+                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                                                {item.quantity} × {formatCurrency(item.rate)} = {formatCurrency(item.amount)}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-600 flex justify-end">
+                                                                        <div className="text-sm">
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Subtotal:</span>
+                                                                                <span>{formatCurrency(invoice.subtotal || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Tax:</span>
+                                                                                <span>{formatCurrency(invoice.tax || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48 font-bold">
+                                                                                <span>Total:</span>
+                                                                                <span>{formatCurrency(invoice.total || invoice.amount || 0)}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
                                             ))}
                                         </tbody>
                                     </table>
@@ -2781,7 +2848,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                 <div className="text-center py-12">
                                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
                                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Invoices Yet</h3>
-                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first invoice from a completed work order.</p>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first invoice with line items.</p>
                                     <button 
                                         onClick={() => setShowCreateInvoice(true)}
                                         className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700"
@@ -2829,8 +2896,8 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                             <tr>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Quote #</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Customer</th>
-                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Description</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Items</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Amount</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
                                                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Actions</th>
@@ -2838,58 +2905,99 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
                                             {quotes.map(quote => (
-                                                <tr key={quote.id} className="hover:bg-gray-50 dark:hover:bg-slate-600">
-                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{quote.id}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{quote.customerName}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{quote.description}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                                        {new Date(quote.date).toLocaleDateString()}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                                                        {formatCurrency(quote.amount)}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusStyles(quote.status)}`}>
-                                                            {quote.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        <div className="flex gap-2">
+                                                <React.Fragment key={quote.id}>
+                                                    <tr className="hover:bg-gray-50 dark:hover:bg-slate-600">
+                                                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{quote.id}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{quote.customerName}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                            {new Date(quote.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                                                             <button 
-                                                                onClick={() => alert(`Viewing quote ${quote.id}\nCustomer: ${quote.customerName}\nAmount: ${formatCurrency(quote.amount)}\nDescription: ${quote.description}\nStatus: ${quote.status}`)}
-                                                                className="text-blue-600 hover:text-blue-800 font-medium"
+                                                                onClick={() => toggleRowExpansion(quote.id)}
+                                                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                                                             >
-                                                                View
+                                                                {quote.lineItems ? quote.lineItems.length : 0} items
+                                                                <ChevronDown 
+                                                                    size={16} 
+                                                                    className={`transform transition-transform ${expandedRows.has(quote.id) ? 'rotate-180' : ''}`}
+                                                                />
                                                             </button>
-                                                            <button 
-                                                                onClick={() => {
-                                                                    generateQuotePDF(quote);
-                                                                }}
-                                                                className="text-green-600 hover:text-green-800 font-medium"
-                                                            >
-                                                                PDF
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => alert(`Sending quote ${quote.id} to ${quote.customerName}`)}
-                                                                className="text-purple-600 hover:text-purple-800 font-medium"
-                                                            >
-                                                                Send
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => alert(`Edit functionality for quote ${quote.id} would open in a modal`)}
-                                                                className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => alert(`Converting quote ${quote.id} to invoice for ${quote.customerName}`)}
-                                                                className="text-orange-600 hover:text-orange-800 font-medium"
-                                                            >
-                                                                Convert
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                                                            {formatCurrency(quote.total || quote.amount || 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusStyles(quote.status)}`}>
+                                                                {quote.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <div className="flex gap-2">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const details = `Quote: ${quote.id}\nCustomer: ${quote.customerName}\nTotal: ${formatCurrency(quote.total || quote.amount || 0)}\nStatus: ${quote.status}\nItems: ${quote.lineItems ? quote.lineItems.length : 0}`;
+                                                                        alert(details);
+                                                                    }}
+                                                                    className="text-blue-600 hover:text-blue-800 font-medium"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => alert(`Sending quote ${quote.id} to ${quote.customerName}`)}
+                                                                    className="text-purple-600 hover:text-purple-800 font-medium"
+                                                                >
+                                                                    Send
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => onEditQuote(quote)}
+                                                                    className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => alert(`Converting quote ${quote.id} to invoice for ${quote.customerName}`)}
+                                                                    className="text-orange-600 hover:text-orange-800 font-medium"
+                                                                >
+                                                                    Convert
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {expandedRows.has(quote.id) && quote.lineItems && (
+                                                        <tr>
+                                                            <td colSpan="7" className="px-4 py-3 bg-gray-50 dark:bg-slate-600">
+                                                                <div className="space-y-2">
+                                                                    <h5 className="font-medium text-gray-800 dark:text-white">Line Items:</h5>
+                                                                    {quote.lineItems.map((item, index) => (
+                                                                        <div key={index} className="flex justify-between items-center py-1 px-3 bg-white dark:bg-slate-700 rounded">
+                                                                            <span className="text-sm text-gray-700 dark:text-gray-300">{item.description}</span>
+                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                                                {item.quantity} × {formatCurrency(item.rate)} = {formatCurrency(item.amount)}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-600 flex justify-end">
+                                                                        <div className="text-sm">
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Subtotal:</span>
+                                                                                <span>{formatCurrency(quote.subtotal || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Tax:</span>
+                                                                                <span>{formatCurrency(quote.tax || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48 font-bold">
+                                                                                <span>Total:</span>
+                                                                                <span>{formatCurrency(quote.total || quote.amount || 0)}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
                                             ))}
                                         </tbody>
                                     </table>
@@ -2898,7 +3006,7 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                 <div className="text-center py-12">
                                     <FileText size={48} className="mx-auto text-gray-400 mb-4" />
                                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Quotes Yet</h3>
-                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first quote for potential customers.</p>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first quote with line items.</p>
                                     <button 
                                         onClick={() => setShowCreateQuote(true)}
                                         className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700"
@@ -3169,34 +3277,34 @@ const WorkOrderManagement = () => {
             case 'reporting':
                 return <ReportingView workOrders={workOrders} technicians={technicians} />;
             case 'billing':
-                return (
-                    <>
-                        <BillingView 
-                            invoices={invoices} 
-                            quotes={quotes} 
-                            workOrders={workOrders} 
-                            customers={customers} 
-                            onAddInvoice={handleAddInvoice} 
-                            onAddQuote={handleAddQuote}
-                            onEditInvoice={setEditingInvoice}
-                            onEditQuote={setEditingQuote}
-                        />
-                        {editingInvoice && (
-                            <EditInvoiceModal 
-                                invoice={editingInvoice}
-                                onClose={() => setEditingInvoice(null)}
-                                onUpdateInvoice={handleUpdateInvoice}
-                            />
-                        )}
-                        {editingQuote && (
-                            <EditQuoteModal 
-                                quote={editingQuote}
-                                onClose={() => setEditingQuote(null)}
-                                onUpdateQuote={handleUpdateQuote}
-                            />
-                        )}
-                    </>
-                );
+    return (
+        <>
+            <BillingView 
+                invoices={invoices} 
+                quotes={quotes} 
+                workOrders={workOrders} 
+                customers={customers} 
+                onAddInvoice={handleAddInvoice} 
+                onAddQuote={handleAddQuote}
+                onEditInvoice={setEditingInvoice}
+                onEditQuote={setEditingQuote}
+            />
+            {editingInvoice && (
+                <EditInvoiceModal 
+                    invoice={editingInvoice}
+                    onClose={() => setEditingInvoice(null)}
+                    onUpdateInvoice={handleUpdateInvoice}
+                />
+            )}
+            {editingQuote && (
+                <EditQuoteModal 
+                    quote={editingQuote}
+                    onClose={() => setEditingQuote(null)}
+                    onUpdateQuote={handleUpdateQuote}
+                />
+            )}
+        </>
+    );
             case 'dashboard':
             default:
                 return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
