@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
 // Data Migration Functions
 const migrateExistingData = async () => {
@@ -3179,33 +3179,15 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
 };
 
 // --- Main WorkOrderManagement Component ---
-const WorkOrderManagement = () => {
-    // State with localStorage persistence
-    const [workOrders, setWorkOrders] = useState(() => {
-        const saved = localStorage.getItem('workOrders');
-        return saved ? JSON.parse(saved) : initialSampleData;
-    });
-
-    const [customers, setCustomers] = useState(() => {
-        const saved = localStorage.getItem('customers');
-        return saved ? JSON.parse(saved) : initialCustomers;
-    });
-
-    const [technicians, setTechnicians] = useState(() => {
-        const saved = localStorage.getItem('technicians');
-        return saved ? JSON.parse(saved) : initialTechnicians;
-    });
-
-    const [invoices, setInvoices] = useState(() => {
-        const saved = localStorage.getItem('invoices');
-        return saved ? JSON.parse(saved) : initialInvoices;
-    });
-
-    const [quotes, setQuotes] = useState(() => {
-        const saved = localStorage.getItem('quotes');
-        return saved ? JSON.parse(saved) : initialQuotes;
-    });
-
+const WorkOrderManagement = ({ userId, auth, db, storage }) => {
+    // State management with Firebase integration
+    const [workOrders, setWorkOrders] = useState([]);
+    const [customers, setCustomers] = useState([]);
+    const [technicians, setTechnicians] = useState([]);
+    const [invoices, setInvoices] = useState([]);
+    const [quotes, setQuotes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    
     // UI State
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -3214,181 +3196,509 @@ const WorkOrderManagement = () => {
     const [currentView, setCurrentView] = useState('dashboard');
     const [editingInvoice, setEditingInvoice] = useState(null);
     const [editingQuote, setEditingQuote] = useState(null);
+
+    // =============================================================================
+    // SYNC FUNCTIONS - Auto-sync to Main Dashboard
+    // =============================================================================
     
-    // Load PDF and CSV libraries
-    useEffect(() => {
-        if (!window.Papa) {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
-            script.async = true;
-            document.head.appendChild(script);
-        }
+    const syncToMainDashboard = async (workOrder, invoice = null) => {
+        if (!userId || !workOrder) return;
         
-        if (!window.jspdf) {
-            const pdfScript = document.createElement('script');
-            pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-            pdfScript.async = true;
-            document.head.appendChild(pdfScript);
+        try {
+            const batch = writeBatch(db);
+            let syncedData = { jobs: 0, income: 0 };
             
-            const autoTableScript = document.createElement('script');
-            autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
-            autoTableScript.async = true;
-            document.head.appendChild(autoTableScript);
-        }
-    }, []);
-    
-    // Save data to localStorage whenever it changes
-    useEffect(() => {
-        localStorage.setItem('workOrders', JSON.stringify(workOrders));
-    }, [workOrders]);
-
-    useEffect(() => {
-        localStorage.setItem('customers', JSON.stringify(customers));
-    }, [customers]);
-
-    useEffect(() => {
-        localStorage.setItem('technicians', JSON.stringify(technicians));
-    }, [technicians]);
-
-    useEffect(() => {
-        localStorage.setItem('invoices', JSON.stringify(invoices));
-    }, [invoices]);
-
-    useEffect(() => {
-        localStorage.setItem('quotes', JSON.stringify(quotes));
-    }, [quotes]);
-    
-    const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
-    
-    const handleUpdateOrder = (orderId, payload) => { 
-        setWorkOrders(workOrders.map(o => o.id === orderId ? { ...o, ...payload } : o)); 
-        setSelectedOrder(p => ({ ...p, ...payload })); 
-    };
-    
-    const handleAddNote = (orderId, noteText, callback) => { 
-        if (!noteText.trim()) return; 
-        const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() }; 
-        const updatedOrders = workOrders.map(o => o.id === orderId ? { ...o, notes: [...(o.notes || []), newNote] } : o); 
-        setWorkOrders(updatedOrders); 
-        setSelectedOrder(p => ({ ...p, notes: [...(p.notes || []), newNote] })); 
-        callback(); 
-    };
-    
-    const handleAddNewOrder = (newOrderData) => { 
-        const newId = `WO-${Date.now()}`; 
-        
-        if (newOrderData._newLocation) {
-            const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
-            if (customerToUpdate) {
-                const updatedCustomer = {
-                    ...customerToUpdate,
-                    locations: [...customerToUpdate.locations, newOrderData._newLocation]
+            // 1. SYNC COMPLETED WORK ORDER AS JOB FOR P&L
+            if (workOrder['Order Status'] === 'Completed') {
+                const jobData = {
+                    name: workOrder.Task || 'HVAC Service',
+                    revenue: parseFloat(workOrder.NTE || 0),
+                    materialCost: parseFloat(workOrder.MaterialCost || 0),
+                    laborCost: parseFloat(workOrder.LaborCost || 0),
+                    date: new Date().toISOString(),
+                    customer: workOrder.Client || 'Unknown Customer',
+                    notes: `Synced from Work Order #${workOrder['WO#'] || workOrder.id}`,
+                    syncedFromWorkOrder: workOrder.id,
+                    workOrderNumber: workOrder['WO#'],
+                    createdAt: serverTimestamp(),
+                    lastSynced: serverTimestamp()
                 };
-                setCustomers(prevCustomers => 
-                    prevCustomers.map(c => c.id === customerToUpdate.id ? updatedCustomer : c)
-                );
+                
+                const existingJobRef = doc(db, 'artifacts', 'hvac-finance-dashboard', 'users', userId, 'jobs', `wo-${workOrder.id}`);
+                const existingJob = await getDoc(existingJobRef);
+                
+                if (!existingJob.exists()) {
+                    batch.set(existingJobRef, jobData);
+                    syncedData.jobs++;
+                    console.log(`✅ Job synced: ${workOrder.Task} - ${workOrder.NTE}`);
+                } else {
+                    batch.update(existingJobRef, { ...jobData, updatedAt: serverTimestamp() });
+                    console.log(`🔄 Job updated: ${workOrder.Task}`);
+                }
             }
-        }
-        
-        const { _newLocation, ...orderData } = newOrderData;
-        
-        const newOrder = { 
-            ...orderData, 
-            "WO#": newId, 
-            id: newId, 
-            "Created Date": jsDateToExcel(new Date()), 
-            "Order Status": orderData['Schedule Date'] ? 'Scheduled' : 'Open', 
-            notes: [], 
-            technician: [] 
-        }; 
-        
-        setWorkOrders(p => [newOrder, ...p]); 
-        setIsAddingOrder(false); 
-    };
-    
-    const handleAddCustomer = (customerData) => {
-        console.log('Adding customer:', customerData);
-        
-        if (Array.isArray(customerData)) {
-            const processedData = customerData.map(customer => ({
-                ...customer,
-                id: Math.floor(Date.now() + Math.random() * 1000),
-                locations: customer.locations || []
-            }));
             
-            setCustomers(prev => {
-                const updated = [...prev, ...processedData];
-                console.log('Updated customers (array):', updated);
-                return updated;
+            // 2. SYNC PAID INVOICE AS INCOME
+            if (invoice && (invoice.status === 'Paid' || invoice.status === 'paid')) {
+                const incomeData = {
+                    source: `Invoice #${invoice.id}`,
+                    amount: parseFloat(invoice.total || invoice.amount || 0),
+                    frequency: 'One-time',
+                    description: `Payment: ${workOrder.Client} - ${workOrder.Task}`,
+                    category: 'HVAC Services',
+                    date: invoice.paidDate || new Date().toISOString(),
+                    syncedFromInvoice: invoice.id,
+                    workOrderId: workOrder.id,
+                    createdAt: serverTimestamp(),
+                    lastSynced: serverTimestamp()
+                };
+                
+                const existingIncomeRef = doc(db, 'artifacts', 'hvac-finance-dashboard', 'users', userId, 'incomes', `inv-${invoice.id}`);
+                const existingIncome = await getDoc(existingIncomeRef);
+                
+                if (!existingIncome.exists()) {
+                    batch.set(existingIncomeRef, incomeData);
+                    syncedData.income++;
+                    console.log(`💰 Income synced: ${invoice.total || invoice.amount}`);
+                } else {
+                    batch.update(existingIncomeRef, { ...incomeData, updatedAt: serverTimestamp() });
+                    console.log(`🔄 Income updated: ${invoice.total || invoice.amount}`);
+                }
+            }
+            
+            await batch.commit();
+            
+            if (syncedData.jobs > 0 || syncedData.income > 0) {
+                console.log(`✅ Dashboard Sync Complete - Jobs: ${syncedData.jobs}, Income: ${syncedData.income}`);
+            }
+            
+            return syncedData;
+            
+        } catch (error) {
+            console.error('❌ Failed to sync to dashboard:', error);
+        }
+    };
+
+    // Enhanced status update function with auto-sync
+    const updateWorkOrderStatus = async (workOrderId, newStatus) => {
+        try {
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', workOrderId);
+            await updateDoc(workOrderRef, { 
+                'Order Status': newStatus,
+                updatedAt: serverTimestamp()
             });
-        } else {
-            const newCustomer = { 
-                ...customerData, 
-                id: Math.floor(Date.now() + Math.random() * 1000),
-                locations: customerData.locations || []
+            
+            // AUTO-SYNC when status changes to Completed
+            if (newStatus === 'Completed') {
+                const workOrderSnap = await getDoc(workOrderRef);
+                if (workOrderSnap.exists()) {
+                    await syncToMainDashboard({ ...workOrderSnap.data(), id: workOrderId });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
+    };
+
+    // Enhanced invoice payment function with auto-sync
+    const markInvoicePaid = async (invoiceId, workOrderId) => {
+        try {
+            const invoiceRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices', invoiceId);
+            const paidInvoice = {
+                status: 'Paid',
+                paidDate: new Date().toISOString(),
+                updatedAt: serverTimestamp()
             };
             
-            setCustomers(prev => {
-                const updated = [...prev, newCustomer];
-                console.log('Updated customers (single):', updated);
-                console.log('New customer with ID:', newCustomer);
-                return updated;
-            });
+            await updateDoc(invoiceRef, paidInvoice);
             
-            alert(`Customer "${newCustomer.name}" has been successfully added with ID ${newCustomer.id}!`);
+            // Get work order and invoice data for sync
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', workOrderId);
+            const [workOrderSnap, invoiceSnap] = await Promise.all([
+                getDoc(workOrderRef),
+                getDoc(invoiceRef)
+            ]);
+            
+            if (workOrderSnap.exists() && invoiceSnap.exists()) {
+                await syncToMainDashboard(
+                    { ...workOrderSnap.data(), id: workOrderId }, 
+                    { ...invoiceSnap.data(), id: invoiceId }
+                );
+            }
+            
+        } catch (error) {
+            console.error('Error marking invoice paid:', error);
         }
     };
 
-    const handleUpdateCustomer = (updatedCustomer) => { 
-        setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)); 
-    };
-    
-    const handleAddLocationToCustomer = (customerId, newLocation) => { 
-        setCustomers(customers.map(c => c.id === customerId ? { ...c, locations: [...c.locations, newLocation] } : c)); 
-    };
-    
-    const handleAddTechnician = (newTechData) => { 
-        const newTech = { ...newTechData, id: Date.now() }; 
-        setTechnicians(p => [...p, newTech]); 
-    };
-    
-    const handleUpdateTechnician = (updatedTech) => { 
-        setTechnicians(technicians.map(t => t.id === updatedTech.id ? updatedTech : t)); 
-    };
-    
-    const handleDeleteTechnician = (techId) => {
-        const techToDelete = technicians.find(t => t.id === techId);
-        if (techToDelete) {
-            setWorkOrders(workOrders.map(wo => ({...wo, technician: wo.technician.filter(t => t !== techToDelete.name)})));
-            setTechnicians(technicians.filter(t => t.id !== techId));
+    // Bulk sync function for existing data
+    const bulkSyncExistingData = async () => {
+        if (!confirm('This will sync all completed work orders and paid invoices to your financial dashboard. Continue?')) {
+            return;
+        }
+        
+        try {
+            let syncCount = 0;
+            
+            for (const workOrder of workOrders) {
+                if (workOrder['Order Status'] === 'Completed') {
+                    const matchingInvoice = invoices.find(inv => 
+                        inv.workOrderId === workOrder.id && 
+                        (inv.status === 'Paid' || inv.status === 'paid')
+                    );
+                    
+                    await syncToMainDashboard(
+                        workOrder,
+                        matchingInvoice || null
+                    );
+                    syncCount++;
+                }
+            }
+            
+            alert(`✅ Bulk sync complete! Processed ${syncCount} work orders.`);
+            
+        } catch (error) {
+            console.error('Bulk sync failed:', error);
+            alert(`❌ Bulk sync failed: ${error.message}`);
         }
     };
 
-    const handleAddInvoice = (invoiceData) => {
-        if (Array.isArray(invoiceData)) {
-            setInvoices(prev => [...invoiceData, ...prev]);
-        } else {
-            setInvoices(prev => [invoiceData, ...prev]);
+    // =============================================================================
+    // FIREBASE DATA LISTENERS
+    // =============================================================================
+    
+    useEffect(() => {
+        if (!userId) return;
+        
+        const collectionsToWatch = {
+            workOrders: setWorkOrders,
+            customers: setCustomers,
+            technicians: setTechnicians,
+            invoices: setInvoices,
+            quotes: setQuotes
+        };
+        
+        const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
+            onSnapshot(
+                query(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, colName)), 
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setter(data);
+                    if (colName === 'workOrders') setLoading(false);
+                }, 
+                (err) => console.error(`Error fetching ${colName}:`, err)
+            )
+        );
+        
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, [userId, db]);
+
+    // =============================================================================
+    // COMPONENT FUNCTIONS - Updated for Firebase
+    // =============================================================================
+    
+    const filteredOrders = useMemo(() => 
+        workOrders.filter(order => 
+            (statusFilter === 'All' || order['Order Status'] === statusFilter) && 
+            Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
+        ), 
+        [workOrders, searchTerm, statusFilter]
+    );
+    
+    const handleUpdateOrder = async (orderId, payload) => {
+        try {
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', orderId);
+            await updateDoc(workOrderRef, { ...payload, updatedAt: serverTimestamp() });
+            
+            // Auto-sync if status changed to Completed
+            if (payload['Order Status'] === 'Completed') {
+                const workOrderSnap = await getDoc(workOrderRef);
+                if (workOrderSnap.exists()) {
+                    await syncToMainDashboard({ ...workOrderSnap.data(), id: orderId });
+                }
+            }
+            
+            // Update local selected order
+            if (selectedOrder && selectedOrder.id === orderId) {
+                setSelectedOrder(prev => ({ ...prev, ...payload }));
+            }
+        } catch (error) {
+            console.error('Error updating work order:', error);
+        }
+    };
+    
+    const handleAddNote = async (orderId, noteText, callback) => {
+        if (!noteText.trim()) return;
+        
+        try {
+            const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() };
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', orderId);
+            const workOrderSnap = await getDoc(workOrderRef);
+            
+            if (workOrderSnap.exists()) {
+                const currentNotes = workOrderSnap.data().notes || [];
+                await updateDoc(workOrderRef, { 
+                    notes: [...currentNotes, newNote],
+                    updatedAt: serverTimestamp()
+                });
+                
+                if (selectedOrder && selectedOrder.id === orderId) {
+                    setSelectedOrder(prev => ({ ...prev, notes: [...(prev.notes || []), newNote] }));
+                }
+                
+                callback();
+            }
+        } catch (error) {
+            console.error('Error adding note:', error);
+        }
+    };
+    
+    const handleAddNewOrder = async (newOrderData) => {
+        try {
+            const newId = `WO-${Date.now()}`;
+            
+            // Add location to customer if needed
+            if (newOrderData._newLocation) {
+                const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
+                if (customerToUpdate) {
+                    const customerRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers', customerToUpdate.id);
+                    await updateDoc(customerRef, {
+                        locations: [...customerToUpdate.locations, newOrderData._newLocation],
+                        updatedAt: serverTimestamp()
+                    });
+                }
+            }
+            
+            const { _newLocation, ...orderData } = newOrderData;
+            
+            const newOrder = { 
+                ...orderData, 
+                "WO#": newId, 
+                "Created Date": jsDateToExcel(new Date()), 
+                "Order Status": orderData['Schedule Date'] ? 'Scheduled' : 'Open', 
+                notes: [], 
+                technician: [],
+                createdAt: serverTimestamp()
+            };
+            
+            await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders'), newOrder);
+            setIsAddingOrder(false);
+        } catch (error) {
+            console.error('Error adding work order:', error);
+        }
+    };
+    
+    const handleAddCustomer = async (customerData) => {
+        try {
+            if (Array.isArray(customerData)) {
+                const batch = writeBatch(db);
+                customerData.forEach(customer => {
+                    const customerRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers'));
+                    batch.set(customerRef, { 
+                        ...customer, 
+                        locations: customer.locations || [],
+                        createdAt: serverTimestamp()
+                    });
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers'), {
+                    ...customerData,
+                    locations: customerData.locations || [],
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding customer:', error);
         }
     };
 
-    const handleAddQuote = (quoteData) => {
-        if (Array.isArray(quoteData)) {
-            setQuotes(prev => [...quoteData, ...prev]);
-        } else {
-            setQuotes(prev => [quoteData, ...prev]);
+    const handleUpdateCustomer = async (updatedCustomer) => {
+        try {
+            const customerRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers', updatedCustomer.id);
+            await updateDoc(customerRef, { ...updatedCustomer, updatedAt: serverTimestamp() });
+        } catch (error) {
+            console.error('Error updating customer:', error);
+        }
+    };
+    
+    const handleAddLocationToCustomer = async (customerId, newLocation) => {
+        try {
+            const customer = customers.find(c => c.id === customerId);
+            if (customer) {
+                const customerRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers', customerId);
+                await updateDoc(customerRef, {
+                    locations: [...customer.locations, newLocation],
+                    updatedAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding location:', error);
+        }
+    };
+    
+    const handleAddTechnician = async (newTechData) => {
+        try {
+            await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'technicians'), {
+                ...newTechData,
+                createdAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error('Error adding technician:', error);
+        }
+    };
+    
+    const handleUpdateTechnician = async (updatedTech) => {
+        try {
+            const techRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'technicians', updatedTech.id);
+            await updateDoc(techRef, { ...updatedTech, updatedAt: serverTimestamp() });
+        } catch (error) {
+            console.error('Error updating technician:', error);
+        }
+    };
+    
+    const handleDeleteTechnician = async (techId) => {
+        try {
+            const techToDelete = technicians.find(t => t.id === techId);
+            if (techToDelete && confirm(`Delete ${techToDelete.name}?`)) {
+                // Remove from work orders
+                const batch = writeBatch(db);
+                workOrders.forEach(wo => {
+                    if (wo.technician.includes(techToDelete.name)) {
+                        const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', wo.id);
+                        batch.update(workOrderRef, {
+                            technician: wo.technician.filter(t => t !== techToDelete.name),
+                            updatedAt: serverTimestamp()
+                        });
+                    }
+                });
+                
+                // Delete technician
+                const techRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'technicians', techId);
+                batch.delete(techRef);
+                
+                await batch.commit();
+            }
+        } catch (error) {
+            console.error('Error deleting technician:', error);
         }
     };
 
-    const handleUpdateInvoice = (updatedInvoice) => {
-        setInvoices(invoices.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
+    const handleAddInvoice = async (invoiceData) => {
+        try {
+            if (Array.isArray(invoiceData)) {
+                const batch = writeBatch(db);
+                invoiceData.forEach(invoice => {
+                    const invoiceRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices'));
+                    batch.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices'), {
+                    ...invoiceData,
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding invoice:', error);
+        }
     };
 
-    const handleUpdateQuote = (updatedQuote) => {
-        setQuotes(quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q));
+    const handleAddQuote = async (quoteData) => {
+        try {
+            if (Array.isArray(quoteData)) {
+                const batch = writeBatch(db);
+                quoteData.forEach(quote => {
+                    const quoteRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'quotes'));
+                    batch.set(quoteRef, { ...quote, createdAt: serverTimestamp() });
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'quotes'), {
+                    ...quoteData,
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding quote:', error);
+        }
     };
 
+    const handleUpdateInvoice = async (updatedInvoice) => {
+        try {
+            const invoiceRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices', updatedInvoice.id);
+            await updateDoc(invoiceRef, { ...updatedInvoice, updatedAt: serverTimestamp() });
+            
+            // Auto-sync if invoice was marked paid
+            if (updatedInvoice.status === 'Paid' && updatedInvoice.workOrderId) {
+                const workOrder = workOrders.find(wo => wo.id === updatedInvoice.workOrderId);
+                if (workOrder) {
+                    await syncToMainDashboard(workOrder, updatedInvoice);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating invoice:', error);
+        }
+    };
+
+    const handleUpdateQuote = async (updatedQuote) => {
+        try {
+            const quoteRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'quotes', updatedQuote.id);
+            await updateDoc(quoteRef, { ...updatedQuote, updatedAt: serverTimestamp() });
+        } catch (error) {
+            console.error('Error updating quote:', error);
+        }
+    };
+
+    // =============================================================================
+    // SYNC STATUS INDICATORS - UI Components
+    // =============================================================================
+    
+    const SyncStatusIndicator = ({ workOrder, invoice }) => {
+        const isJobSynced = workOrder?.['Order Status'] === 'Completed';
+        const isIncomeSynced = invoice?.status === 'Paid';
+        
+        return (
+            <div className="flex items-center gap-2 text-sm">
+                <span className={`px-2 py-1 rounded text-xs ${
+                    isJobSynced ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                }`}>
+                    {isJobSynced ? '✅ Job Synced' : '⏳ Not Synced'}
+                </span>
+                {invoice && (
+                    <span className={`px-2 py-1 rounded text-xs ${
+                        isIncomeSynced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                        {isIncomeSynced ? '💰 Income Synced' : '⏳ Pending Payment'}
+                    </span>
+                )}
+            </div>
+        );
+    };
+
+    const ManualSyncButton = ({ workOrder, invoice }) => (
+        <button
+            onClick={() => syncToMainDashboard(workOrder, invoice)}
+            className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+        >
+            🔄 Sync Now
+        </button>
+    );
+
+    // =============================================================================
+    // RENDER FUNCTIONS
+    // =============================================================================
+    
     const renderContent = () => {
+        if (loading) {
+            return (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400">Loading work orders...</span>
+                </div>
+            );
+        }
+
         switch(currentView) {
             case 'customers':
                 return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
@@ -3401,34 +3711,18 @@ const WorkOrderManagement = () => {
             case 'reporting':
                 return <ReportingView workOrders={workOrders} technicians={technicians} />;
             case 'billing':
-    return (
-        <>
-            <BillingView 
-                invoices={invoices} 
-                quotes={quotes} 
-                workOrders={workOrders} 
-                customers={customers} 
-                onAddInvoice={handleAddInvoice} 
-                onAddQuote={handleAddQuote}
-                onEditInvoice={setEditingInvoice}
-                onEditQuote={setEditingQuote}
-            />
-            {editingInvoice && (
-                <EditInvoiceModal 
-                    invoice={editingInvoice}
-                    onClose={() => setEditingInvoice(null)}
-                    onUpdateInvoice={handleUpdateInvoice}
-                />
-            )}
-            {editingQuote && (
-                <EditQuoteModal 
-                    quote={editingQuote}
-                    onClose={() => setEditingQuote(null)}
-                    onUpdateQuote={handleUpdateQuote}
-                />
-            )}
-        </>
-    );
+                return (
+                    <BillingView 
+                        invoices={invoices} 
+                        quotes={quotes} 
+                        workOrders={workOrders} 
+                        customers={customers} 
+                        onAddInvoice={handleAddInvoice} 
+                        onAddQuote={handleAddQuote}
+                        onEditInvoice={setEditingInvoice}
+                        onEditQuote={setEditingQuote}
+                    />
+                );
             case 'dashboard':
             default:
                 return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
@@ -3439,7 +3733,20 @@ const WorkOrderManagement = () => {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Work Order Management</h2>
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Work Order Management</h2>
+                        <div className="flex items-center gap-4 mt-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Auto-syncs with financial dashboard
+                            </p>
+                            <button
+                                onClick={bulkSyncExistingData}
+                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                            >
+                                🔄 Bulk Sync All Data
+                            </button>
+                        </div>
+                    </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => setCurrentView('dashboard')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
                             Dashboard
@@ -3484,6 +3791,20 @@ const WorkOrderManagement = () => {
                     customers={customers} 
                     onAddOrder={handleAddNewOrder} 
                     onClose={() => setIsAddingOrder(false)} 
+                />
+            )}
+            {editingInvoice && (
+                <EditInvoiceModal 
+                    invoice={editingInvoice}
+                    onClose={() => setEditingInvoice(null)}
+                    onUpdateInvoice={handleUpdateInvoice}
+                />
+            )}
+            {editingQuote && (
+                <EditQuoteModal 
+                    quote={editingQuote}
+                    onClose={() => setEditingQuote(null)}
+                    onUpdateQuote={handleUpdateQuote}
                 />
             )}
         </div>
