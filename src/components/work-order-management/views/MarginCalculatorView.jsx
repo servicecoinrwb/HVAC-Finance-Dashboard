@@ -1,15 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Percent, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-const MarginCalculatorView = ({ workOrders }) => {
+// 2. Remove props from component definition
+const MarginCalculatorView = () => {
+    // 3. Get data from the context
+    const { workOrders } = useWorkOrderContext();
+
     const [selectedOrderId, setSelectedOrderId] = useState('');
     const [revenue, setRevenue] = useState(0);
     const [materialCost, setMaterialCost] = useState(0);
     const [laborCost, setLaborCost] = useState(0);
 
+    // 4. Add a guard clause for loading state
+    if (!workOrders) {
+        return <div className="p-6">Loading calculator data...</div>;
+    }
+
     const completedOrders = useMemo(() => 
-        workOrders.filter(wo => wo['Order Status'] === 'Completed'), 
+        (workOrders || []).filter(wo => wo['Order Status'] === 'Completed'), 
         [workOrders]
     );
 
@@ -17,7 +28,6 @@ const MarginCalculatorView = ({ workOrders }) => {
         const selectedOrder = workOrders.find(wo => wo.id === selectedOrderId);
         if (selectedOrder) {
             setRevenue(selectedOrder.NTE || 0);
-            // Assuming you might add these fields to your work orders later
             setMaterialCost(selectedOrder.materialCost || 0);
             setLaborCost(selectedOrder.laborCost || 0);
         } else {
@@ -55,15 +65,15 @@ const MarginCalculatorView = ({ workOrders }) => {
                             ))}
                         </select>
                     </div>
-                     <div>
+                    <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Total Revenue ($)</label>
                         <input type="number" value={revenue} onChange={e => setRevenue(parseFloat(e.target.value) || 0)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                     </div>
-                     <div>
+                    <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Material Cost ($)</label>
                         <input type="number" value={materialCost} onChange={e => setMaterialCost(parseFloat(e.target.value) || 0)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                     </div>
-                     <div>
+                    <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Labor Cost ($)</label>
                         <input type="number" value={laborCost} onChange={e => setLaborCost(parseFloat(e.target.value) || 0)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                     </div>
@@ -71,7 +81,7 @@ const MarginCalculatorView = ({ workOrders }) => {
 
                 {/* --- RESULTS --- */}
                 <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg flex flex-col justify-center items-center space-y-4">
-                     <div className="text-center">
+                    <div className="text-center">
                         <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profit Margin</h4>
                         <p className={`text-6xl font-bold ${margin >= 25 ? 'text-green-500' : 'text-orange-500'}`}>
                             {margin.toFixed(1)}<span className="text-4xl">%</span>
@@ -82,11 +92,11 @@ const MarginCalculatorView = ({ workOrders }) => {
                             <p className="text-xs text-gray-500 dark:text-gray-400">Total Revenue</p>
                             <p className="text-lg font-semibold text-blue-500">{formatCurrency(revenue)}</p>
                         </div>
-                         <div>
+                        <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Total Cost</p>
                             <p className="text-lg font-semibold text-red-500">{formatCurrency(totalCost)}</p>
                         </div>
-                         <div>
+                        <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Net Profit</p>
                             <p className="text-lg font-semibold text-green-500">{formatCurrency(profit)}</p>
                         </div>

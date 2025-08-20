@@ -5,8 +5,22 @@ import CreateQuoteModal from '../modals/CreateQuoteModal';
 import CSVImportModal from '../modals/CSVImportModal';
 import { formatCurrency } from '../utils/helpers';
 import { STATUS } from '../utils/constants';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote, onEditInvoice, onEditQuote, onMarkInvoicePaid }) => {
+// 2. Remove props from component definition
+const BillingView = () => {
+    // 3. Get data and handlers from context
+    const { 
+        invoices, 
+        quotes, 
+        workOrders, 
+        customers, 
+        handlers, 
+        setEditingInvoice, 
+        setEditingQuote 
+    } = useWorkOrderContext();
+
     const [activeTab, setActiveTab] = useState('invoices');
     const [showCreateInvoice, setShowCreateInvoice] = useState(false);
     const [showCreateQuote, setShowCreateQuote] = useState(false);
@@ -15,9 +29,10 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
     const [expandedRows, setExpandedRows] = useState(new Set());
 
     const financialSummary = useMemo(() => {
-        const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-        const paidInvoices = invoices.filter(inv => inv.status === STATUS.PAID);
-        const unpaidInvoices = invoices.filter(inv => inv.status !== STATUS.PAID);
+        const safeInvoices = invoices || [];
+        const totalInvoiceAmount = safeInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+        const paidInvoices = safeInvoices.filter(inv => inv.status === STATUS.PAID);
+        const unpaidInvoices = safeInvoices.filter(inv => inv.status !== STATUS.PAID);
         const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
         const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
         return { totalInvoiceAmount, paidInvoicesCount: paidInvoices.length, unpaidInvoicesCount: unpaidInvoices.length, totalPaidAmount, totalUnpaidAmount };
@@ -36,6 +51,11 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
         [STATUS.OVERDUE]: 'bg-red-100 text-red-800',
         [STATUS.DRAFT]: 'bg-gray-100 text-gray-800',
     }[status] || 'bg-gray-100 text-gray-800');
+
+    // 4. Add a guard clause for loading state
+    if (!invoices || !quotes || !workOrders || !customers) {
+        return <div className="p-6">Loading billing data...</div>;
+    }
 
     return (
         <div className="space-y-6">
@@ -74,11 +94,11 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                                                 <td>
                                                     <div className="flex items-center gap-3">
                                                         {invoice.status !== STATUS.PAID ? (
-                                                            <button onClick={() => onMarkInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600"><CheckCircle size={16} /> Mark Paid</button>
+                                                            <button onClick={() => handlers.markInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600"><CheckCircle size={16} /> Mark Paid</button>
                                                         ) : (
-                                                            <button onClick={() => onMarkInvoicePaid(invoice.id, false)} className="flex items-center gap-1 text-orange-600"><XCircle size={16} /> Mark Unpaid</button>
+                                                            <button onClick={() => handlers.markInvoicePaid(invoice.id, false)} className="flex items-center gap-1 text-orange-600"><XCircle size={16} /> Mark Unpaid</button>
                                                         )}
-                                                        <button onClick={() => onEditInvoice(invoice)}>Edit</button>
+                                                        <button onClick={() => setEditingInvoice(invoice)}>Edit</button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -91,8 +111,9 @@ const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, on
                     )}
                 </div>
             </div>
-            {showCreateInvoice && <CreateInvoiceModal workOrders={workOrders} customers={customers} onClose={() => setShowCreateInvoice(false)} onAddInvoice={onAddInvoice} />}
-            {showCreateQuote && <CreateQuoteModal customers={customers} onClose={() => setShowCreateQuote(false)} onAddQuote={onAddQuote} />}
+            {/* 5. Use handlers from context for the modals */}
+            {showCreateInvoice && <CreateInvoiceModal workOrders={workOrders} customers={customers} onClose={() => setShowCreateInvoice(false)} onAddInvoice={handlers.addInvoice} />}
+            {showCreateQuote && <CreateQuoteModal customers={customers} onClose={() => setShowCreateQuote(false)} onAddQuote={handlers.addQuote} />}
         </div>
     );
 };

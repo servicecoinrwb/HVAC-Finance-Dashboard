@@ -1,14 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { Printer } from 'lucide-react';
 import { excelToJSDate, excelDateToYYYYMMDD, formatTime } from '../utils/helpers';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-const RoutePlanningView = ({ workOrders, technicians }) => {
+// 2. Remove props from the component definition
+const RoutePlanningView = () => {
+    // 3. Get data from the context
+    const { workOrders, technicians } = useWorkOrderContext();
+
     const [selectedTechId, setSelectedTechId] = useState('ALL');
     const [viewType, setViewType] = useState('today');
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
 
     const jobsForRange = useMemo(() => {
+        // 4. Add a guard clause for loading data
+        if (!workOrders || !technicians) return [];
+
         let startDate = new Date();
         let endDate = new Date();
         
@@ -38,12 +47,12 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
 
         const filtered = workOrders.filter(wo => {
             const jobDate = excelToJSDate(wo['Schedule Date']);
-            return jobDate >= startDate && jobDate <= endDate;
+            return jobDate && jobDate >= startDate && jobDate <= endDate;
         });
         
         const techName = technicians.find(t => t.id === selectedTechId)?.name;
-        if (selectedTechId !== 'ALL') {
-            return filtered.filter(wo => wo.technician.includes(techName)).sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
+        if (selectedTechId !== 'ALL' && techName) {
+            return filtered.filter(wo => wo.technician?.includes(techName)).sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
         }
 
         return filtered.sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
@@ -55,7 +64,7 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
             const dateStr = excelDateToYYYYMMDD(job['Schedule Date']);
             if (!acc[dateStr]) acc[dateStr] = {};
 
-            job.technician.forEach(techName => {
+            (job.technician || []).forEach(techName => {
                 if (!acc[dateStr][techName]) acc[dateStr][techName] = [];
                 acc[dateStr][techName].push(job);
             });
@@ -64,6 +73,11 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
     }, [jobsForRange]);
 
     const handlePrint = () => window.print();
+
+    // Guard clause for when technicians haven't loaded yet
+    if (!technicians) {
+        return <div className="p-6">Loading technician data...</div>;
+    }
 
     return (
         <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
@@ -82,7 +96,7 @@ const RoutePlanningView = ({ workOrders, technicians }) => {
                             <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                         </>
                     )}
-                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
                         <option value="ALL">All Technicians</option>
                         {technicians.filter(t=>t.name !== 'Unassigned').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>

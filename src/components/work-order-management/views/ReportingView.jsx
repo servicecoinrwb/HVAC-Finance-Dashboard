@@ -1,8 +1,19 @@
 import React, { useMemo } from 'react';
 import { Download, Award } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-const ReportingView = ({ workOrders, technicians }) => {
+// 2. Remove props from component definition
+const ReportingView = () => {
+    // 3. Get data from the context
+    const { workOrders, technicians } = useWorkOrderContext();
+
+    // 4. Add a guard clause for loading state
+    if (!workOrders || !technicians) {
+        return <div className="p-6">Loading reporting data...</div>;
+    }
+
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
     
     const totalRevenue = completedOrders.reduce((sum, wo) => sum + (wo.NTE || 0), 0);
@@ -11,7 +22,7 @@ const ReportingView = ({ workOrders, technicians }) => {
         const techCounts = technicians
             .filter(t => t.name !== 'Unassigned')
             .map(tech => {
-                const count = workOrders.filter(wo => wo.technician.includes(tech.name) && wo['Order Status'] === 'Completed').length;
+                const count = workOrders.filter(wo => wo.technician?.includes(tech.name) && wo['Order Status'] === 'Completed').length;
                 return { name: tech.name, count };
             });
         return techCounts.sort((a, b) => b.count - a.count);

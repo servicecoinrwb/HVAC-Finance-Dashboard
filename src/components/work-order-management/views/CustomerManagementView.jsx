@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, PlusCircle } from 'lucide-react';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
 // --- Utility Functions ---
 const getCustomerTypeStyles = (t) => ({'national account':'bg-blue-100 text-blue-800','commercial':'bg-purple-100 text-purple-800','residential':'bg-green-100 text-green-800','maintenance':'bg-yellow-100 text-yellow-800',}[t?.toLowerCase()] || 'bg-gray-100 text-gray-800');
 
-// --- Modals (included for simplicity, can be moved to own files) ---
+// --- Modals ---
 const AddCustomerModal = ({ onClose, onAddCustomer }) => {
     const [name, setName] = useState('');
     const [type, setType] = useState('Commercial');
@@ -44,14 +46,30 @@ const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
     const [locNum, setLocNum] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('MI');
-    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) { alert("Location name cannot be empty."); return; } onAddLocation(customer.id, { name, locNum, city, state }); onClose(); };
+    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) { alert("Location name cannot be empty."); return; } onAddLocation(customer, { name, locNum, city, state }); onClose(); };
     return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-md"><div className="p-6 border-b"><h2 className="text-2xl font-bold text-gray-800">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">Location Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">Location #</label><input type="text" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 block mb-1">City</label><input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div><div><label className="text-sm font-medium text-gray-600 block mb-1">State</label><input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" /></div></div></div><div className="p-6 bg-gray-50 border-t flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
 };
 
-export const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, onAddLocation }) => {
+// 2. Remove props from component definition
+export const CustomerManagementView = () => {
+    // 3. Get data and handlers from context
+    const { customers, handlers } = useWorkOrderContext();
+
     const [isAddingCustomer, setIsAddingCustomer] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [addingLocationTo, setAddingLocationTo] = useState(null);
+
+    // 4. Create a new handler for adding a location
+    const handleAddLocation = (customer, newLocation) => {
+        const updatedLocations = [...(customer.locations || []), newLocation];
+        handlers.updateCustomer({ ...customer, locations: updatedLocations });
+    };
+    
+    // 5. Add a guard clause for when data is loading
+    if (!customers) {
+        return <div className="p-6">Loading customer data...</div>;
+    }
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-6">
@@ -72,19 +90,19 @@ export const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCusto
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div className="text-sm"><p className="font-semibold text-gray-600">Primary Contact</p><p className="flex items-center gap-2"><User size={14}/> {customer.contact.name}</p><p className="flex items-center gap-2"><Mail size={14}/> {customer.contact.email}</p><p className="flex items-center gap-2"><Phone size={14}/> {customer.contact.phone}</p></div>
-                            <div className="text-sm"><p className="font-semibold text-gray-600">Billing Address</p><p>{customer.billingAddress.street}</p><p>{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p></div>
+                            <div className="text-sm"><p className="font-semibold text-gray-600">Primary Contact</p><p className="flex items-center gap-2"><User size={14}/> {customer.contact?.name}</p><p className="flex items-center gap-2"><Mail size={14}/> {customer.contact?.email}</p><p className="flex items-center gap-2"><Phone size={14}/> {customer.contact?.phone}</p></div>
+                            <div className="text-sm"><p className="font-semibold text-gray-600">Billing Address</p><p>{customer.billingAddress?.street}</p><p>{customer.billingAddress?.city}, {customer.billingAddress?.state} {customer.billingAddress?.zip}</p></div>
                         </div>
                         <div className="mt-3 pt-3 border-t">
-                            <h4 className="text-sm font-semibold text-gray-600 mb-1">Service Locations ({customer.locations.length})</h4>
-                            <div className="pl-4 border-l-2 space-y-1">{customer.locations.map((loc, index) => (<div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700"><span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}</div>))}</div>
+                            <h4 className="text-sm font-semibold text-gray-600 mb-1">Service Locations ({(customer.locations || []).length})</h4>
+                            <div className="pl-4 border-l-2 space-y-1">{(customer.locations || []).map((loc, index) => (<div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700"><span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}</div>))}</div>
                         </div>
                     </div>
                 ))}
             </div>
-            {isAddingCustomer && <AddCustomerModal onAddCustomer={onAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
-            {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={onUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
-            {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={onAddLocation} onClose={() => setAddingLocationTo(null)} />}
+            {isAddingCustomer && <AddCustomerModal onAddCustomer={handlers.addCustomer} onClose={() => setIsAddingCustomer(false)} />}
+            {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={handlers.updateCustomer} onClose={() => setEditingCustomer(null)} />}
+            {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={handleAddLocation} onClose={() => setAddingLocationTo(null)} />}
         </div>
     );
 };

@@ -1,7 +1,9 @@
 import React from 'react';
 import { Search, Filter, ChevronDown, Briefcase, User, Calendar as CalendarIcon } from 'lucide-react';
+// 1. Import the context hook to access shared state
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-// --- Utility Functions (You may need to move these to a shared utils.js file later) ---
+// --- Utility Functions (These should be moved to a shared utils.js file) ---
 const excelToJSDate = (d) => d && typeof d === 'number' ? new Date(Math.round((d - 25569) * 86400 * 1000)) : null;
 const excelDateToJSDateString = (d) => { const date = excelToJSDate(d); return date ? date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : null; };
 const formatTime = (timeStr) => { if (!timeStr) return ''; const [h, m] = timeStr.split(':'); const hours = parseInt(h, 10); const suffix = hours >= 12 ? 'PM' : 'AM'; const hh = ((hours + 11) % 12 + 1); return `${hh}:${m} ${suffix}`; };
@@ -31,8 +33,22 @@ const OrderCard = ({ order, onSelectOrder }) => (
     </div>
 );
 
+// 2. Remove all props from the component definition
+export const DashboardView = () => {
+    // 3. Get all data and functions from the context
+    const { 
+        filteredOrders, 
+        setSelectedOrder, 
+        searchTerm, 
+        setSearchTerm, 
+        statusFilter, 
+        setStatusFilter 
+    } = useWorkOrderContext();
 
-export const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm, statusFilter, setStatusFilter }) => (
+    // Use a more descriptive name for the data from context
+    const orders = filteredOrders;
+
+    return (
     <>
         <div className="bg-white p-4 rounded-lg shadow-sm mb-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -57,7 +73,8 @@ export const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm
         </div>
         {orders.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={onSelectOrder} />)}
+                {/* Use setSelectedOrder from context, which is the equivalent of the old onSelectOrder prop */}
+                {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} />)}
             </div>
         ) : (
             <div className="text-center py-16 px-6 bg-white rounded-lg shadow-sm">
@@ -66,4 +83,5 @@ export const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm
             </div>
         )}
     </>
-);
+    );
+};
