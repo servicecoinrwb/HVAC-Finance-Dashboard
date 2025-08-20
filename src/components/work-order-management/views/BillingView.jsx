@@ -410,4 +410,4 @@ const BillingView = () => {
     );
 };
 
-export default BillingVi
+export default BillingView;
