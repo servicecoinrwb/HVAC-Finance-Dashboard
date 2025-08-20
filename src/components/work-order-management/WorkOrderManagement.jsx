@@ -10,9 +10,9 @@ import DispatchView from './views/DispatchView.jsx'; // This one was a default e
 import RoutePlanningView from './views/RoutePlanningView.jsx'; // This one was a default export
 import { CustomerManagementView } from './views/CustomerManagementView.jsx';
 import { TechnicianManagementView } from './views/TechnicianManagementView.jsx';
-import { BillingView } from './views/BillingView.jsx';
+import BillingView from './views/BillingView.jsx';
 import { ReportingView } from './views/ReportingView.jsx';
-import { MarginCalculatorView } from './views/MarginCalculatorView.jsx';
+import MarginCalculatorView from './views/MarginCalculatorView.jsx';
 // Modals appear to be default exports, leaving them as is.
 import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
 import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
