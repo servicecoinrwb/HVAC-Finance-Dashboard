@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { yyyymmddToExcel } from '../utils/helpers';
+import { yyyymmddToExcel } from '../../utils/helpers';
 
 const AddWorkOrderModal = ({ onClose, onAddOrder, customers }) => {
     // ... All of the state, useMemo, and useEffect hooks from the original component

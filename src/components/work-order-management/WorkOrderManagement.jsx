@@ -18,8 +18,6 @@ import ReportingView from './views/ReportingView';
 // Import modals
 import AddWorkOrderModal from './modals/AddWorkOrderModal';
 import WorkOrderDetailModal from './modals/WorkOrderDetailModal';
-// Note: We don't import modals for editing/creating invoices/quotes here
-// because they are now managed within the BillingView itself.
 
 const WorkOrderManagement = ({ userId, db }) => {
     // --- DATA FETCHING ---

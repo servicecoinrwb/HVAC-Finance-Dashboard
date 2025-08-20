@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCollectionListener } from '../services/firestore';
+import { getCollectionListener } from '../../services/firestore';
 
 const useFirestoreCollection = (db, userId, collectionName) => {
     const [data, setData] = useState([]);

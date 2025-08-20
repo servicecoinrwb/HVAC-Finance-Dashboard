@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Wrench, Briefcase, Building, MapPin, AlertTriangle, MessageSquare } from 'lucide-react';
-import { excelDateToYYYYMMDD, excelDateToJSDateString, jsDateToExcel, formatCurrency, getPriorityStyles, formatTimestamp } from '../utils/helpers';
+import { excelDateToYYYYMMDD, excelDateToJSDateString, jsDateToExcel, formatCurrency, getPriorityStyles, formatTimestamp } from '../../utils/helpers';
 
 const WorkOrderDetailModal = ({ order, onClose, onUpdate, onAddNote, technicians }) => {
     // ... (All of the state and logic from the original WorkOrderDetailModal)
