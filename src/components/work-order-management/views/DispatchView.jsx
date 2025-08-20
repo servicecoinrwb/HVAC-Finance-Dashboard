@@ -1,12 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { excelDateToYYYYMMDD, yyyymmddToExcel, getDynamicStyles } from '../utils/helpers.jsx';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder }) => {
+// 2. Remove props from the component definition
+const DispatchView = () => {
+    // 3. Get data and handlers from the context
+    const { workOrders, technicians, handlers, setSelectedOrder } = useWorkOrderContext();
+
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const hours = Array.from({ length: 13 }, (_, i) => i + 7);
-    const activeTechnicians = technicians.filter(t => t.name !== 'Unassigned');
+
+    // 4. Add guard clauses to safely use data
+    const activeTechnicians = useMemo(() => (technicians || []).filter(t => t.name !== 'Unassigned'), [technicians]);
 
     const { scheduledOrders, unscheduledOrders } = useMemo(() => {
+        if (!workOrders) return { scheduledOrders: [], unscheduledOrders: [] };
+
         const scheduled = workOrders.filter(wo => 
             excelDateToYYYYMMDD(wo['Schedule Date']) === selectedDate && 
             wo.startTime && 
@@ -47,10 +57,9 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
         if (!order) return;
 
         const newStartTime = time;
-        // Default to a 2-hour duration
         const newEndTime = `${String(parseInt(time.split(':')[0]) + 2).padStart(2, '0')}:${time.split(':')[1]}`;
 
-        onUpdateOrder(order.id, {
+        handlers.updateOrder(order.id, {
             ...order,
             technician: [techName],
             'Schedule Date': yyyymmddToExcel(selectedDate),
@@ -66,7 +75,7 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
         const order = workOrders.find(wo => wo.id === orderId);
         if (!order) return;
 
-        onUpdateOrder(order.id, {
+        handlers.updateOrder(order.id, {
             ...order,
             technician: [],
             'Schedule Date': null,
@@ -77,6 +86,11 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
     };
     
     const handleDragOver = (e) => e.preventDefault();
+
+    // 5. Add a main loading state check
+    if (!workOrders || !technicians) {
+        return <div className="p-6">Loading dispatch data...</div>;
+    }
 
     return (
         <div className="flex flex-col gap-4">
@@ -124,13 +138,13 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
                             </React.Fragment>
                         ))}
                         {scheduledOrders.flatMap(order => 
-                            order.technician.map(techName => {
+                            (order.technician || []).map(techName => {
                                 const gridColumn = getTechnicianColumn(techName);
                                 const rowStart = timeToRow(order.startTime);
                                 const rowEnd = timeToRow(order.endTime);
                                 if (gridColumn < 0 || !rowStart || !rowEnd || rowEnd <= rowStart) return null;
                                 return (
-                                    <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getDynamicStyles('priority', order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => onSelectOrder(order)}>
+                                    <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getDynamicStyles('priority', order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => setSelectedOrder(order)}>
                                         <p className="font-bold truncate">{order.Company}</p>
                                         <p className="truncate">{order.Task}</p>
                                     </div>
@@ -143,5 +157,4 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
         </div>
     );
 };
-
 export default DispatchView;
