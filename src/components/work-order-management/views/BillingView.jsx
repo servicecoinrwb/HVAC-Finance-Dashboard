@@ -1,16 +1,136 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Trash2 } from 'lucide-react';
-import CreateInvoiceModal from '../modals/CreateInvoiceModal';
-import CreateQuoteModal from '../modals/CreateQuoteModal';
 import { formatCurrency } from '../utils/helpers';
 import { STATUS } from '../utils/constants';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import * as api from '../services/firestore';
 
-// --- UPGRADED EDIT INVOICE MODAL ---
+// --- MODALS ---
+
+const CreateInvoiceModal = () => {
+    const { workOrders, customers, handlers, setIsAddingOrder, setShowCreateInvoice } = useWorkOrderContext();
+    const [selectedWoId, setSelectedWoId] = useState('');
+    const [lineItems, setLineItems] = useState([]);
+
+    useEffect(() => {
+        const wo = workOrders.find(w => w.id === selectedWoId);
+        if (wo) {
+            setLineItems(wo.lineItems || []);
+        } else {
+            setLineItems([]);
+        }
+    }, [selectedWoId, workOrders]);
+
+    const handleSubmit = () => {
+        const wo = workOrders.find(w => w.id === selectedWoId);
+        if (!wo) return alert('Please select a work order.');
+        
+        const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+        const invoiceData = {
+            workOrderId: wo.id,
+            customerId: customers.find(c => c.name === wo.Client)?.id,
+            customerName: wo.Client,
+            date: new Date().toISOString(),
+            lineItems,
+            subtotal,
+            discount: 0,
+            lateFee: 0,
+            total: subtotal,
+            status: STATUS.DRAFT,
+        };
+        handlers.addInvoice(invoiceData);
+        setShowCreateInvoice(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Invoice</h2></div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Work Order to Invoice</label>
+                    <select value={selectedWoId} onChange={e => setSelectedWoId(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600">
+                        <option value="">-- Select Work Order --</option>
+                        {workOrders.filter(wo => wo['Order Status'] === 'Completed').map(wo => <option key={wo.id} value={wo.id}>{wo['WO#']} - {wo.Company}</option>)}
+                    </select>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button type="button" onClick={() => setShowCreateInvoice(false)} className="font-bold py-2 px-4">Cancel</button>
+                    <button type="button" onClick={handleSubmit} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Create Invoice</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CreateQuoteModal = () => {
+    const { customers, handlers, setShowCreateQuote } = useWorkOrderContext();
+    const [customerId, setCustomerId] = useState('');
+    const [lineItems, setLineItems] = useState([{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+    
+    const handleItemChange = (index, field, value) => {
+        const items = [...lineItems];
+        items[index][field] = value;
+        if (field !== 'description') {
+            items[index].amount = (items[index].quantity || 0) * (items[index].rate || 0);
+        }
+        setLineItems(items);
+    };
+    const addItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    const removeItem = (index) => setLineItems(lineItems.filter((_, i) => i !== index));
+
+    const handleSubmit = () => {
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return alert('Please select a customer.');
+        
+        const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+        const quoteData = {
+            customerId: customer.id,
+            customerName: customer.name,
+            date: new Date().toISOString(),
+            lineItems,
+            subtotal,
+            total: subtotal,
+            status: 'Draft',
+        };
+        handlers.addQuote(quoteData);
+        setShowCreateQuote(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Quote</h2></div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Customer</label>
+                    <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600">
+                        <option value="">-- Select Customer --</option>
+                        {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold mb-2">Line Items</h3>
+                        {lineItems.map((item, index) => (
+                            <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
+                                <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                                <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                                <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                                <span className="col-span-1 text-right font-mono">{formatCurrency(item.amount)}</span>
+                                <button onClick={() => removeItem(index)} className="col-span-1 text-red-500"><Trash2 size={18} /></button>
+                            </div>
+                        ))}
+                        <button onClick={addItem} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add Item</button>
+                    </div>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button type="button" onClick={() => setShowCreateQuote(false)} className="font-bold py-2 px-4">Cancel</button>
+                    <button type="button" onClick={handleSubmit} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Create Quote</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const EditInvoiceModal = () => {
     const { editingInvoice, setEditingInvoice, db, userId } = useWorkOrderContext();
-    
     const [lineItems, setLineItems] = useState([]);
     const [discount, setDiscount] = useState(0);
     const [lateFee, setLateFee] = useState(0);
@@ -22,7 +142,6 @@ const EditInvoiceModal = () => {
             setLateFee(editingInvoice.lateFee || 0);
         }
     }, [editingInvoice]);
-
 
     const handleItemChange = (index, field, value) => {
         const items = [...lineItems];
@@ -80,21 +199,67 @@ const EditInvoiceModal = () => {
     );
 };
 
-// --- Placeholder for EditQuoteModal ---
 const EditQuoteModal = () => {
-    // This can be built out similar to EditInvoiceModal
-    const { editingQuote, setEditingQuote } = useWorkOrderContext();
+    const { editingQuote, setEditingQuote, db, userId } = useWorkOrderContext();
+    const [lineItems, setLineItems] = useState([]);
+
+    React.useEffect(() => {
+        if (editingQuote) {
+            setLineItems(editingQuote.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+        }
+    }, [editingQuote]);
+
+    const handleItemChange = (index, field, value) => {
+        const items = [...lineItems];
+        items[index][field] = value;
+        if (field !== 'description') {
+            items[index].amount = (items[index].quantity || 0) * (items[index].rate || 0);
+        }
+        setLineItems(items);
+    };
+    const addItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    const removeItem = (index) => setLineItems(lineItems.filter((_, i) => i !== index));
+
+    const handleSave = () => {
+        const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+        const updatedQuote = { ...editingQuote, lineItems, subtotal, total: subtotal };
+        api.updateQuote(db, userId, editingQuote.id, updatedQuote);
+        setEditingQuote(null);
+    };
+
     if (!editingQuote) return null;
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl p-6">
-                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote #{editingQuote.id}</h2>
-                 <p className="text-gray-600 dark:text-gray-400 mt-4">Quote editing functionality can be built here.</p>
-                 <button onClick={() => setEditingQuote(null)} className="mt-6 bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Close</button>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote #{editingQuote.id}</h2>
+                    <button onClick={() => setEditingQuote(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><XCircle /></button>
+                </div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
+                    {lineItems.map((item, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
+                            <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                            <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                            <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                            <span className="col-span-1 text-right font-mono">{formatCurrency(item.amount)}</span>
+                            <button onClick={() => removeItem(index)} className="col-span-1 text-red-500"><Trash2 size={18} /></button>
+                        </div>
+                    ))}
+                    <button onClick={addItem} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add Item</button>
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-between items-center">
+                    <button onClick={() => api.generateQuotePdf(editingQuote)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
+                    <div>
+                        <button onClick={() => setEditingQuote(null)} className="font-bold py-2 px-4">Cancel</button>
+                        <button onClick={handleSave} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
+                    </div>
+                </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
 
 const BillingView = () => {
