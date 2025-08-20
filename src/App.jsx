@@ -15,7 +15,7 @@ import WorkOrderManagement from './components/work-order-management/WorkOrderMan
 import VehicleManagement from './components/VehicleManagement.jsx';
 import ValuationCalculator from './components/ValuationCalculator.jsx';
 import { InventoryManagement } from './components/InventoryManagement.jsx';
-import { ReportsSection } from './components/ReportsSection.jsx';
+// import { ReportsSection } from './components/ReportsSection.jsx'; // Removed obsolete component
 import { AlertsPanel } from './components/AlertsPanel.jsx';
 import { ActivePieChart } from './components/ActivePieChart.jsx';
 import { ForecastSection } from './components/Forecast.jsx';
@@ -158,7 +158,6 @@ const App = () => {
                 const debt = debts.find(d => d.id === goal.targetId);
                 if (debt) progress = (debt.paidAmount / debt.totalAmount) * 100;
             }
-            // Add other goal types if needed
             return { ...goal, progress: Math.min(progress, 100) };
         });
     }, [goals, debts]);
@@ -179,15 +178,12 @@ const App = () => {
         };
         const collectionName = collectionNameMap[modalType];
         if (!collectionName) return alert("Invalid modal type for saving.");
-
         const basePath = ['artifacts', appId, 'users', userId, collectionName];
         const dataToSave = { ...itemData, modifiedAt: serverTimestamp() };
-
         if (file) {
             const storageRef = ref(storage, `receipts/${userId}/${Date.now()}-${file.name}`);
             dataToSave.attachmentURL = await uploadBytes(storageRef, file).then(() => getDownloadURL(storageRef));
         }
-
         if (editingItem?.id) {
             await updateDoc(doc(db, ...basePath, editingItem.id), dataToSave);
         } else {
@@ -320,7 +316,7 @@ const App = () => {
                 </header>
                 <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
                     <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
-                    <button onClick={() => setActiveSection('reports')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'reports' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Reports</button>
+                    {/* Removed Reports Button */}
                     <button onClick={() => setActiveSection('calendar')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'calendar' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Calendar</button>
                     <button onClick={() => setActiveSection('workorder')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'workorder' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Work Orders</button>
                     <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
@@ -337,11 +333,10 @@ const App = () => {
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
-                    {activeSection === 'reports' && <ReportsSection inventory={inventory} />}
+                    {/* Removed ReportsSection from render logic */}
                     {activeSection === 'valuation' && <ValuationCalculator />}
                     {activeSection === 'calendar' && <CalendarSection tasks={tasks} openModal={openModal} />}
                     {activeSection === 'tax' && <TaxManagement taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
-                    {/* The P&L statement should be part of the WorkOrderManagement reports, but can be kept here for now if desired */}
                     {activeSection === 'pnl' && <PnLStatement bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
                     {activeSection === 'forecast' && <ForecastSection bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={handleUpdateCurrentBalance} />}
                     {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} onDeleteGoal={(goalId) => handleDelete('goal', goalId)} onEditGoal={(goal) => openModal('goal', goal)} />}
