@@ -1,27 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, createContext, useContext } from 'react';
 import { PlusCircle } from 'lucide-react';
 import useFirestoreCollection from './hooks/useFirestoreCollection';
 import * as api from './services/firestore';
-import { DashboardView } from './views/DashboardView.jsx';
+
+// Import all view and modal components consistently
+import DashboardView from './views/DashboardView.jsx';
 import DispatchView from './views/DispatchView.jsx';
-import { RoutePlanningView } from './views/RoutePlanningView.jsx';
-import CustomerManagementView from './views/CustomerManagementView';
-import TechnicianManagementView from './views/TechnicianManagementView';
-import BillingView from './views/BillingView';
-import ReportingView from './views/ReportingView';
-import MarginCalculatorView from './views/MarginCalculatorView';
-import AddWorkOrderModal from './modals/AddWorkOrderModal';
-import WorkOrderDetailModal from './modals/WorkOrderDetailModal';
-import EditInvoiceModal from './modals/EditInvoiceModal';
-import EditQuoteModal from './modals/EditQuoteModal';
+import RoutePlanningView from './views/RoutePlanningView.jsx';
+import CustomerManagementView from './views/CustomerManagementView.jsx';
+import TechnicianManagementView from './views/TechnicianManagementView.jsx';
+import BillingView from './views/BillingView.jsx';
+import ReportingView from './views/ReportingView.jsx';
+import MarginCalculatorView from './views/MarginCalculatorView.jsx';
+import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
+import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
+import EditInvoiceModal from './modals/EditInvoiceModal.jsx';
+import EditQuoteModal from './modals/EditQuoteModal.jsx';
+
+// 1. Create a Context to hold all our shared data and functions
+const WorkOrderContext = createContext(null);
+export const useWorkOrderContext = () => useContext(WorkOrderContext);
 
 const WorkOrderManagement = ({ userId, db, inventory }) => {
+    // --- DATA FETCHING ---
     const { data: workOrders, loading: loadingOrders } = useFirestoreCollection(db, userId, 'workOrders');
     const { data: customers, loading: loadingCustomers } = useFirestoreCollection(db, userId, 'customers');
     const { data: technicians, loading: loadingTechs } = useFirestoreCollection(db, userId, 'technicians');
     const { data: invoices, loading: loadingInvoices } = useFirestoreCollection(db, userId, 'invoices');
     const { data: quotes, loading: loadingQuotes } = useFirestoreCollection(db, userId, 'quotes');
 
+    // --- STATE MANAGEMENT ---
     const [currentView, setCurrentView] = useState('dashboard');
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isAddingOrder, setIsAddingOrder] = useState(false);
@@ -30,9 +38,11 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
 
+    // --- MEMOIZED VALUES ---
     const filteredOrders = useMemo(() => workOrders.filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
-
-    const handlers = {
+    
+    // 2. Wrap all handlers in useCallback for performance
+    const handlers = useMemo(() => ({
         updateOrder: (id, payload) => api.updateWorkOrder(db, userId, id, payload),
         addNote: (id, text, cb) => api.addNoteToWorkOrder(db, userId, id, text).then(cb),
         addNewOrder: (data) => api.addWorkOrder(db, userId, data).then(() => setIsAddingOrder(false)),
@@ -46,31 +56,57 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         updateInvoice: (invoice) => api.updateInvoice(db, userId, invoice.id, invoice),
         updateQuote: (quote) => api.updateQuote(db, userId, quote.id, quote),
         markInvoicePaid: (id, isPaid) => api.updateInvoice(db, userId, id, { status: isPaid ? 'Paid' : 'Pending', paidDate: isPaid ? new Date().toISOString() : null }),
-    };
+    }), [db, userId, workOrders]); // Dependencies for the handlers
     
-    const navButtons = [
-        { key: 'dashboard', label: 'Dashboard' },
-        { key: 'dispatch', label: 'Dispatch Board' },
-        { key: 'route', label: 'Route Planning' },
-        { key: 'customers', label: 'Customers' },
-        { key: 'technicians', label: 'Technicians' },
-        { key: 'billing', label: 'Billing' },
-        { key: 'reporting', label: 'Reporting' },
-        { key: 'margin-calculator', label: 'Margin Calculator' },
-    ];
+    // 3. Bundle everything into a single context value object
+    const contextValue = {
+        workOrders, customers, technicians, invoices, quotes, inventory,
+        filteredOrders, loading: loadingOrders || loadingCustomers || loadingTechs || loadingInvoices || loadingQuotes,
+        currentView, setCurrentView,
+        selectedOrder, setSelectedOrder,
+        isAddingOrder, setIsAddingOrder,
+        editingInvoice, setEditingInvoice,
+        editingQuote, setEditingQuote,
+        searchTerm, setSearchTerm,
+        statusFilter, setStatusFilter,
+        handlers,
+    };
+
+    return (
+        <WorkOrderContext.Provider value={contextValue}>
+            <WorkOrderUI />
+        </WorkOrderContext.Provider>
+    );
+};
+
+// This new component handles just the UI, getting all its data from the context.
+const WorkOrderUI = () => {
+    const {
+        loading, currentView, setCurrentView,
+        setSelectedOrder, setIsAddingOrder,
+        selectedOrder, isAddingOrder, editingInvoice, editingQuote,
+        handlers, technicians, customers, inventory,
+    } = useWorkOrderContext();
+
+    const navButtons = useMemo(() => [
+        { key: 'dashboard', label: 'Dashboard' }, { key: 'dispatch', label: 'Dispatch Board' },
+        { key: 'route', label: 'Route Planning' }, { key: 'customers', label: 'Customers' },
+        { key: 'technicians', label: 'Technicians' }, { key: 'billing', label: 'Billing' },
+        { key: 'reporting', label: 'Reporting' }, { key: 'margin-calculator', label: 'Margin Calculator' },
+    ], []);
 
     const renderContent = () => {
-        if (loadingOrders || loadingCustomers || loadingTechs || loadingInvoices || loadingQuotes) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
+        if (loading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
         switch (currentView) {
-            case 'dashboard': return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
-            case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onUpdateOrder={handlers.updateOrder} />;
-            case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
-            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={handlers.addCustomer} onUpdateCustomer={handlers.updateCustomer} />;
-            case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={handlers.addTechnician} onUpdateTechnician={handlers.updateTechnician} onDeleteTechnician={handlers.deleteTechnician} />;
-            case 'billing': return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handlers.addInvoice} onAddQuote={handlers.addQuote} onEditInvoice={setEditingInvoice} onEditQuote={setEditingQuote} onMarkInvoicePaid={handlers.markInvoicePaid} />;
-            case 'reporting': return <ReportingView workOrders={workOrders} invoices={invoices} />;
+            case 'dashboard': return <DashboardView />;
+            case 'dispatch': return <DispatchView />;
+            case 'route': return <RoutePlanningView />;
+            case 'customers': return <CustomerManagementView />;
+            case 'technicians': return <TechnicianManagementView />;
+            case 'billing': return <BillingView />;
+            case 'reporting': return <ReportingView />;
             case 'margin-calculator': return <MarginCalculatorView />;
-            default: return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
+            default: return <DashboardView />;
         }
     };
 
@@ -82,11 +118,7 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
                     <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
                             {navButtons.map(btn => (
-                                <button 
-                                    key={btn.key}
-                                    onClick={() => setCurrentView(btn.key)} 
-                                    className={`px-3 py-1 text-xs rounded ${currentView === btn.key ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
-                                >
+                                <button key={btn.key} onClick={() => setCurrentView(btn.key)} className={`px-3 py-1 text-xs rounded ${currentView === btn.key ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>
                                     {btn.label}
                                 </button>
                             ))}
@@ -100,8 +132,8 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
             </div>
             {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handlers.updateOrder} onAddNote={handlers.addNote} technicians={technicians} />}
             {isAddingOrder && <AddWorkOrderModal customers={customers} inventory={inventory || []} onAddOrder={handlers.addNewOrder} onClose={() => setIsAddingOrder(false)} />}
-            {editingInvoice && <EditInvoiceModal invoice={editingInvoice} onClose={() => setEditingInvoice(null)} onUpdateInvoice={handlers.updateInvoice} />}
-            {editingQuote && <EditQuoteModal quote={editingQuote} onClose={() => setEditingQuote(null)} onUpdateQuote={handlers.updateQuote} />}
+            {editingInvoice && <EditInvoiceModal />}
+            {editingQuote && <EditQuoteModal />}
         </div>
     );
 };

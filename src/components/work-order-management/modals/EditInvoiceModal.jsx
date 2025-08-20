@@ -1,27 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+// 1. Import the context hook to access shared state
+import { useWorkOrderContext } from './WorkOrderManagement.jsx';
 
-// This is a simplified edit modal. You can expand it to edit line items later.
-const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
-    const [status, setStatus] = useState(invoice.status || 'Pending');
-    const [customerName, setCustomerName] = useState(invoice.customerName || '');
+// 2. Remove all props from the component definition
+const EditInvoiceModal = () => {
+    // 3. Get all the data and functions needed from the context
+    const { editingInvoice, setEditingInvoice, handlers } = useWorkOrderContext();
+    
+    // Internal state for the form fields
+    const [status, setStatus] = useState('Pending');
+    const [customerName, setCustomerName] = useState('');
+
+    // 4. Use useEffect to update the form's state when a new invoice is selected
+    useEffect(() => {
+        if (editingInvoice) {
+            setStatus(editingInvoice.status || 'Pending');
+            setCustomerName(editingInvoice.customerName || '');
+        }
+    }, [editingInvoice]); // This effect runs whenever 'editingInvoice' changes
+
+    // If no invoice is being edited, the modal doesn't render
+    if (!editingInvoice) {
+        return null;
+    }
+
+    const handleClose = () => {
+        setEditingInvoice(null); // Use the function from context to close the modal
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onUpdateInvoice({
-            ...invoice,
+        // Use the updateInvoice handler from the context
+        handlers.updateInvoice({
+            ...editingInvoice,
             status,
             customerName,
         });
-        onClose();
+        handleClose(); // Close the modal after saving
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice {invoice.id}</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    {/* Use 'editingInvoice' from context instead of a prop */}
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice #{editingInvoice.id}</h2>
+                    <button type="button" onClick={handleClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
@@ -41,7 +66,7 @@ const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
                     </div>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="font-bold py-2 px-4">Cancel</button>
+                    <button type="button" onClick={handleClose} className="font-bold py-2 px-4">Cancel</button>
                     <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
                 </div>
             </form>
