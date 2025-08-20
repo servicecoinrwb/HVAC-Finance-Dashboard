@@ -7,15 +7,15 @@ import * as api from '../services/firestore';
 
 // --- MODALS ---
 
-const CreateInvoiceModal = () => {
-    const { workOrders, customers, handlers, setIsAddingOrder, setShowCreateInvoice } = useWorkOrderContext();
+const CreateInvoiceModal = ({ onClose }) => {
+    const { workOrders, customers, handlers } = useWorkOrderContext();
     const [selectedWoId, setSelectedWoId] = useState('');
     const [lineItems, setLineItems] = useState([]);
 
     useEffect(() => {
         const wo = workOrders.find(w => w.id === selectedWoId);
         if (wo) {
-            setLineItems(wo.lineItems || []);
+            setLineItems(wo.lineItems || [{ description: 'Service Call', quantity: 1, rate: 0, amount: 0 }]);
         } else {
             setLineItems([]);
         }
@@ -39,7 +39,7 @@ const CreateInvoiceModal = () => {
             status: STATUS.DRAFT,
         };
         handlers.addInvoice(invoiceData);
-        setShowCreateInvoice(false);
+        onClose();
     };
 
     return (
@@ -50,11 +50,11 @@ const CreateInvoiceModal = () => {
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Work Order to Invoice</label>
                     <select value={selectedWoId} onChange={e => setSelectedWoId(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600">
                         <option value="">-- Select Work Order --</option>
-                        {workOrders.filter(wo => wo['Order Status'] === 'Completed').map(wo => <option key={wo.id} value={wo.id}>{wo['WO#']} - {wo.Company}</option>)}
+                        {(workOrders || []).filter(wo => wo['Order Status'] === 'Completed').map(wo => <option key={wo.id} value={wo.id}>{wo['WO#']} - {wo.Company}</option>)}
                     </select>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
-                    <button type="button" onClick={() => setShowCreateInvoice(false)} className="font-bold py-2 px-4">Cancel</button>
+                    <button type="button" onClick={onClose} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
                     <button type="button" onClick={handleSubmit} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Create Invoice</button>
                 </div>
             </div>
@@ -62,8 +62,8 @@ const CreateInvoiceModal = () => {
     );
 };
 
-const CreateQuoteModal = () => {
-    const { customers, handlers, setShowCreateQuote } = useWorkOrderContext();
+const CreateQuoteModal = ({ onClose }) => {
+    const { customers, handlers } = useWorkOrderContext();
     const [customerId, setCustomerId] = useState('');
     const [lineItems, setLineItems] = useState([{ description: '', quantity: 1, rate: 0, amount: 0 }]);
     
@@ -93,7 +93,7 @@ const CreateQuoteModal = () => {
             status: 'Draft',
         };
         handlers.addQuote(quoteData);
-        setShowCreateQuote(false);
+        onClose();
     };
 
     return (
@@ -104,16 +104,16 @@ const CreateQuoteModal = () => {
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Customer</label>
                     <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600">
                         <option value="">-- Select Customer --</option>
-                        {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <div className="pt-4 border-t dark:border-slate-600">
-                        <h3 className="font-semibold mb-2">Line Items</h3>
+                        <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
                         {lineItems.map((item, index) => (
                             <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
                                 <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
                                 <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
                                 <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                                <span className="col-span-1 text-right font-mono">{formatCurrency(item.amount)}</span>
+                                <span className="col-span-1 text-right font-mono dark:text-gray-300">{formatCurrency(item.amount)}</span>
                                 <button onClick={() => removeItem(index)} className="col-span-1 text-red-500"><Trash2 size={18} /></button>
                             </div>
                         ))}
@@ -121,7 +121,7 @@ const CreateQuoteModal = () => {
                     </div>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
-                    <button type="button" onClick={() => setShowCreateQuote(false)} className="font-bold py-2 px-4">Cancel</button>
+                    <button type="button" onClick={onClose} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
                     <button type="button" onClick={handleSubmit} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Create Quote</button>
                 </div>
             </div>
@@ -240,10 +240,10 @@ const EditQuoteModal = () => {
                     <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
                     {lineItems.map((item, index) => (
                         <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
-                            <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                            <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                            <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
-                            <span className="col-span-1 text-right font-mono">{formatCurrency(item.amount)}</span>
+                            <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                            <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                            <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                            <span className="col-span-1 text-right font-mono dark:text-gray-300">{formatCurrency(item.amount)}</span>
                             <button onClick={() => removeItem(index)} className="col-span-1 text-red-500"><Trash2 size={18} /></button>
                         </div>
                     ))}
@@ -252,7 +252,7 @@ const EditQuoteModal = () => {
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-between items-center">
                     <button onClick={() => api.generateQuotePdf(editingQuote)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
                     <div>
-                        <button onClick={() => setEditingQuote(null)} className="font-bold py-2 px-4">Cancel</button>
+                        <button onClick={() => setEditingQuote(null)} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
                         <button onClick={handleSave} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
                     </div>
                 </div>
@@ -404,8 +404,8 @@ const BillingView = () => {
                     )}
                 </div>
             </div>
-            {showCreateInvoice && <CreateInvoiceModal />}
-            {showCreateQuote && <CreateQuoteModal />}
+            {showCreateInvoice && <CreateInvoiceModal onClose={() => setShowCreateInvoice(false)} />}
+            {showCreateQuote && <CreateQuoteModal onClose={() => setShowCreateQuote(false)} />}
         </div>
     );
 };
