@@ -1,7 +1,6 @@
 import React from 'react';
 import { Search, Filter, ChevronDown } from 'lucide-react';
-import OrderCard from '../components/OrderCard';
-
+import OrderCard from '../OrderCard';
 const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm, statusFilter, setStatusFilter }) => (
     <>
         <div className="bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm mb-8">
