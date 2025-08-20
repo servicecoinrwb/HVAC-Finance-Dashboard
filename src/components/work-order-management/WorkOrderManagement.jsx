@@ -3,15 +3,17 @@ import { PlusCircle } from 'lucide-react';
 import useFirestoreCollection from './hooks/useFirestoreCollection';
 import * as api from './services/firestore';
 
-// Import all view and modal components consistently
+// --- CORRECTED IMPORTS ---
+// Wrapped the view components in {} to match their named exports.
 import { DashboardView } from './views/DashboardView.jsx';
-import DispatchView from './views/DispatchView.jsx';
-import RoutePlanningView from './views/RoutePlanningView.jsx';
-import CustomerManagementView from './views/CustomerManagementView.jsx';
-import TechnicianManagementView from './views/TechnicianManagementView.jsx';
-import BillingView from './views/BillingView.jsx';
-import ReportingView from './views/ReportingView.jsx';
-import MarginCalculatorView from './views/MarginCalculatorView.jsx';
+import DispatchView from './views/DispatchView.jsx'; // This one was a default export
+import RoutePlanningView from './views/RoutePlanningView.jsx'; // This one was a default export
+import { CustomerManagementView } from './views/CustomerManagementView.jsx';
+import { TechnicianManagementView } from './views/TechnicianManagementView.jsx';
+import { BillingView } from './views/BillingView.jsx';
+import { ReportingView } from './views/ReportingView.jsx';
+import { MarginCalculatorView } from './views/MarginCalculatorView.jsx';
+// Modals appear to be default exports, leaving them as is.
 import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
 import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
 import EditInvoiceModal from './modals/EditInvoiceModal.jsx';
