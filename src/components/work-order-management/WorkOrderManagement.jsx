@@ -39,7 +39,6 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
     const [statusFilter, setStatusFilter] = useState('All');
 
     // --- MEMOIZED VALUES ---
-    // ✅ Safely filter orders by providing a fallback empty array
     const filteredOrders = useMemo(() => (workOrders || []).filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
     
     // 2. Wrap all handlers in useCallback for performance
@@ -57,7 +56,7 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         updateInvoice: (invoice) => api.updateInvoice(db, userId, invoice.id, invoice),
         updateQuote: (quote) => api.updateQuote(db, userId, quote.id, quote),
         markInvoicePaid: (id, isPaid) => api.updateInvoice(db, userId, id, { status: isPaid ? 'Paid' : 'Pending', paidDate: isPaid ? new Date().toISOString() : null }),
-    }), [db, userId, workOrders]); // Dependencies for the handlers
+    }), [db, userId, workOrders]);
     
     // 3. Bundle everything into a single context value object
     const contextValue = {
@@ -84,9 +83,7 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
 const WorkOrderUI = () => {
     const {
         loading, currentView, setCurrentView,
-        setSelectedOrder, setIsAddingOrder,
-        selectedOrder, isAddingOrder, editingInvoice, editingQuote,
-        handlers, technicians, customers, inventory,
+        selectedOrder, isAddingOrder, editingInvoice, editingQuote, setIsAddingOrder
     } = useWorkOrderContext();
 
     const navButtons = useMemo(() => [
@@ -131,8 +128,10 @@ const WorkOrderUI = () => {
                 </div>
                 {renderContent()}
             </div>
-            {selectedOrder && <WorkOrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdate={handlers.updateOrder} onAddNote={handlers.addNote} technicians={technicians} />}
-            {isAddingOrder && <AddWorkOrderModal customers={customers} inventory={inventory || []} onAddOrder={handlers.addNewOrder} onClose={() => setIsAddingOrder(false)} />}
+            
+            {/* ✅ CORRECTED: Render modals without passing props. They will get data from the context. */}
+            {selectedOrder && <WorkOrderDetailModal />}
+            {isAddingOrder && <AddWorkOrderModal />}
             {editingInvoice && <EditInvoiceModal />}
             {editingQuote && <EditQuoteModal />}
         </div>
