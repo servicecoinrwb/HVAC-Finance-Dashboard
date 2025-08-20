@@ -22,7 +22,7 @@ const AddWorkOrderModal = () => {
     const [newLocationCity, setNewLocationCity] = useState('');
     const [newLocationState, setNewLocationState] = useState('MI');
     
-    // 4. Safely initialize state after customers have loaded
+    // Safely initialize state after customers have loaded
     useEffect(() => {
         if (customers && customers.length > 0 && !clientId) {
             setClientId(customers[0].id);
@@ -64,8 +64,8 @@ const AddWorkOrderModal = () => {
             location = selectedClient?.locations.find(l => l.name === company && l.locNum === locNum);
         }
 
-        if (!clientId || !selectedClient || !location || !task) {
-            return alert('Please fill out all required fields.');
+        if (!clientId || !selectedClient || !location || !task.trim()) {
+            return alert('Please fill out all required fields, including the task description.');
         }
 
         const orderData = {
@@ -77,15 +77,32 @@ const AddWorkOrderModal = () => {
             City: location.city,
             State: location.state,
             lineItems: lineItems,
+            'Order Status': 'Open',
+            'Created Date': yyyymmddToExcel(new Date().toISOString().split('T')[0]),
         };
-        // Use the handler from the context
         handlers.addNewOrder(orderData);
     };
 
+    // --- Line Item Functions ---
     const addLineItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0, inventoryId: null }]);
     const removeLineItem = (index) => { if (lineItems.length > 1) setLineItems(lineItems.filter((_, i) => i !== index)); };
+    const handleLineItemChange = (index, field, value) => {
+        const updatedItems = [...lineItems];
+        const item = updatedItems[index];
+        item[field] = value;
+
+        if (field === 'inventoryId') {
+            const inventoryItem = (inventory || []).find(i => i.id === value);
+            if (inventoryItem) {
+                item.description = inventoryItem.name;
+                item.rate = inventoryItem.price;
+            }
+        }
+        
+        item.amount = (item.quantity || 0) * (item.rate || 0);
+        setLineItems(updatedItems);
+    };
     
-    // Guard clause to prevent rendering before data is available
     if (!customers) {
         return (
             <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center">
@@ -98,21 +115,75 @@ const AddWorkOrderModal = () => {
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold">Add New Work Order</h2>
-                    <button type="button" onClick={onClose}><X size={28} /></button>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Work Order</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={28} /></button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium">Client</label>
-                        <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
-                            <option value="">Select a customer...</option>
-                            {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                    {/* --- Main Details --- */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client</label>
+                            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option value="">Select a customer...</option>
+                                {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Task / Issue</label>
+                            <input type="text" value={task} onChange={e => setTask(e.target.value)} placeholder="e.g., AC not cooling" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Priority</label>
+                            <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option>Regular</option><option>Low</option><option>Urgent</option><option>Emergency</option>
+                            </select>
+                        </div>
                     </div>
-                    {/* ... other form fields and line items JSX ... */}
+
+                    {/* --- Location Details --- */}
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Service Location</h3>
+                        {selectedClient && !needsLocation ? (
+                             <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mt-2 mb-1">Select Location</label>
+                                <select value={locationIdentifier} onChange={e => setLocationIdentifier(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                    {(selectedClient.locations || []).map((loc, index) => <option key={index} value={`${loc.name}-${loc.locNum}-${index}`}>{loc.name} (#{loc.locNum}) - {loc.city}</option>)}
+                                </select>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
+                                <div><label className="text-xs text-gray-500 dark:text-gray-400">Location Name</label><input value={newLocationName} onChange={e=>setNewLocationName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div>
+                                <div><label className="text-xs text-gray-500 dark:text-gray-400">Location #</label><input value={newLocationNum} onChange={e=>setNewLocationNum(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div>
+                                <div><label className="text-xs text-gray-500 dark:text-gray-400">City</label><input value={newLocationCity} onChange={e=>setNewLocationCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div>
+                                <div><label className="text-xs text-gray-500 dark:text-gray-400">State</label><input value={newLocationState} onChange={e=>setNewLocationState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* --- Line Items --- */}
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Line Items</h3>
+                        <div className="space-y-2">
+                            {lineItems.map((item, index) => (
+                                <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                                    <select className="col-span-3 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" value={item.inventoryId || ''} onChange={e => handleLineItemChange(index, 'inventoryId', e.target.value)}>
+                                        <option value="">-- Custom Item --</option>
+                                        {(inventory || []).map(inv => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
+                                    </select>
+                                    <input type="text" placeholder="Description" value={item.description} onChange={e => handleLineItemChange(index, 'description', e.target.value)} className="col-span-4 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
+                                    <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleLineItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-1 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
+                                    <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleLineItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
+                                    <div className="col-span-1 p-2 text-right font-mono dark:text-gray-300">{formatCurrency(item.amount)}</div>
+                                    <button type="button" onClick={() => removeLineItem(index)} className="col-span-1 text-red-500 hover:text-red-700 disabled:opacity-50" disabled={lineItems.length <= 1}><Trash2 size={18} /></button>
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={addLineItem} className="mt-2 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold"><PlusCircle size={16} /> Add Line Item</button>
+                    </div>
+
                 </div>
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t mt-auto">
-                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button>
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 mt-auto flex justify-end">
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button>
                 </div>
             </form>
         </div>
