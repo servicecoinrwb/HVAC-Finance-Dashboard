@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Trash2 } from 'lucide-react';
+import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Trash2, HardHat, Building } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
 import { STATUS } from '../utils/constants';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
@@ -13,7 +13,7 @@ const CreateInvoiceModal = ({ onClose }) => {
     const [lineItems, setLineItems] = useState([]);
 
     useEffect(() => {
-        const wo = workOrders.find(w => w.id === selectedWoId);
+        const wo = (workOrders || []).find(w => w.id === selectedWoId);
         if (wo) {
             setLineItems(wo.lineItems || [{ description: 'Service Call', quantity: 1, rate: 0, amount: 0 }]);
         } else {
@@ -22,13 +22,13 @@ const CreateInvoiceModal = ({ onClose }) => {
     }, [selectedWoId, workOrders]);
 
     const handleSubmit = () => {
-        const wo = workOrders.find(w => w.id === selectedWoId);
+        const wo = (workOrders || []).find(w => w.id === selectedWoId);
         if (!wo) return alert('Please select a work order.');
         
-        const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+        const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
         const invoiceData = {
             workOrderId: wo.id,
-            customerId: customers.find(c => c.name === wo.Client)?.id,
+            customerId: (customers || []).find(c => c.name === wo.Client)?.id,
             customerName: wo.Client,
             date: new Date().toISOString(),
             lineItems,
@@ -79,7 +79,7 @@ const CreateQuoteModal = ({ onClose }) => {
     const removeItem = (index) => setLineItems(lineItems.filter((_, i) => i !== index));
 
     const handleSubmit = () => {
-        const customer = customers.find(c => c.id === customerId);
+        const customer = (customers || []).find(c => c.id === customerId);
         if (!customer) return alert('Please select a customer.');
         
         const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
