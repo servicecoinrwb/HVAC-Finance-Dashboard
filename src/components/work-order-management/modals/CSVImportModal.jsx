@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
 // Note: You might need to install papaparse: npm install papaparse
-// And then import it at the top of this file: import Papa from 'papaparse';
+// and import it: import Papa from 'papaparse';
 // Or ensure it's loaded globally via a <script> tag in your index.html.
 
 const CSVImportModal = ({ type, onClose, onImport }) => {
@@ -34,7 +34,6 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
             return;
         }
 
-        // Using a simple parser as a fallback if PapaParse isn't available
         const simpleParse = (csvText) => {
             const lines = csvText.trim().split('\n');
             const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
@@ -121,7 +120,7 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
                         {showPreview && parsedData.length > 0 && (
                             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
                                 <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">Preview ({parsedData.length} records ready):</h4>
-                                {/* Preview table would go here */}
+                                {/* A more detailed preview table could be rendered here */}
                             </div>
                         )}
                     </div>
