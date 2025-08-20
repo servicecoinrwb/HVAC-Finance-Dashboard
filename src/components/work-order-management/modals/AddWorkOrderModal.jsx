@@ -1,16 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, PlusCircle, Trash2 } from 'lucide-react';
 import { yyyymmddToExcel } from '../utils/helpers';
+// 1. Import the context hook
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-const AddWorkOrderModal = ({ onClose, onAddOrder, customers, inventory }) => {
-    const [clientId, setClientId] = useState(customers.length > 0 ? customers[0].id : '');
+// 2. Remove all props from the component definition
+const AddWorkOrderModal = () => {
+    // 3. Get all data and functions from the context
+    const { customers, inventory, handlers, setIsAddingOrder } = useWorkOrderContext();
+
+    const [clientId, setClientId] = useState('');
     const [task, setTask] = useState('');
     const [priority, setPriority] = useState('Regular');
     const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 75, amount: 75, inventoryId: null }]);
-    // Note: We use selectedClient throughout this component
-    const selectedClient = useMemo(() => customers.find(c => c.id === clientId), [clientId, customers]);
+    const selectedClient = useMemo(() => (customers || []).find(c => c.id === clientId), [clientId, customers]);
 
-    // This logic handles the complex parts of the form
     const [locationIdentifier, setLocationIdentifier] = useState('');
     const [needsLocation, setNeedsLocation] = useState(false);
     const [newLocationName, setNewLocationName] = useState('');
@@ -18,6 +22,13 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers, inventory }) => {
     const [newLocationCity, setNewLocationCity] = useState('');
     const [newLocationState, setNewLocationState] = useState('MI');
     
+    // 4. Safely initialize state after customers have loaded
+    useEffect(() => {
+        if (customers && customers.length > 0 && !clientId) {
+            setClientId(customers[0].id);
+        }
+    }, [customers, clientId]);
+
     useEffect(() => {
         if (selectedClient) {
             if (selectedClient.locations?.length > 0) {
@@ -34,6 +45,10 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers, inventory }) => {
             }
         }
     }, [selectedClient]);
+    
+    const onClose = () => {
+        setIsAddingOrder(false);
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -62,15 +77,22 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers, inventory }) => {
             City: location.city,
             State: location.state,
             lineItems: lineItems,
-            // Add any other fields you need from the modal here
         };
-        onAddOrder(orderData);
+        // Use the handler from the context
+        handlers.addNewOrder(orderData);
     };
 
-    // --- Line Item Functions ---
     const addLineItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0, inventoryId: null }]);
     const removeLineItem = (index) => { if (lineItems.length > 1) setLineItems(lineItems.filter((_, i) => i !== index)); };
-    // ... other line item functions from the previous step ...
+    
+    // Guard clause to prevent rendering before data is available
+    if (!customers) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center">
+                <div className="bg-white p-6 rounded-lg">Loading customer data...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
@@ -80,16 +102,14 @@ const AddWorkOrderModal = ({ onClose, onAddOrder, customers, inventory }) => {
                     <button type="button" onClick={onClose}><X size={28} /></button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-4">
-                    {/* Customer and Location Selection JSX */}
                     <div>
                         <label className="text-sm font-medium">Client</label>
                         <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
                             <option value="">Select a customer...</option>
-                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
-                    {/* ... other form fields like task, priority, etc. ... */}
-                    {/* ... your line items section JSX ... */}
+                    {/* ... other form fields and line items JSX ... */}
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t mt-auto">
                     <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button>
