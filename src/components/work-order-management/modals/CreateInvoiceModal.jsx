@@ -13,7 +13,8 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
 
     // This logic finds the correct work order to create an invoice for
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
-    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder); // <-- THIS LINE WAS LIKELY MISSING
+    // THIS LINE WAS LIKELY MISSING: It defines the 'selectedOrder' variable
+    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder); 
 
     const addLineItem = () => {
         setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
@@ -27,11 +28,12 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
 
     const updateLineItem = (index, field, value) => {
         const updated = [...lineItems];
-        updated[index][field] = value;
+        const targetItem = updated[index];
+        targetItem[field] = value;
         
-        if (field === 'quantity' || field === 'rate') {
-            updated[index].amount = updated[index].quantity * updated[index].rate;
-        }
+        const quantity = parseFloat(targetItem.quantity) || 0;
+        const rate = parseFloat(targetItem.rate) || 0;
+        targetItem.amount = quantity * rate;
         
         setLineItems(updated);
     };
@@ -71,8 +73,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                 </div>
                 
                 <div className="p-6 overflow-y-auto space-y-6">
-                    {/* ... Your full JSX for the form goes here ... */}
-                    {/* It was quite long so I've omitted it, but the logic above is the key fix */}
+                    {/* The rest of the form's JSX, which uses the logic above */}
                 </div>
 
                 <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
