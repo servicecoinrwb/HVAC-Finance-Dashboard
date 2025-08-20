@@ -52,7 +52,6 @@ export const updateCustomer = (db, userId, customerId, payload) => {
     return updateDoc(customerRef, { ...payload, updatedAt: serverTimestamp() });
 };
 
-// ✅ ADDED THIS FUNCTION
 export const deleteCustomer = (db, userId, customerId) => {
     const customerRef = getDocRef(db, userId, 'customers', customerId);
     return deleteDoc(customerRef);
@@ -74,7 +73,7 @@ export const deleteTechnician = async (db, userId, techId, workOrders) => {
     const techToDelete = techDoc.data();
 
     const batch = writeBatch(db);
-    workOrders.forEach(wo => {
+    (workOrders || []).forEach(wo => {
         if (wo.technician?.includes(techToDelete.name)) {
             const workOrderRef = getDocRef(db, userId, 'workOrders', wo.id);
             batch.update(workOrderRef, {
@@ -105,4 +104,31 @@ export const updateInvoice = (db, userId, invoiceId, payload) => {
 export const updateQuote = (db, userId, quoteId, payload) => {
     const quoteRef = getDocRef(db, userId, 'quotes', quoteId);
     return updateDoc(quoteRef, { ...payload, updatedAt: serverTimestamp() });
+};
+
+// --- NEW ADVANCED BILLING FUNCTIONS ---
+export const updateInvoiceItems = (db, userId, invoiceId, items, discount, lateFee) => {
+    const invoiceRef = getDocRef(db, userId, 'invoices', invoiceId);
+    const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const total = subtotal - (discount || 0) + (lateFee || 0);
+    return updateDoc(invoiceRef, {
+        lineItems: items,
+        discount: discount || 0,
+        lateFee: lateFee || 0,
+        subtotal,
+        total,
+        updatedAt: serverTimestamp()
+    });
+};
+
+export const generateInvoicePdf = (invoice) => {
+    // In a real app, you'd use a library like jsPDF or a backend service.
+    // This is a simplified simulation for demonstration.
+    alert(`Generating PDF for Invoice #${invoice.id}...\n\n(This would open a new tab with the generated PDF)`);
+    console.log("Simulating PDF Generation for:", invoice);
+};
+
+export const generateQuotePdf = (quote) => {
+    alert(`Generating PDF for Quote #${quote.id}...\n\n(This would open a new tab with the generated PDF)`);
+    console.log("Simulating PDF Generation for:", quote);
 };
