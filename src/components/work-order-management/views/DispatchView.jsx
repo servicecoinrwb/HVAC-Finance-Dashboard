@@ -1,10 +1,28 @@
-import React, { useState } from 'react';
-import { excelDateToYYYYMMDD, yyyymmddToExcel, getPriorityStyles, getTechStatusStyles } from '../utils/helpers';
+import React, { useState, useMemo } from 'react';
+import { excelDateToYYYYMMDD, yyyymmddToExcel, getDynamicStyles } from '../utils/helpers.jsx';
 
 const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const hours = Array.from({ length: 13 }, (_, i) => i + 7);
     const activeTechnicians = technicians.filter(t => t.name !== 'Unassigned');
+
+    const { scheduledOrders, unscheduledOrders } = useMemo(() => {
+        const scheduled = workOrders.filter(wo => 
+            excelDateToYYYYMMDD(wo['Schedule Date']) === selectedDate && 
+            wo.startTime && 
+            wo.endTime && 
+            wo.technician?.length > 0
+        );
+
+        const unscheduled = workOrders
+            .filter(wo => wo['Order Status'] === 'Open' || !wo.technician || wo.technician.length === 0)
+            .sort((a, b) => {
+                const priorityOrder = { 'Emergency': 1, 'Urgent': 2, 'Regular': 3, 'Low': 4 };
+                return (priorityOrder[a.Priority] || 5) - (priorityOrder[b.Priority] || 5);
+            });
+
+        return { scheduledOrders: scheduled, unscheduledOrders: unscheduled };
+    }, [workOrders, selectedDate]);
 
     const getTechnicianColumn = (techName) => {
         const index = activeTechnicians.findIndex(t => t.name === techName);
@@ -18,20 +36,18 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
         return ((h - 7) * 4) + (m / 15) + 2;
     };
 
-    const scheduledOrders = workOrders.filter(wo => excelDateToYYYYMMDD(wo['Schedule Date']) === selectedDate && wo.startTime && wo.endTime && wo.technician?.length > 0);
-    const unscheduledOrders = workOrders.filter(wo => wo['Order Status'] === 'Open' || !wo.technician || wo.technician.length === 0).sort((a, b) => {
-        const priorityOrder = { 'Emergency': 1, 'Urgent': 2, 'Regular': 3, 'Low': 4 };
-        return (priorityOrder[a.Priority] || 5) - (priorityOrder[b.Priority] || 5);
-    });
-
     const handleDragStart = (e, order) => {
-        e.dataTransfer.setData("workOrder", JSON.stringify(order));
+        e.dataTransfer.setData("workOrderId", order.id);
     };
 
     const handleDrop = (e, techName, time) => {
         e.preventDefault();
-        const order = JSON.parse(e.dataTransfer.getData("workOrder"));
+        const orderId = e.dataTransfer.getData("workOrderId");
+        const order = workOrders.find(wo => wo.id === orderId);
+        if (!order) return;
+
         const newStartTime = time;
+        // Default to a 2-hour duration
         const newEndTime = `${String(parseInt(time.split(':')[0]) + 2).padStart(2, '0')}:${time.split(':')[1]}`;
 
         onUpdateOrder(order.id, {
@@ -46,7 +62,10 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
 
     const handleUnassignDrop = (e) => {
         e.preventDefault();
-        const order = JSON.parse(e.dataTransfer.getData("workOrder"));
+        const orderId = e.dataTransfer.getData("workOrderId");
+        const order = workOrders.find(wo => wo.id === orderId);
+        if (!order) return;
+
         onUpdateOrder(order.id, {
             ...order,
             technician: [],
@@ -70,7 +89,7 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
                     <h4 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Unassigned Jobs</h4>
                     <div className="space-y-2 max-h-[70vh] overflow-y-auto">
                         {unscheduledOrders.map(order => (
-                            <div key={order.id} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 border-l-4 rounded cursor-grab ${getPriorityStyles(order.Priority)}`}>
+                            <div key={order.id} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 border-l-4 rounded cursor-grab ${getDynamicStyles('priority', order.Priority)}`}>
                                 <p className="font-bold text-sm">{order.Company}</p>
                                 <p className="text-xs text-gray-600">{order.Task}</p>
                             </div>
@@ -83,7 +102,7 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
                         {activeTechnicians.map(tech => (
                             <div key={tech.id} className="bg-gray-100 dark:bg-slate-600 text-center font-bold p-2 sticky top-0 z-10 flex flex-col">
                                 <span className="text-gray-800 dark:text-white">{tech.name}</span>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${getTechStatusStyles(tech.status)}`}>{tech.status}</span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${getDynamicStyles('techStatus', tech.status)}`}>{tech.status}</span>
                             </div>
                         ))}
                         {hours.map(hour => (
@@ -111,7 +130,7 @@ const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder })
                                 const rowEnd = timeToRow(order.endTime);
                                 if (gridColumn < 0 || !rowStart || !rowEnd || rowEnd <= rowStart) return null;
                                 return (
-                                    <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getPriorityStyles(order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => onSelectOrder(order)}>
+                                    <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getDynamicStyles('priority', order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => onSelectOrder(order)}>
                                         <p className="font-bold truncate">{order.Company}</p>
                                         <p className="truncate">{order.Task}</p>
                                     </div>
