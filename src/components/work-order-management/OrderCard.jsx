@@ -1,6 +1,6 @@
 import React from 'react';
 import { Briefcase, User, Calendar as CalendarIcon } from 'lucide-react';
-import { getPriorityStyles, getStatusStyles, excelDateToJSDateString, formatTime } from '../utils/helpers';
+import { getPriorityStyles, getStatusStyles, excelDateToJSDateString, formatTime } from './utils/helpers';
 
 const OrderCard = ({ order, onSelectOrder }) => (
     <div className="bg-white dark:bg-slate-700 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}>
