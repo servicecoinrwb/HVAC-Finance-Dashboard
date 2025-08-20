@@ -22,19 +22,27 @@ const CalendarSection = ({ jobs, tasks, openModal }) => {
 
     const eventsByDate = useMemo(() => {
         const map = {};
-        jobs.forEach(job => {
-            const jobDate = new Date(job.date).toISOString().split('T')[0];
-            if (!map[jobDate]) {
-                map[jobDate] = [];
+        // Safely iterate over jobs, providing a fallback empty array
+        (jobs || []).forEach(job => {
+            // Ensure the job has a date before processing
+            if (job.date) {
+                const jobDate = new Date(job.date).toISOString().split('T')[0];
+                if (!map[jobDate]) {
+                    map[jobDate] = [];
+                }
+                map[jobDate].push({ ...job, type: 'job' });
             }
-            map[jobDate].push({ ...job, type: 'job' });
         });
-        tasks.forEach(task => {
-            const taskDate = new Date(task.date).toISOString().split('T')[0];
-            if (!map[taskDate]) {
-                map[taskDate] = [];
+        // Safely iterate over tasks, providing a fallback empty array
+        (tasks || []).forEach(task => {
+            // Ensure the task has a date before processing
+            if (task.date) {
+                const taskDate = new Date(task.date).toISOString().split('T')[0];
+                if (!map[taskDate]) {
+                    map[taskDate] = [];
+                }
+                map[taskDate].push({ ...task, type: 'task' });
             }
-            map[taskDate].push({ ...task, type: 'task' });
         });
         return map;
     }, [jobs, tasks]);
@@ -47,6 +55,15 @@ const CalendarSection = ({ jobs, tasks, openModal }) => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
+    // A simple loading/empty state check
+    if (!jobs || !tasks) {
+        return (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
+                Loading calendar events...
+            </div>
+        );
+    }
+
     return (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
@@ -54,7 +71,7 @@ const CalendarSection = ({ jobs, tasks, openModal }) => {
                 <h2 className="text-xl font-bold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
                 <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><ChevronRight /></button>
             </div>
-             <div className="flex justify-end gap-2 mb-4">
+            <div className="flex justify-end gap-2 mb-4">
                 <button onClick={() => openModal('task')} className="flex items-center gap-2 text-sm bg-amber-500 hover:bg-amber-400 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add Task</button>
                 <button onClick={() => openModal('job')} className="flex items-center gap-2 text-sm bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-2 rounded-md transition-colors"><PlusCircle size={16} /> Add Job</button>
             </div>

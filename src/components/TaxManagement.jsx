@@ -11,6 +11,16 @@ const TAX_RATE_PRESETS = {
 };
 
 const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
+    // ✅ Guard Clause: Add a check at the top of the component
+    if (!jobs || !bills || !weeklyCosts || !taxPayments) {
+        return (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Tax Estimation</h3>
+                <p className="text-slate-500 dark:text-slate-400 mt-4">Loading tax data...</p>
+            </div>
+        );
+    }
+
     const [taxRate, setTaxRate] = useState(20);
     const [filingStatus, setFilingStatus] = useState('single-member-llc');
     const [period, setPeriod] = useState('quarterly');
@@ -47,18 +57,18 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                 end = new Date();
         }
         return { start, end };
-
     }, [period]);
 
     const pnlData = useMemo(() => {
-        const filteredJobs = jobs.filter(job => {
+        // ✅ Safely filter and reduce data by providing fallback empty arrays
+        const filteredJobs = (jobs || []).filter(job => {
             if (!job.date) return false;
             const jobDate = new Date(job.date);
             return jobDate >= dateRange.start && jobDate <= dateRange.end;
         });
         
-        const operatingExpenses = bills.reduce((acc, bill) => acc + bill.amount, 0) + (weeklyCosts.reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
-        const periodExpenseFactor = (dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24 * 30.44); // monthly factor
+        const operatingExpenses = (bills || []).reduce((acc, bill) => acc + bill.amount, 0) + ((weeklyCosts || []).reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
+        const periodExpenseFactor = (dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24 * 30.44);
         const periodOperatingExpenses = operatingExpenses * periodExpenseFactor;
 
         const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
@@ -72,8 +82,10 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
     }, [jobs, bills, weeklyCosts, taxRate, dateRange]);
 
     const totalPaidThisPeriod = useMemo(() => {
-        return taxPayments
+        // ✅ Safely filter and reduce tax payments
+        return (taxPayments || [])
             .filter(p => {
+                if (!p.date) return false;
                 const paymentDate = new Date(p.date);
                 return paymentDate >= dateRange.start && paymentDate <= dateRange.end;
             })
@@ -108,11 +120,11 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                             <option value="c-corp">C-Corporation</option>
                             <option value="partnership">Partnership</option>
                         </select>
-                         {(filingStatus === 'llc' || filingStatus === 'single-member-llc') && (
+                        {(filingStatus === 'llc' || filingStatus === 'single-member-llc') && (
                             <p className="text-xs text-slate-500 mt-1">LLC tax rates vary. Consult a tax professional.</p>
                         )}
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="taxRate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Estimated Tax Rate (%)</label>
                         <input
                             id="taxRate"
@@ -123,13 +135,13 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                         />
                     </div>
                     <div>
-                         <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Estimation Period</label>
-                         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
-                               <button onClick={() => setPeriod('weekly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'weekly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Weekly</button>
-                               <button onClick={() => setPeriod('monthly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Monthly</button>
-                               <button onClick={() => setPeriod('quarterly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'quarterly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Quarterly</button>
-                               <button onClick={() => setPeriod('yearly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Yearly</button>
-                           </div>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Estimation Period</label>
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
+                            <button onClick={() => setPeriod('weekly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'weekly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Weekly</button>
+                            <button onClick={() => setPeriod('monthly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'monthly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Monthly</button>
+                            <button onClick={() => setPeriod('quarterly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'quarterly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Quarterly</button>
+                            <button onClick={() => setPeriod('yearly')} className={`w-full px-2 py-1 text-xs rounded ${period === 'yearly' ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Yearly</button>
+                        </div>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -139,10 +151,10 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                     />
                     <StatCard 
                         title="Overpayment / (Underpayment)" 
-                        value={`${remainingLiability < 0 ? '-' : ''}$${Math.abs(remainingLiability).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
+                        value={`${remainingLiability < 0 ? '' : '-'}$${Math.abs(remainingLiability).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
                         icon={<DollarSign />} 
-                        color={remainingLiability < 0 ? "green" : "red"} 
-                        subtext={remainingLiability < 0 ? "You have overpaid" : "Remaining balance due"}
+                        color={remainingLiability >= 0 ? "green" : "red"} 
+                        subtext={remainingLiability >= 0 ? "You have overpaid" : "Remaining balance due"}
                     />
                 </div>
                 
@@ -161,13 +173,13 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                     )}
                 </div>
 
-                 {pnlData.netProfit <= 0 && (
+                {pnlData.netProfit <= 0 && (
                     <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/50 border border-blue-400 dark:border-blue-700 text-blue-800 dark:text-blue-200 rounded-lg flex items-center gap-3">
                         <Info size={20} />
                         <p className="text-sm">Your estimated tax is $0.00 because your estimated net profit is negative. The tax rate will apply once your profit is positive.</p>
                     </div>
                 )}
-                 <div className="mt-6">
+                <div className="mt-6">
                     <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Liability vs. Payments</h4>
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -198,7 +210,7 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
                             </tr>
                         </thead>
                         <tbody className="text-sm">
-                            {taxPayments.map(payment => (
+                            {(taxPayments || []).map(payment => (
                                 <tr key={payment.id} className="border-b border-slate-200 dark:border-slate-700/50">
                                     <td className="p-3 font-medium">{payment.date}</td>
                                     <td className="p-3">{payment.notes}</td>
