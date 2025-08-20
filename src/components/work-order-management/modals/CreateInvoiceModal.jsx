@@ -12,8 +12,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
     const [taxRate, setTaxRate] = useState(0);
 
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
-    // THIS LINE DEFINES the 'selectedOrder' variable, which was missing
-    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder); 
+    const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder);
 
     const addLineItem = () => {
         setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
@@ -74,20 +73,55 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                 </div>
                 
                 <div className="p-6 overflow-y-auto space-y-6">
-                    {/* The full JSX for the form goes here */}
-                </div>
+                    <div>
+                        <label className="flex items-center gap-2 mb-3">
+                            <input
+                                type="checkbox"
+                                checked={useCustomCustomer}
+                                onChange={(e) => setUseCustomCustomer(e.target.checked)}
+                            />
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Create invoice for custom customer (not from work order)</span>
+                        </label>
+                    </div>
 
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Create Invoice
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
+                    {!useCustomCustomer ? (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Completed Work Order</label>
+                            <select
+                                value={selectedWorkOrder}
+                                onChange={(e) => setSelectedWorkOrder(e.target.value)}
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                required={!useCustomCustomer}
+                            >
+                                <option value="">Select a completed work order...</option>
+                                {completedOrders.map(wo => (
+                                    <option key={wo.id} value={wo.id}>
+                                        {wo['WO#']} - {wo.Client} - {wo.Company}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                            <input
+                                type="text"
+                                value={customCustomer}
+                                onChange={(e) => setCustomCustomer(e.target.value)}
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                required={useCustomCustomer}
+                                placeholder="Enter customer name"
+                            />
+                        </div>
+                    )}
 
-export default CreateInvoiceModal;
+                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
+                            <button type="button" onClick={addLineItem} className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
+                                <PlusCircle size={16} /> Add Item
+                            </button>
+                        </div>
+                        <div className="space-y-3">
+                            {lineItems.map((item, index) => (
+                                <div key={index} className="grid grid-cols-1 md

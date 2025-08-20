@@ -1,66 +1,45 @@
-import React, { useState } from 'react';
-import { FileText, PlusCircle, Download, Upload, RefreshCw, ChevronDown, CheckCircle, XCircle } from 'lucide-react'; // Added icons
-import CreateInvoiceModal from '../modals/CreateInvoiceModal';
-import CreateQuoteModal from '../modals/CreateQuoteModal';
-import CSVImportModal from '../modals/CSVImportModal';
+import React, { useState, useMemo } from 'react'; // <-- Import useMemo
+import { FileText, PlusCircle, ... } from 'lucide-react';
+import { STATUS } from '../utils/constants'; // <-- NEW: Import constants
+// ... other imports
 
-// UPDATED: Added onMarkInvoicePaid prop
-const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote, onEditInvoice, onEditQuote, onMarkInvoicePaid }) => {
-    // ... (All your existing state and functions in this component remain the same) ...
-    const [activeTab, setActiveTab] = useState('invoices');
-    // ... etc ...
+const BillingView = ({ invoices, quotes, ... }) => {
+    // ... all other states and functions ...
 
-    const formatCurrency = (amount) => { /* ... */ };
+    // --- UPDATED: Memoized Calculations ---
+    const financialSummary = useMemo(() => {
+        const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+        const paidInvoices = invoices.filter(inv => inv.status === STATUS.PAID);
+        const unpaidInvoices = invoices.filter(inv => inv.status !== STATUS.PAID);
+        const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+        const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+        const pendingQuotes = quotes.filter(q => q.status === STATUS.SENT || q.status === STATUS.PENDING);
+        const pendingQuotesAmount = pendingQuotes.reduce((sum, q) => sum + (q.total || 0), 0);
+
+        return {
+            totalInvoiceAmount,
+            paidInvoicesCount: paidInvoices.length,
+            unpaidInvoicesCount: unpaidInvoices.length,
+            totalPaidAmount,
+            totalUnpaidAmount,
+            pendingQuotesCount: pendingQuotes.length,
+            pendingQuotesAmount,
+        };
+    }, [invoices, quotes]);
 
     return (
         <div className="space-y-6">
-            {/* ... Your existing stat cards and header JSX ... */}
-
-            <div className="bg-white dark:bg-slate-700 rounded-lg shadow-sm">
-                {/* ... Your existing nav tabs ... */}
-                
-                <div className="p-6">
-                    {activeTab === 'invoices' && (
-                        <div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full border border-gray-200 dark:border-slate-600 rounded-lg">
-                                    {/* ... thead ... */}
-                                    <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
-                                        {invoices.map(invoice => (
-                                            <React.Fragment key={invoice.id}>
-                                                <tr>
-                                                    {/* ... other tds ... */}
-                                                    <td className="px-4 py-3 text-sm">
-                                                        <div className="flex items-center gap-3">
-                                                            {/* --- NEW BUTTON LOGIC --- */}
-                                                            {invoice.status !== 'Paid' ? (
-                                                                <button onClick={() => onMarkInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600 hover:text-green-800 font-medium" title="Mark as Paid">
-                                                                    <CheckCircle size={16} /> Mark Paid
-                                                                </button>
-                                                            ) : (
-                                                                <button onClick={() => onMarkInvoicePaid(invoice.id, false)} className="flex items-center gap-1 text-orange-600 hover:text-orange-800 font-medium" title="Mark as Unpaid">
-                                                                    <XCircle size={16} /> Mark Unpaid
-                                                                </button>
-                                                            )}
-                                                            <button onClick={() => onEditInvoice(invoice)} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium">
-                                                                Edit
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                {/* ... expanded row logic ... */}
-                                            </React.Fragment>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-                    {/* ... Quote Table JSX ... */}
+            <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+                {/* ... Header and buttons ... */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    {/* These now use the memoized values */}
+                    <div>Total Invoices: {invoices.length} ({formatCurrency(financialSummary.totalInvoiceAmount)})</div>
+                    <div>Paid Invoices: {financialSummary.paidInvoicesCount} ({formatCurrency(financialSummary.totalPaidAmount)})</div>
+                    <div>Outstanding: {financialSummary.unpaidInvoicesCount} ({formatCurrency(financialSummary.totalUnpaidAmount)})</div>
+                    <div>Pending Quotes: {financialSummary.pendingQuotesCount} ({formatCurrency(financialSummary.pendingQuotesAmount)})</div>
                 </div>
             </div>
-            
-            {/* ... Modals ... */}
+            {/* ... Rest of the JSX for tables and modals ... */}
         </div>
     );
 };
