@@ -4,7 +4,7 @@ import useFirestoreCollection from './hooks/useFirestoreCollection';
 import * as api from './services/firestore';
 
 // Import all view and modal components consistently
-import DashboardView from './views/DashboardView.jsx';
+import { DashboardView } from './views/DashboardView.jsx';
 import DispatchView from './views/DispatchView.jsx';
 import RoutePlanningView from './views/RoutePlanningView.jsx';
 import CustomerManagementView from './views/CustomerManagementView.jsx';
