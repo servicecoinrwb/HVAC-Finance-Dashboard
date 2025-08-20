@@ -48,6 +48,8 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         addNewOrder: (data) => api.addWorkOrder(db, userId, data).then(() => setIsAddingOrder(false)),
         addCustomer: (data) => api.addCustomer(db, userId, data),
         updateCustomer: (customer) => api.updateCustomer(db, userId, customer.id, customer),
+        // ✅ ADDED DELETE CUSTOMER HANDLER
+        deleteCustomer: (id) => api.deleteCustomer(db, userId, id),
         addTechnician: (data) => api.addTechnician(db, userId, data),
         updateTechnician: (tech) => api.updateTechnician(db, userId, tech.id, tech),
         deleteTechnician: (id) => { if (window.confirm("Are you sure?")) api.deleteTechnician(db, userId, id, workOrders); },
@@ -129,7 +131,6 @@ const WorkOrderUI = () => {
                 {renderContent()}
             </div>
             
-            {/* ✅ CORRECTED: Render modals without passing props. They will get data from the context. */}
             {selectedOrder && <WorkOrderDetailModal />}
             {isAddingOrder && <AddWorkOrderModal />}
             {editingInvoice && <EditInvoiceModal />}
