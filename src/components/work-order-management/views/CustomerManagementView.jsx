@@ -62,23 +62,39 @@ const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
 // --- UPGRADED ASSET MODAL ---
 const AddAssetModal = ({ customer, locationIndex, onClose, onAddAsset }) => {
     const [name, setName] = useState('');
-    const [type, setType] = useState('HVAC Unit');
-    const [brand, setBrand] = useState('');
+    const [assetType, setAssetType] = useState('HVAC Unit');
+    const [customAssetType, setCustomAssetType] = useState('');
+    const [brand, setBrand] = useState('Trane');
+    const [customBrand, setCustomBrand] = useState('');
     const [model, setModel] = useState('');
     const [serialNumber, setSerialNumber] = useState('');
     const [installDate, setInstallDate] = useState('');
-    const [filterSizes, setFilterSizes] = useState('');
+    const [filters, setFilters] = useState([{ size: '', quantity: 1 }]);
     const [driveType, setDriveType] = useState('DD');
-    const [economizer, setEconomizer] = useState('No');
+    const [economizer, setEconomizer] = useState(false);
+
+    const commonBrands = ['Trane', 'Carrier', 'Lennox', 'Goodman', 'Rheem', 'York', 'Other'];
+    const commonAssetTypes = ['HVAC Unit', 'Rooftop Unit', 'Furnace', 'Air Conditioner', 'Heat Pump', 'Boiler', 'Other'];
+
+    const handleFilterChange = (index, field, value) => {
+        const newFilters = [...filters];
+        newFilters[index][field] = value;
+        setFilters(newFilters);
+    };
+    const addFilter = () => setFilters([...filters, { size: '', quantity: 1 }]);
+    const removeFilter = (index) => setFilters(filters.filter((_, i) => i !== index));
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!name.trim()) return;
         const newAsset = {
-            name, type, brand, model, serialNumber, installDate,
-            filterSizes: filterSizes.split(',').map(s => s.trim()).filter(Boolean), // Split string into an array
+            name,
+            type: assetType === 'Other' ? customAssetType : assetType,
+            brand: brand === 'Other' ? customBrand : brand,
+            model, serialNumber, installDate,
+            filters: filters.filter(f => f.size.trim()),
             driveType,
-            economizer: economizer === 'Yes'
+            economizer
         };
         onAddAsset(customer, locationIndex, newAsset);
         onClose();
@@ -88,19 +104,33 @@ const AddAssetModal = ({ customer, locationIndex, onClose, onAddAsset }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Asset</h2></div>
                 <div className="p-6 overflow-y-auto space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Asset Name</label><input type="text" placeholder="e.g., Rooftop Unit 1" value={name} onChange={e => setName(e.target.value)} className={inputStyles} required /></div>
-                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Asset Type</label><input type="text" placeholder="e.g., HVAC Unit" value={type} onChange={e => setType(e.target.value)} className={inputStyles} /></div>
-                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Brand</label><input type="text" value={brand} onChange={e => setBrand(e.target.value)} className={inputStyles} /></div>
+                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Asset Type</label><select value={assetType} onChange={e => setAssetType(e.target.value)} className={inputStyles}>{commonAssetTypes.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+                        {assetType === 'Other' && <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Custom Asset Type</label><input type="text" value={customAssetType} onChange={e => setCustomAssetType(e.target.value)} className={inputStyles} /></div>}
+                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Brand</label><select value={brand} onChange={e => setBrand(e.target.value)} className={inputStyles}>{commonBrands.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+                        {brand === 'Other' && <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Custom Brand</label><input type="text" value={customBrand} onChange={e => setCustomBrand(e.target.value)} className={inputStyles} /></div>}
                         <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Model</label><input type="text" value={model} onChange={e => setModel(e.target.value)} className={inputStyles} /></div>
                         <div className="md:col-span-2"><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Serial Number</label><input type="text" value={serialNumber} onChange={e => setSerialNumber(e.target.value)} className={inputStyles} /></div>
                         <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Install Date</label><input type="date" value={installDate} onChange={e => setInstallDate(e.target.value)} className={inputStyles} /></div>
-                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Filter Sizes (comma-separated)</label><input type="text" placeholder="e.g., 20x20x1, 16x25x1" value={filterSizes} onChange={e => setFilterSizes(e.target.value)} className={inputStyles} /></div>
+                    </div>
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Filters</h4>
+                        {filters.map((filter, index) => (
+                            <div key={index} className="flex items-center gap-2 mb-2">
+                                <input type="text" placeholder="Size (e.g., 20x20x1)" value={filter.size} onChange={e => handleFilterChange(index, 'size', e.target.value)} className="flex-grow p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" />
+                                <input type="number" value={filter.quantity} onChange={e => handleFilterChange(index, 'quantity', parseInt(e.target.value) || 1)} className="w-20 p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" />
+                                <button type="button" onClick={() => removeFilter(index)} className="text-red-500 hover:text-red-700"><Trash2 size={18} /></button>
+                            </div>
+                        ))}
+                        <button type="button" onClick={addFilter} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Add Filter</button>
+                    </div>
+                    <div className="pt-4 border-t dark:border-slate-600 grid grid-cols-2 gap-4">
                         <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Drive Type</label><select value={driveType} onChange={e => setDriveType(e.target.value)} className={inputStyles}><option>DD</option><option>Belt Drive</option></select></div>
-                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Economizer</label><select value={economizer} onChange={e => setEconomizer(e.target.value)} className={inputStyles}><option>No</option><option>Yes</option></select></div>
+                        <div className="flex items-center gap-2 pt-6"><input type="checkbox" id="economizer" checked={economizer} onChange={e => setEconomizer(e.target.checked)} className="h-4 w-4" /><label htmlFor="economizer" className="text-sm font-medium text-gray-600 dark:text-gray-400">Has Economizer</label></div>
                     </div>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Asset</button></div>
@@ -189,7 +219,7 @@ export const CustomerManagementView = () => {
                                                         <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
                                                             <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
                                                             <li>Installed: {asset.installDate}</li>
-                                                            <li>Filters: {(asset.filterSizes || []).join(', ') || 'N/A'}</li>
+                                                            <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
                                                             <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
                                                         </ul>
                                                     </div>
