@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat } from 'lucide-react';
+import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown } from 'lucide-react';
 // 1. Import the context hook
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
@@ -59,7 +59,6 @@ const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
     return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4 overflow-y-auto"><input type="text" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required /><input type="text" placeholder="Location #" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="Street Address" value={street} onChange={e => setStreet(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><div className="grid grid-cols-3 gap-4"><input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="Zip Code" value={zip} onChange={e => setZip(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /></div></div><div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
 };
 
-// --- UPGRADED ASSET MODAL ---
 const AddAssetModal = ({ customer, locationIndex, onClose, onAddAsset }) => {
     const [name, setName] = useState('');
     const [assetType, setAssetType] = useState('HVAC Unit');
@@ -146,6 +145,17 @@ export const CustomerManagementView = () => {
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [addingLocationTo, setAddingLocationTo] = useState(null);
     const [addingAssetTo, setAddingAssetTo] = useState(null); // { customer, locationIndex }
+    const [expandedCustomers, setExpandedCustomers] = useState(new Set());
+
+    const toggleCustomerExpansion = (customerId) => {
+        const newSet = new Set(expandedCustomers);
+        if (newSet.has(customerId)) {
+            newSet.delete(customerId);
+        } else {
+            newSet.add(customerId);
+        }
+        setExpandedCustomers(newSet);
+    };
 
     const handleAddLocation = (customer, newLocation) => {
         const updatedLocations = [...(customer.locations || []), newLocation];
@@ -178,61 +188,71 @@ export const CustomerManagementView = () => {
                 <button onClick={() => setIsAddingCustomer(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><PlusCircle size={20} /> Add New Customer</button>
             </div>
             <div className="space-y-4">
-                {customers.map(customer => (
-                    <div key={customer.id} className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{customer.name}</h3>
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span>
+                {customers.map(customer => {
+                    const isExpanded = expandedCustomers.has(customer.id);
+                    return (
+                        <div key={customer.id} className="border border-gray-200 dark:border-slate-700 rounded-lg">
+                            <div className="p-4 flex justify-between items-center cursor-pointer" onClick={() => toggleCustomerExpansion(customer.id)}>
+                                <div className="flex items-center gap-4">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{customer.name}</h3>
+                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Edit</button>
+                                        <button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 dark:text-green-400 hover:underline">Add Location</button>
+                                        <button onClick={() => { if(window.confirm('Delete this customer and all their locations?')) handlers.deleteCustomer(customer.id) }} className="text-sm text-red-600 dark:text-red-400 hover:underline">Delete Customer</button>
+                                    </div>
+                                    <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Edit</button>
-                                <button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 dark:text-green-400 hover:underline">Add Location</button>
-                                <button onClick={() => { if(window.confirm('Delete this customer and all their locations?')) handlers.deleteCustomer(customer.id) }} className="text-sm text-red-600 dark:text-red-400 hover:underline">Delete Customer</button>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div className="text-sm"><p className="font-semibold text-gray-600 dark:text-gray-400">Primary Contact</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><User size={14}/> {customer.contact?.name}</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Mail size={14}/> {customer.contact?.email}</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Phone size={14}/> {customer.contact?.phone}</p></div>
-                            <div className="text-sm"><p className="font-semibold text-gray-600 dark:text-gray-400">Billing Address</p><p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.street}</p><p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.city}, {customer.billingAddress?.state} {customer.billingAddress?.zip}</p></div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t dark:border-slate-600">
-                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Service Locations ({(customer.locations || []).length})</h4>
-                            <div className="space-y-3">
-                                {(customer.locations || []).map((loc, index) => (
-                                    <div key={index} className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 py-2">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold flex items-center gap-2"><Building size={14} /> {loc.name} (#{loc.locNum})</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{loc.street}, {loc.city}, {loc.state} {loc.zip}</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setAddingAssetTo({ customer, locationIndex: index })} className="text-xs text-green-600 dark:text-green-400 hover:underline">Add Asset</button>
-                                                <button onClick={() => handleDeleteLocation(customer, index)} className="text-xs text-red-600 dark:text-red-400 hover:underline">Delete</button>
-                                            </div>
-                                        </div>
-                                        <div className="mt-2 pl-6">
-                                            <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400">Assets ({(loc.assets || []).length})</h5>
-                                            <div className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 space-y-1 mt-1">
-                                                {(loc.assets || []).map((asset, assetIndex) => (
-                                                    <div key={assetIndex} className="text-xs text-gray-600 dark:text-gray-400">
-                                                        <p className="flex items-center gap-2 font-semibold"><HardHat size={12} /> {asset.name} ({asset.type})</p>
-                                                        <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
-                                                            <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
-                                                            <li>Installed: {asset.installDate}</li>
-                                                            <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
-                                                            <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
-                                                        </ul>
+                            {isExpanded && (
+                                <div className="p-4 border-t dark:border-slate-700">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="text-sm"><p className="font-semibold text-gray-600 dark:text-gray-400">Primary Contact</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><User size={14}/> {customer.contact?.name}</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Mail size={14}/> {customer.contact?.email}</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Phone size={14}/> {customer.contact?.phone}</p></div>
+                                        <div className="text-sm"><p className="font-semibold text-gray-600 dark:text-gray-400">Billing Address</p><p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.street}</p><p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.city}, {customer.billingAddress?.state} {customer.billingAddress?.zip}</p></div>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t dark:border-slate-600">
+                                        <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Service Locations ({(customer.locations || []).length})</h4>
+                                        <div className="space-y-3">
+                                            {(customer.locations || []).map((loc, index) => (
+                                                <div key={index} className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 py-2">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold flex items-center gap-2"><Building size={14} /> {loc.name} (#{loc.locNum})</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{loc.street}, {loc.city}, {loc.state} {loc.zip}</p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => setAddingAssetTo({ customer, locationIndex: index })} className="text-xs text-green-600 dark:text-green-400 hover:underline">Add Asset</button>
+                                                            <button onClick={() => handleDeleteLocation(customer, index)} className="text-xs text-red-600 dark:text-red-400 hover:underline">Delete</button>
+                                                        </div>
                                                     </div>
-                                                ))}
-                                                {!(loc.assets || []).length && <p className="text-xs text-gray-400 dark:text-gray-500 italic">No assets recorded.</p>}
-                                            </div>
+                                                    <div className="mt-2 pl-6">
+                                                        <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400">Assets ({(loc.assets || []).length})</h5>
+                                                        <div className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 space-y-1 mt-1">
+                                                            {(loc.assets || []).map((asset, assetIndex) => (
+                                                                <div key={assetIndex} className="text-xs text-gray-600 dark:text-gray-400">
+                                                                    <p className="flex items-center gap-2 font-semibold"><HardHat size={12} /> {asset.name} ({asset.type})</p>
+                                                                    <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
+                                                                        <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
+                                                                        <li>Installed: {asset.installDate}</li>
+                                                                        <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
+                                                                        <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
+                                                                    </ul>
+                                                                </div>
+                                                            ))}
+                                                            {!(loc.assets || []).length && <p className="text-xs text-gray-400 dark:text-gray-500 italic">No assets recorded.</p>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    )
+                })}
             </div>
             {isAddingCustomer && <AddCustomerModal onAddCustomer={handlers.addCustomer} onClose={() => setIsAddingCustomer(false)} />}
             {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={handlers.updateCustomer} onClose={() => setEditingCustomer(null)} />}
