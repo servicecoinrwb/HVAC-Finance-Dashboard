@@ -1,61 +1,50 @@
-import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDoc, query, onSnapshot } from 'firebase/firestore';
+// Add this entire block to the end of your firestore.jsx file
 
-const getCollectionRef = (db, userId, collectionName) => {
-    return collection(db, 'artifacts', 'workOrderManagement', 'users', userId, collectionName);
+// --- Technician Functions ---
+export const addTechnician = (db, userId, techData) => {
+    return addDoc(getCollectionRef(db, userId, 'technicians'), { ...techData, createdAt: serverTimestamp() });
 };
 
-const getDocRef = (db, userId, collectionName, docId) => {
-    return doc(db, 'artifacts', 'workOrderManagement', 'users', userId, collectionName, docId);
+export const updateTechnician = (db, userId, techId, payload) => {
+    const techRef = getDocRef(db, userId, 'technicians', techId);
+    return updateDoc(techRef, { ...payload, updatedAt: serverTimestamp() });
 };
 
-// Generic listener for any collection
-export const getCollectionListener = (db, userId, collectionName, callback) => {
-    const q = query(getCollectionRef(db, userId, collectionName));
-    return onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        callback(data);
-    }, (err) => console.error(`Error fetching ${collectionName}:`, err));
+export const deleteTechnician = async (db, userId, techId, workOrders) => {
+    const techToDelete = (await getDoc(getDocRef(db, userId, 'technicians', techId))).data();
+    if (!techToDelete) return;
+
+    const batch = writeBatch(db);
+    
+    // Remove technician from any assigned work orders
+    workOrders.forEach(wo => {
+        if (wo.technician?.includes(techToDelete.name)) {
+            const workOrderRef = getDocRef(db, userId, 'workOrders', wo.id);
+            batch.update(workOrderRef, {
+                technician: wo.technician.filter(t => t !== techToDelete.name)
+            });
+        }
+    });
+
+    // Delete the technician document
+    const techRef = getDocRef(db, userId, 'technicians', techId);
+    batch.delete(techRef);
+    
+    return batch.commit();
 };
 
-// Work Order Functions
-export const addWorkOrder = (db, userId, orderData) => {
-    const newOrder = {
-        ...orderData,
-        createdAt: serverTimestamp()
-    };
-    return addDoc(getCollectionRef(db, userId, 'workOrders'), newOrder);
+
+// --- Billing Functions ---
+export const addQuote = (db, userId, quoteData) => {
+    return addDoc(getCollectionRef(db, userId, 'quotes'), { ...quoteData, createdAt: serverTimestamp() });
 };
 
-export const updateWorkOrder = (db, userId, orderId, payload) => {
-    const workOrderRef = getDocRef(db, userId, 'workOrders', orderId);
-    return updateDoc(workOrderRef, { ...payload, updatedAt: serverTimestamp() });
+export const updateInvoice = (db, userId, invoiceId, payload) => {
+    const invoiceRef = getDocRef(db, userId, 'invoices', invoiceId);
+    return updateDoc(invoiceRef, { ...payload, updatedAt: serverTimestamp() });
 };
 
-// Customer Functions
-export const addCustomer = (db, userId, customerData) => {
-    return addDoc(getCollectionRef(db, userId, 'customers'), { ...customerData, createdAt: serverTimestamp() });
-};
-
-export const updateCustomer = (db, userId, customerId, payload) => {
-    const customerRef = getDocRef(db, userId, 'customers', customerId);
-    return updateDoc(customerRef, { ...payload, updatedAt: serverTimestamp() });
-};
-
-// Add other functions for technicians, invoices, quotes etc. in the same pattern.
-// For example:
-export const addInvoice = (db, userId, invoiceData) => {
-    return addDoc(getCollectionRef(db, userId, 'invoices'), { ...invoiceData, createdAt: serverTimestamp() });
-};
-
-export const addNoteToWorkOrder = async (db, userId, orderId, noteText) => {
-    const workOrderRef = getDocRef(db, userId, 'workOrders', orderId);
-    const workOrderSnap = await getDoc(workOrderRef);
-    if (workOrderSnap.exists()) {
-        const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() };
-        const currentNotes = workOrderSnap.data().notes || [];
-        return updateDoc(workOrderRef, {
-            notes: [...currentNotes, newNote],
-            updatedAt: serverTimestamp()
-        });
-    }
+export const updateQuote = (db, userId, quoteId, payload) => {
+    const quoteRef = getDocRef(db, userId, 'quotes', quoteId);
+    return updateDoc(quoteRef, { ...payload, updatedAt: serverTimestamp() });
 };
