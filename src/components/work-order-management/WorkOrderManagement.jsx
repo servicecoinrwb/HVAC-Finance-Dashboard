@@ -47,13 +47,29 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         updateQuote: (quote) => api.updateQuote(db, userId, quote.id, quote),
         markInvoicePaid: (id, isPaid) => api.updateInvoice(db, userId, id, { status: isPaid ? 'Paid' : 'Pending', paidDate: isPaid ? new Date().toISOString() : null }),
     };
+    
+    const navButtons = [
+        { key: 'dashboard', label: 'Dashboard' },
+        { key: 'dispatch', label: 'Dispatch Board' },
+        { key: 'route', label: 'Route Planning' },
+        { key: 'customers', label: 'Customers' },
+        { key: 'technicians', label: 'Technicians' },
+        { key: 'billing', label: 'Billing' },
+        { key: 'reporting', label: 'Reporting' },
+        { key: 'margin-calculator', label: 'Margin Calculator' },
+    ];
 
     const renderContent = () => {
-        if (loadingOrders || loadingCustomers || loadingTechs) return <div>Loading...</div>;
+        if (loadingOrders || loadingCustomers || loadingTechs || loadingInvoices || loadingQuotes) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div></div>;
         switch (currentView) {
-            case 'billing': return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handlers.addInvoice} onAddQuote={handlers.addQuote} onEditInvoice={setEditingInvoice} onEditQuote={setEditingQuote} onMarkInvoicePaid={handlers.markInvoicePaid} />;
+            case 'dashboard': return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
+            case 'dispatch': return <DispatchView workOrders={workOrders} technicians={technicians} onUpdateOrder={handlers.updateOrder} />;
+            case 'route': return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
+            case 'customers': return <CustomerManagementView customers={customers} onAddCustomer={handlers.addCustomer} onUpdateCustomer={handlers.updateCustomer} />;
             case 'technicians': return <TechnicianManagementView technicians={technicians} onAddTechnician={handlers.addTechnician} onUpdateTechnician={handlers.updateTechnician} onDeleteTechnician={handlers.deleteTechnician} />;
-            // ... add all other cases here
+            case 'billing': return <BillingView invoices={invoices} quotes={quotes} workOrders={workOrders} customers={customers} onAddInvoice={handlers.addInvoice} onAddQuote={handlers.addQuote} onEditInvoice={setEditingInvoice} onEditQuote={setEditingQuote} onMarkInvoicePaid={handlers.markInvoicePaid} />;
+            case 'reporting': return <ReportingView workOrders={workOrders} invoices={invoices} />;
+            case 'margin-calculator': return <MarginCalculatorView />;
             default: return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
         }
     };
@@ -62,8 +78,23 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
             <div className="p-6">
                 <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                    <div><h2 className="text-2xl font-bold">Work Order Management</h2><p className="text-sm">Operational tasks module.</p></div>
-                    <div className="flex items-center gap-2 flex-wrap">{/* ... Nav Buttons ... */}<button onClick={() => setIsAddingOrder(true)} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg"><PlusCircle size={20} /> Add Work Order</button></div>
+                    <div><h2 className="text-2xl font-bold">Work Order Management</h2><p className="text-sm text-slate-500 dark:text-slate-400">Operational tasks module.</p></div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md p-1">
+                            {navButtons.map(btn => (
+                                <button 
+                                    key={btn.key}
+                                    onClick={() => setCurrentView(btn.key)} 
+                                    className={`px-3 py-1 text-xs rounded ${currentView === btn.key ? 'bg-cyan-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
+                                >
+                                    {btn.label}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={() => setIsAddingOrder(true)} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                            <PlusCircle size={20} /> Add Work Order
+                        </button>
+                    </div>
                 </div>
                 {renderContent()}
             </div>
