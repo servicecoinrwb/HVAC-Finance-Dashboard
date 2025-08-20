@@ -28,7 +28,7 @@ const getStatusStyles = (s) => ({
 
 
 const OrderCard = ({ order, onSelectOrder }) => (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}>
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-transparent dark:border-slate-700 border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}>
         <div className="p-5">
             <div className="flex justify-between items-start">
                 <span className={`text-xs font-bold uppercase px-2 py-1 rounded-full ${getPriorityStyles(order.Priority)}`}>{order.Priority}</span>
