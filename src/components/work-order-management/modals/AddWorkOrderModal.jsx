@@ -3,112 +3,97 @@ import { X, PlusCircle, Trash2 } from 'lucide-react';
 import { yyyymmddToExcel } from '../utils/helpers';
 
 const AddWorkOrderModal = ({ onClose, onAddOrder, customers, inventory }) => {
-    // ... existing state for the modal ...
+    const [clientId, setClientId] = useState(customers.length > 0 ? customers[0].id : '');
     const [task, setTask] = useState('');
     const [priority, setPriority] = useState('Regular');
-    // ... etc ...
+    const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 75, amount: 75, inventoryId: null }]);
+    // Note: We use selectedClient throughout this component
+    const selectedClient = useMemo(() => customers.find(c => c.id === clientId), [clientId, customers]);
 
-    // --- NEW: State for Line Items ---
-    const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 0, amount: 0, inventoryId: null }]);
-
-    const addLineItem = () => {
-        setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0, inventoryId: null }]);
-    };
-
-    const removeLineItem = (index) => {
-        if (lineItems.length > 1) {
-            setLineItems(lineItems.filter((_, i) => i !== index));
+    // This logic handles the complex parts of the form
+    const [locationIdentifier, setLocationIdentifier] = useState('');
+    const [needsLocation, setNeedsLocation] = useState(false);
+    const [newLocationName, setNewLocationName] = useState('');
+    const [newLocationNum, setNewLocationNum] = useState('');
+    const [newLocationCity, setNewLocationCity] = useState('');
+    const [newLocationState, setNewLocationState] = useState('MI');
+    
+    useEffect(() => {
+        if (selectedClient) {
+            if (selectedClient.locations?.length > 0) {
+                const loc = selectedClient.locations[0];
+                setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
+                setNeedsLocation(false);
+            } else {
+                setLocationIdentifier('');
+                setNeedsLocation(true);
+                setNewLocationName(selectedClient.type === 'Residential' ? 'Primary Residence' : 'Main Location');
+                setNewLocationNum(selectedClient.type === 'Residential' ? 'N/A' : '001');
+                setNewLocationCity(selectedClient.billingAddress?.city || '');
+                setNewLocationState(selectedClient.billingAddress?.state || 'MI');
+            }
         }
-    };
-
-    const handleInventorySelect = (index, inventoryId) => {
-        const item = inventory.find(i => i.id === inventoryId);
-        const updated = [...lineItems];
-        if (item) {
-            updated[index].description = item.name;
-            updated[index].rate = item.price || 0;
-            updated[index].inventoryId = inventoryId;
-            updated[index].amount = updated[index].quantity * (item.price || 0);
-        } else {
-            updated[index].inventoryId = null;
-        }
-        setLineItems(updated);
-    };
-
-    const updateLineItem = (index, field, value) => {
-        const updated = [...lineItems];
-        updated[index][field] = value;
-        if (field === 'quantity' || field === 'rate') {
-            const quantity = parseFloat(updated[index].quantity) || 0;
-            const rate = parseFloat(updated[index].rate) || 0;
-            updated[index].amount = quantity * rate;
-        }
-        setLineItems(updated);
-    };
-
+    }, [selectedClient]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // ... existing handleSubmit logic ...
-
-        const orderData = { 
-            // ... existing order data ...
-            lineItems: lineItems, // <-- Add line items to the data
-        };
         
+        let location;
+        if (needsLocation) {
+            if (!newLocationName.trim() || !newLocationCity.trim()) {
+                return alert('Please fill out the new location name and city.');
+            }
+            location = { name: newLocationName.trim(), locNum: newLocationNum.trim() || 'N/A', city: newLocationCity.trim(), state: newLocationState.trim() };
+        } else {
+            const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
+            location = selectedClient?.locations.find(l => l.name === company && l.locNum === locNum);
+        }
+
+        if (!clientId || !selectedClient || !location || !task) {
+            return alert('Please fill out all required fields.');
+        }
+
+        const orderData = {
+            Client: selectedClient.name,
+            Company: location.name,
+            'Loc #': location.locNum,
+            Task: task,
+            Priority: priority,
+            City: location.city,
+            State: location.state,
+            lineItems: lineItems,
+            // Add any other fields you need from the modal here
+        };
         onAddOrder(orderData);
-        onClose();
     };
+
+    // --- Line Item Functions ---
+    const addLineItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0, inventoryId: null }]);
+    const removeLineItem = (index) => { if (lineItems.length > 1) setLineItems(lineItems.filter((_, i) => i !== index)); };
+    // ... other line item functions from the previous step ...
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                {/* ... Modal Header ... */}
-                <div className="p-6 overflow-y-auto space-y-4">
-                    {/* ... Existing form fields for customer, task, priority etc. ... */}
-                    
-                    {/* --- NEW: Line Items Section --- */}
-                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
-                            <button type="button" onClick={addLineItem} className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
-                                <PlusCircle size={16} /> Add Item
-                            </button>
-                        </div>
-                        <div className="space-y-3">
-                            {lineItems.map((item, index) => (
-                                <div key={index} className="grid grid-cols-12 gap-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                    <div className="col-span-4">
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Inventory Part</label>
-                                        <select onChange={(e) => handleInventorySelect(index, e.target.value)} className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white">
-                                            <option value="">-- Select from Inventory --</option>
-                                            {inventory.map(invItem => <option key={invItem.id} value={invItem.id}>{invItem.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="col-span-4">
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Description</label>
-                                        <input type="text" value={item.description} onChange={(e) => updateLineItem(index, 'description', e.target.value)} className="w-full p-2 text-sm border ..." placeholder="Or type custom item" required />
-                                    </div>
-                                    <div className="col-span-1">
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Qty</label>
-                                        <input type="number" value={item.quantity} onChange={(e) => updateLineItem(index, 'quantity', e.target.value)} className="w-full p-2 text-sm border ..." />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Rate ($)</label>
-                                        <input type="number" value={item.rate} onChange={(e) => updateLineItem(index, 'rate', e.target.value)} className="w-full p-2 text-sm border ..." />
-                                    </div>
-                                    <div className="col-span-1 flex items-end">
-                                        <button type="button" onClick={() => removeLineItem(index)} disabled={lineItems.length === 1} className="w-full p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded disabled:opacity-50 ...">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
+                <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold">Add New Work Order</h2>
+                    <button type="button" onClick={onClose}><X size={28} /></button>
                 </div>
-                {/* ... Modal Footer and Submit Button ... */}
+                <div className="p-6 overflow-y-auto space-y-4">
+                    {/* Customer and Location Selection JSX */}
+                    <div>
+                        <label className="text-sm font-medium">Client</label>
+                        <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                            <option value="">Select a customer...</option>
+                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    {/* ... other form fields like task, priority, etc. ... */}
+                    {/* ... your line items section JSX ... */}
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t mt-auto">
+                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700">Create Work Order</button>
+                </div>
             </form>
         </div>
     );
