@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDocs, writeBatch, query, serverTimestamp, getDoc } from 'firebase/firestore';
-import { Wrench, Calendar, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
+import { Wrench, Calendar as CalendarIcon, MapPin, Building, Search, Filter, X, ChevronDown, Clock, AlertTriangle, CheckCircle, PauseCircle, PlayCircle, XCircle, User, MessageSquare, PlusCircle, Briefcase, Users, ArrowLeft, Edit, Mail, Phone, Trash2, Map, Printer, BarChart2, Award, Download, FileText, RefreshCw, Upload } from 'lucide-react';
 
 // Data Migration Functions
-const migrateExistingData = async (userId, db, appId = 'workOrderManagement') => {
+const migrateExistingData = async () => {
     if (!userId) return;
     
     try {
@@ -257,15 +257,6 @@ const initialQuotes = [
     }
 ];
 
-const initialItems = [
-    { id: 1, name: 'HVAC Maintenance Service', description: 'Routine maintenance and inspection', category: 'HVAC', cost: 75, markup: 100, sellPrice: 150 },
-    { id: 2, name: 'AC Filter Replacement', description: 'Replace standard air filter', category: 'HVAC', cost: 15, markup: 200, sellPrice: 45 },
-    { id: 3, name: 'Refrigerant Refill', description: 'R-410A refrigerant refill', category: 'HVAC', cost: 45, markup: 100, sellPrice: 90 },
-    { id: 4, name: 'Emergency Service Call', description: 'After hours emergency service', category: 'HVAC', cost: 100, markup: 150, sellPrice: 250 },
-    { id: 5, name: 'Thermostat Installation', description: 'Install programmable thermostat', category: 'HVAC', cost: 50, markup: 200, sellPrice: 150 },
-    { id: 6, name: 'Ductwork Cleaning', description: 'Complete duct system cleaning', category: 'HVAC', cost: 125, markup: 120, sellPrice: 275 }
-];
-
 // --- Utility Functions ---
 const excelToJSDate = (d) => d && typeof d === 'number' ? new Date(Math.round((d - 25569) * 86400 * 1000)) : null;
 const jsDateToExcel = (d) => d ? (d.getTime() / 86400000) + 25569 : null;
@@ -290,6 +281,7 @@ const generateInvoicePDF = (invoice, workOrder = null) => {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    let y = 20;
 
     // Company Header
     doc.setFontSize(24);
@@ -303,11 +295,12 @@ const generateInvoicePDF = (invoice, workOrder = null) => {
     doc.text('Email: office@mechanicaltemp.com', 20, 61);
     doc.text('Web: www.mechanicaltemp.com', 20, 68);
 
-    // Invoice Title and Info
+    // Invoice Title
     doc.setFontSize(20);
     doc.setFont(undefined, 'bold');
     doc.text('INVOICE', 200, 30, { align: 'right' });
     
+    // Invoice Info
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
     doc.text(`Invoice #: ${invoice.id}`, 200, 45, { align: 'right' });
@@ -316,8 +309,9 @@ const generateInvoicePDF = (invoice, workOrder = null) => {
         doc.text(`Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`, 200, 59, { align: 'right' });
     }
 
+    y = 90;
+
     // Customer Information
-    let y = 90;
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.text('Bill To:', 20, y);
@@ -326,7 +320,7 @@ const generateInvoicePDF = (invoice, workOrder = null) => {
     y += 10;
     doc.text(invoice.customerName, 20, y);
 
-    // Work Order Information
+    // Work Order Information (if available)
     if (workOrder) {
         y += 15;
         doc.setFontSize(14);
@@ -340,47 +334,50 @@ const generateInvoicePDF = (invoice, workOrder = null) => {
         doc.text(`Location: ${workOrder.Company} - ${workOrder.City}, ${workOrder.State}`, 20, y);
         y += 7;
         doc.text(`Service: ${workOrder.Task}`, 20, y);
+        if (workOrder['Schedule Date']) {
+            y += 7;
+            doc.text(`Service Date: ${excelDateToJSDateString(workOrder['Schedule Date'])}`, 20, y);
+        }
     }
 
     y += 20;
 
-    // Line Items Table
-    if (invoice.lineItems && invoice.lineItems.length > 0) {
-        if (doc.autoTable) {
-            const tableData = invoice.lineItems.map(item => [
-                item.description,
-                item.quantity,
-                `${item.rate.toFixed(2)}`,
-                `${item.amount.toFixed(2)}`
-            ]);
+    // Invoice Details Table
+    if (window.jspdf && doc.autoTable) {
+        const tableData = [
+            ['Description', 'Amount'],
+            [invoice.description || 'Service Rendered', `$${invoice.amount.toFixed(2)}`]
+        ];
 
-            doc.autoTable({
-                startY: y,
-                head: [['Description', 'Qty', 'Rate', 'Amount']],
-                body: tableData,
-                theme: 'striped',
-                styles: { fontSize: 10 },
-                headStyles: { fillColor: [41, 128, 185] },
-                margin: { left: 20, right: 20 }
-            });
+        doc.autoTable({
+            startY: y,
+            head: [tableData[0]],
+            body: [tableData[1]],
+            theme: 'striped',
+            styles: { fontSize: 12 },
+            headStyles: { fillColor: [41, 128, 185] },
+            margin: { left: 20, right: 20 }
+        });
 
-            y = doc.lastAutoTable.finalY + 10;
-        }
-    }
-
-    // Totals
-    const rightAlign = 200;
-    if (invoice.subtotal) {
-        doc.text(`Subtotal: ${invoice.subtotal.toFixed(2)}`, rightAlign, y, { align: 'right' });
+        y = doc.lastAutoTable.finalY + 20;
+    } else {
+        // Fallback without autoTable
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Description', 20, y);
+        doc.text('Amount', 150, y);
         y += 7;
+        doc.setFont(undefined, 'normal');
+        doc.text(invoice.description || 'Service Rendered', 20, y);
+        doc.text(`$${invoice.amount.toFixed(2)}`, 150, y);
+        y += 20;
     }
-    if (invoice.tax) {
-        doc.text(`Tax: ${invoice.tax.toFixed(2)}`, rightAlign, y, { align: 'right' });
-        y += 7;
-    }
-    
+
+    // Total
+    doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
-    doc.text(`Total: ${(invoice.total || invoice.amount || 0).toFixed(2)}`, rightAlign, y, { align: 'right' });
+    doc.text('Total Amount Due:', 120, y);
+    doc.text(`$${invoice.amount.toFixed(2)}`, 200, y, { align: 'right' });
 
     // Footer
     y += 30;
@@ -389,6 +386,7 @@ const generateInvoicePDF = (invoice, workOrder = null) => {
     doc.text('Thank you for choosing Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
     doc.text('Payment is due within 30 days of invoice date.', 105, y + 7, { align: 'center' });
 
+    // Save the PDF
     doc.save(`Invoice-${invoice.id}.pdf`);
 };
 
@@ -400,348 +398,148 @@ const generateQuotePDF = (quote) => {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    let y = 20;
 
-    // Similar structure as invoice but for quotes
+    // Company Header
     doc.setFontSize(24);
     doc.setFont(undefined, 'bold');
     doc.text('MECHANICAL TEMP', 20, 30);
-    
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.text('23093 Telegraph Rd', 20, 40);
+    doc.text('Southfield, MI 48033', 20, 47);
+    doc.text('Phone: (313) 282-4758', 20, 54);
+    doc.text('Email: office@mechanicaltemp.com', 20, 61);
+    doc.text('Web: www.mechanicaltemp.com', 20, 68);
+
+    // Quote Title
     doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
     doc.text('QUOTE', 200, 30, { align: 'right' });
     
+    // Quote Info
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
     doc.text(`Quote #: ${quote.id}`, 200, 45, { align: 'right' });
     doc.text(`Date: ${new Date(quote.date).toLocaleDateString()}`, 200, 52, { align: 'right' });
+    if (quote.validUntil) {
+        doc.text(`Valid Until: ${new Date(quote.validUntil).toLocaleDateString()}`, 200, 59, { align: 'right' });
+    }
 
-    // Quote content
-    let y = 90;
-    doc.text(`Quote For: ${quote.customerName}`, 20, y);
+    y = 90;
+
+    // Customer Information
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Quote For:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    doc.text(quote.customerName, 20, y);
+
     y += 20;
 
-    if (quote.lineItems && quote.lineItems.length > 0 && doc.autoTable) {
-        const tableData = quote.lineItems.map(item => [
-            item.description,
-            item.quantity,
-            `${item.rate.toFixed(2)}`,
-            `${item.amount.toFixed(2)}`
-        ]);
+    // Quote Details
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Work Description:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(12);
+    y += 10;
+    
+    // Split long descriptions into multiple lines
+    const splitText = doc.splitTextToSize(quote.description, 170);
+    splitText.forEach(line => {
+        doc.text(line, 20, y);
+        y += 7;
+    });
+
+    y += 15;
+
+    // Quote Table
+    if (window.jspdf && doc.autoTable) {
+        const tableData = [
+            ['Description', 'Amount'],
+            [quote.description, `$${quote.amount.toFixed(2)}`]
+        ];
 
         doc.autoTable({
             startY: y,
-            head: [['Description', 'Qty', 'Rate', 'Amount']],
-            body: tableData,
+            head: [tableData[0]],
+            body: [tableData[1]],
             theme: 'striped',
-            styles: { fontSize: 10 },
+            styles: { fontSize: 12 },
             headStyles: { fillColor: [46, 125, 50] },
             margin: { left: 20, right: 20 }
         });
 
         y = doc.lastAutoTable.finalY + 20;
+    } else {
+        // Fallback without autoTable
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Service Description', 20, y);
+        doc.text('Quoted Amount', 150, y);
+        y += 7;
+        doc.setFont(undefined, 'normal');
+        doc.text(quote.description, 20, y);
+        doc.text(`$${quote.amount.toFixed(2)}`, 150, y);
+        y += 20;
     }
 
+    // Total
+    doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
-    doc.text(`Total Quote: ${(quote.total || quote.amount || 0).toFixed(2)}`, 200, y, { align: 'right' });
+    doc.text('Total Quote Amount:', 120, y);
+    doc.text(`$${quote.amount.toFixed(2)}`, 200, y, { align: 'right' });
 
-    doc.save(`Quote-${quote.id}.pdf`);
-};
+    // Terms and Conditions
+    y += 25;
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Terms & Conditions:', 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    y += 10;
+    
+    const terms = [
+        '• Quote is valid for 30 days from date issued',
+        '• Final pricing may vary based on actual conditions found',
+        '• Work includes all labor and materials as specified',
+        '• Payment is due upon completion of work',
+        '• All work performed comes with a 1-year warranty on parts and labor'
+    ];
 
-// --- Items Management View Component ---
-const ItemsManagementView = ({ items, onAddItem, onUpdateItem, onDeleteItem }) => {
-    const [isAdding, setIsAdding] = useState(false);
-    const [editing, setEditing] = useState(null);
-    const [newItem, setNewItem] = useState({
-        name: '',
-        description: '',
-        category: 'HVAC',
-        cost: 0,
-        markup: 100,
-        sellPrice: 0
+    terms.forEach(term => {
+        doc.text(term, 20, y);
+        y += 7;
     });
 
-    const calculateSellPrice = (cost, markup) => {
-        return cost * (1 + markup / 100);
-    };
+    // Notes (if any)
+    if (quote.notes && quote.notes.trim()) {
+        y += 10;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Additional Notes:', 20, y);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        y += 7;
+        const notesText = doc.splitTextToSize(quote.notes, 170);
+        notesText.forEach(line => {
+            doc.text(line, 20, y);
+            y += 7;
+        });
+    }
 
-    const calculateMargin = (markup) => {
-        return (markup / (100 + markup)) * 100;
-    };
+    // Footer
+    y += 15;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Thank you for considering Mechanical Temp for your HVAC needs!', 105, y, { align: 'center' });
+    doc.text('Call us at (313) 282-4758 to schedule your service.', 105, y + 7, { align: 'center' });
 
-    const handleCostChange = (cost) => {
-        const sellPrice = calculateSellPrice(cost, newItem.markup);
-        setNewItem(prev => ({ ...prev, cost, sellPrice }));
-    };
-
-    const handleMarkupChange = (markup) => {
-        const sellPrice = calculateSellPrice(newItem.cost, markup);
-        setNewItem(prev => ({ ...prev, markup, sellPrice }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onAddItem(newItem);
-        setNewItem({ name: '', description: '', category: 'HVAC', cost: 0, markup: 100, sellPrice: 0 });
-        setIsAdding(false);
-    };
-
-    return (
-        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Items & Services Management</h3>
-                <button 
-                    onClick={() => setIsAdding(true)}
-                    className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
-                >
-                    <PlusCircle size={20} /> Add New Item
-                </button>
-            </div>
-            
-            {isAdding && (
-                <form onSubmit={handleSubmit} className="mb-6 p-4 border border-gray-200 dark:border-slate-600 rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <input
-                            type="text"
-                            placeholder="Item name"
-                            value={newItem.name}
-                            onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
-                            className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                        />
-                        <select
-                            value={newItem.category}
-                            onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value }))}
-                            className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="HVAC">HVAC</option>
-                            <option value="Electrical">Electrical</option>
-                            <option value="Plumbing">Plumbing</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label className="text-sm text-gray-600 dark:text-gray-400">Cost ($)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={newItem.cost}
-                                onChange={(e) => handleCostChange(parseFloat(e.target.value) || 0)}
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm text-gray-600 dark:text-gray-400">Markup (%)</label>
-                            <input
-                                type="number"
-                                value={newItem.markup}
-                                onChange={(e) => handleMarkupChange(parseFloat(e.target.value) || 0)}
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm text-gray-600 dark:text-gray-400">Sell Price ($)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={newItem.sellPrice.toFixed(2)}
-                                readOnly
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-500 text-gray-900 dark:text-white"
-                            />
-                        </div>
-                    </div>
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg mb-4">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                            Margin: {calculateMargin(newItem.markup).toFixed(1)}% | 
-                            Profit: ${(newItem.sellPrice - newItem.cost).toFixed(2)}
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-                            Add Item
-                        </button>
-                        <button type="button" onClick={() => setIsAdding(false)} className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            <div className="space-y-4">
-                {items.map(item => (
-                    <div key={item.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h4 className="text-lg font-bold text-gray-900 dark:text-white">{item.name}</h4>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{item.category}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500">{item.description}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-bold">${item.sellPrice}</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Cost: ${item.cost}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500">Markup: {item.markup}%</p>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-// --- Edit Modal Components ---
-const EditInvoiceModal = ({ invoice, onClose, onUpdateInvoice }) => {
-    const [formData, setFormData] = useState(invoice);
-    const [lineItems, setLineItems] = useState(invoice.lineItems || []);
-
-    const updateLineItem = (index, field, value) => {
-        const updated = [...lineItems];
-        updated[index][field] = value;
-        
-        if (field === 'quantity' || field === 'rate') {
-            updated[index].amount = updated[index].quantity * updated[index].rate;
-        }
-        
-        const subtotal = updated.reduce((sum, item) => sum + item.amount, 0);
-        const tax = subtotal * 0.1;
-        const total = subtotal + tax;
-        
-        setLineItems(updated);
-        setFormData(prev => ({ ...prev, lineItems: updated, subtotal, tax, total }));
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onUpdateInvoice({ ...formData, lineItems });
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Invoice</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            value={formData.status} 
-                            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Draft">Draft</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Paid">Paid</option>
-                            <option value="Overdue">Overdue</option>
-                        </select>
-                    </div>
-
-                    {lineItems.map((item, index) => (
-                        <div key={index} className="border border-gray-200 dark:border-slate-600 rounded-lg p-3">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                <input
-                                    type="text"
-                                    value={item.description}
-                                    onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                    placeholder="Description"
-                                />
-                                <input
-                                    type="number"
-                                    value={item.quantity}
-                                    onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 1)}
-                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={item.rate}
-                                    onChange={(e) => updateLineItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                                <input
-                                    type="text"
-                                    value={`$${item.amount.toFixed(2)}`}
-                                    readOnly
-                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded bg-gray-100 dark:bg-slate-500 text-gray-900 dark:text-white"
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const EditQuoteModal = ({ quote, onClose, onUpdateQuote }) => {
-    const [formData, setFormData] = useState(quote);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onUpdateQuote(formData);
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={28} />
-                    </button>
-                </div>
-                
-                <div className="p-6 overflow-y-auto space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            value={formData.status} 
-                            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="Draft">Draft</option>
-                            <option value="Sent">Sent</option>
-                            <option value="Accepted">Accepted</option>
-                            <option value="Rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                        <input 
-                            type="text" 
-                            value={formData.customerName} 
-                            onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        />
-                    </div>
-                </div>
-
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
+    // Save the PDF
+    doc.save(`Quote-${quote.id}.pdf`);
 };
 
 // --- Modal Components ---
@@ -913,7 +711,7 @@ const AddCustomerModal = ({ onAddCustomer, onClose }) => {
 };
 
 // Updated CreateInvoiceModal with Line Items Support
-const CreateInvoiceModal = ({ workOrders, customers, items, onClose, onAddInvoice }) => {
+const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) => {
     const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
     const [customCustomer, setCustomCustomer] = useState('');
     const [dueDate, setDueDate] = useState('');
@@ -945,16 +743,6 @@ const CreateInvoiceModal = ({ workOrders, customers, items, onClose, onAddInvoic
         }
         
         setLineItems(updated);
-    };
-
-    const addFromItems = (item) => {
-        const newLineItem = {
-            description: item.name,
-            quantity: 1,
-            rate: item.sellPrice,
-            amount: item.sellPrice
-        };
-        setLineItems([...lineItems, newLineItem]);
     };
 
     const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
@@ -1039,34 +827,13 @@ const CreateInvoiceModal = ({ workOrders, customers, items, onClose, onAddInvoic
                     <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
-                            <div className="flex gap-2">
-                                <button 
-                                    type="button" 
-                                    onClick={addLineItem}
-                                    className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
-                                >
-                                    <PlusCircle size={16} /> Add Custom
-                                </button>
-                                <div className="relative">
-                                    <select 
-                                        onChange={(e) => {
-                                            if (e.target.value) {
-                                                const item = items.find(i => i.id === parseInt(e.target.value));
-                                                if (item) addFromItems(item);
-                                                e.target.value = "";
-                                            }
-                                        }}
-                                        className="bg-blue-600 text-white px-3 py-1 rounded-lg"
-                                    >
-                                        <option value="">📋 Add From Items</option>
-                                        {items.map(item => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name} - ${item.sellPrice}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
+                            <button 
+                                type="button" 
+                                onClick={addLineItem}
+                                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+                            >
+                                <PlusCircle size={16} /> Add Item
+                            </button>
                         </div>
                         
                         <div className="space-y-3">
@@ -1202,7 +969,7 @@ const CreateInvoiceModal = ({ workOrders, customers, items, onClose, onAddInvoic
 };
 
 // Updated CreateQuoteModal with Line Items Support
-const CreateQuoteModal = ({ customers, items, onClose, onAddQuote }) => {
+const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
     const [customerName, setCustomerName] = useState('');
     const [validUntil, setValidUntil] = useState('');
     const [notes, setNotes] = useState('');
@@ -1230,16 +997,6 @@ const CreateQuoteModal = ({ customers, items, onClose, onAddQuote }) => {
         }
         
         setLineItems(updated);
-    };
-
-    const addFromItems = (item) => {
-        const newLineItem = {
-            description: item.name,
-            quantity: 1,
-            rate: item.sellPrice,
-            amount: item.sellPrice
-        };
-        setLineItems([...lineItems, newLineItem]);
     };
 
     const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
@@ -1293,34 +1050,13 @@ const CreateQuoteModal = ({ customers, items, onClose, onAddQuote }) => {
                     <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
-                            <div className="flex gap-2">
-                                <button 
-                                    type="button" 
-                                    onClick={addLineItem}
-                                    className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
-                                >
-                                    <PlusCircle size={16} /> Add Custom
-                                </button>
-                                <div className="relative">
-                                    <select 
-                                        onChange={(e) => {
-                                            if (e.target.value) {
-                                                const item = items.find(i => i.id === parseInt(e.target.value));
-                                                if (item) addFromItems(item);
-                                                e.target.value = "";
-                                            }
-                                        }}
-                                        className="bg-blue-600 text-white px-3 py-1 rounded-lg"
-                                    >
-                                        <option value="">📋 Add From Items</option>
-                                        {items.map(item => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name} - ${item.sellPrice}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
+                            <button 
+                                type="button" 
+                                onClick={addLineItem}
+                                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+                            >
+                                <PlusCircle size={16} /> Add Item
+                            </button>
                         </div>
                         
                         <div className="space-y-3">
@@ -2044,1002 +1780,2031 @@ const CSVImportModal = ({ type, onClose, onImport }) => {
     };
 
     const handleImport = () => {
-    if (parsedData.length === 0) return;
+        if (parsedData.length === 0) return;
 
-    const processedData = parsedData.map(row => {
-        if (type === 'invoices') {
-            return {
-                id: row['Invoice #'],
-                workOrderId: row['Work Order'] || null,
-                customerName: row['Customer'],
-                date: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString(),
-                amount: parseFloat(row['Amount']),
-                status: row['Status'] || 'Draft',
-                description: row['Description'] || '',
-                dueDate: row['Due Date'] ? new Date(row['Due Date']).toISOString() : null,
-                lineItems: [{
-                    description: row['Description'] || 'Service',
-                    quantity: 1, // Fixed: added the property name
-                    rate: parseFloat(row['Amount']),
-                    amount: parseFloat(row['Amount'])
-                }],
-                subtotal: parseFloat(row['Amount']),
-                tax: 0,
-                total: parseFloat(row['Amount'])
-            };
-        } else if (type === 'customers') {
-            return {
-                id: Date.now() + Math.random(),
-                name: row['Name'],
-                type: row['Type'] || 'Commercial',
-                contact: {
-                    name: row['Contact Name'] || '',
-                    email: row['Contact Email'] || '',
-                    phone: row['Contact Phone'] || ''
-                },
-                billingAddress: {
-                    street: row['Street'] || '',
-                    city: row['City'] || '',
-                    state: row['State'] || 'MI',
-                    zip: row['Zip'] || ''
-                },
-                locations: []
-            };
-        }
-        return row;
-    });
+        const processedData = parsedData.map(row => {
+            if (type === 'invoices') {
+                return {
+                    id: row['Invoice #'],
+                    workOrderId: row['Work Order'] || null,
+                    customerName: row['Customer'],
+                    date: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString(),
+                    amount: parseFloat(row['Amount']),
+                    status: row['Status'] || 'Draft',
+                    description: row['Description'] || '',
+                    dueDate: row['Due Date'] ? new Date(row['Due Date']).toISOString() : null
+                };
+            } else if (type === 'quotes') {
+                return {
+                    id: row['Quote #'],
+                    customerName: row['Customer'],
+                    description: row['Description'],
+                    date: row['Date'] ? new Date(row['Date']).toISOString() : new Date().toISOString(),
+                    amount: parseFloat(row['Amount']),
+                    status: row['Status'] || 'Draft',
+                    validUntil: row['Valid Until'] ? new Date(row['Valid Until']).toISOString() : null,
+                    notes: row['Notes'] || ''
+                };
+            } else if (type === 'customers') {
+                return {
+                    id: Date.now() + Math.random(),
+                    name: row['Name'],
+                    type: row['Type'],
+                    contact: {
+                        name: row['Contact Name'] || '',
+                        email: row['Contact Email'] || '',
+                        phone: row['Contact Phone'] || ''
+                    },
+                    billingAddress: {
+                        street: row['Street'] || '',
+                        city: row['City'] || '',
+                        state: row['State'] || '',
+                        zip: row['Zip'] || ''
+                    },
+                    locations: []
+                };
+            }
+        });
 
-    onImport(processedData);
-    onClose();
-};
+        onImport(processedData);
+        
+        alert(`Successfully imported ${processedData.length} ${type}!`);
+        
+        onClose();
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Import {type} from CSV</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Import {type.charAt(0).toUpperCase() + type.slice(1)} from CSV</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <X size={28} />
                     </button>
                 </div>
                 
-                <div className="p-6 overflow-y-auto space-y-6">
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">Sample CSV Format:</h3>
-                        <div className="bg-gray-100 dark:bg-slate-700 p-3 rounded-lg">
-                            <pre className="text-sm text-gray-700 dark:text-gray-300 overflow-x-auto">
+                <div className="p-6 overflow-y-auto flex-1">
+                    <div className="space-y-6">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">Upload CSV File</label>
+                            <input 
+                                type="file" 
+                                accept=".csv" 
+                                onChange={handleFileUpload}
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            />
+                        </div>
+
+                        <div className="text-center text-gray-500 dark:text-gray-400">OR</div>
+
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">Paste CSV Data</label>
+                            <textarea
+                                value={csvData}
+                                onChange={(e) => setCsvData(e.target.value)}
+                                placeholder={`Paste your CSV data here...\n\nExpected format:\n${sampleData[type]}`}
+                                rows="8"
+                                className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white font-mono text-sm"
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                            <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Required CSV Format for {type.charAt(0).toUpperCase() + type.slice(1)}:</h4>
+                            <pre className="text-sm text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/30 p-2 rounded overflow-x-auto">
                                 {sampleData[type]}
                             </pre>
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Upload CSV File or Paste Data:
-                        </label>
-                        <input 
-                            type="file" 
-                            accept=".csv"
-                            onChange={handleFileUpload}
-                            className="mb-3 w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg"
-                        />
-                        <textarea
-                            value={csvData}
-                            onChange={(e) => setCsvData(e.target.value)}
-                            rows="8"
-                            className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            placeholder="Paste your CSV data here..."
-                        />
-                    </div>
-
-                    {errors.length > 0 && (
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                            <h4 className="font-medium text-red-800 dark:text-red-200 mb-2">Validation Errors:</h4>
-                            <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300">
-                                {errors.map((error, index) => (
-                                    <li key={index}>{error}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {showPreview && parsedData.length > 0 && (
-                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                            <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">
-                                Preview: {parsedData.length} records ready to import
-                            </h4>
-                            <div className="max-h-32 overflow-y-auto">
-                                <pre className="text-sm text-green-700 dark:text-green-300">
-                                    {JSON.stringify(parsedData.slice(0, 3), null, 2)}
-                                    {parsedData.length > 3 && '\n... and more'}
-                                </pre>
+                        {errors.length > 0 && (
+                            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                                <h4 className="font-medium text-red-800 dark:text-red-200 mb-2">Validation Errors:</h4>
+                                <ul className="text-sm text-red-700 dark:text-red-300 space-y-1">
+                                    {errors.map((error, index) => (
+                                        <li key={index} className="flex items-start">
+                                            <span className="text-red-500 mr-2">•</span>
+                                            {error}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                        </div>
-                    )}
+                        )}
+
+                        {showPreview && parsedData.length > 0 && (
+                            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                                <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">Preview ({parsedData.length} records ready to import):</h4>
+                                <div className="max-h-40 overflow-y-auto">
+                                    <table className="w-full text-sm border border-green-200 dark:border-green-700 rounded">
+                                        <thead className="bg-green-100 dark:bg-green-800/30">
+                                            <tr>
+                                                {Object.keys(parsedData[0] || {}).map(key => (
+                                                    <th key={key} className="p-2 text-left font-medium text-green-800 dark:text-green-200">
+                                                        {key}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {parsedData.slice(0, 3).map((row, index) => (
+                                                <tr key={index} className="border-t border-green-200 dark:border-green-700">
+                                                    {Object.values(row).map((value, colIndex) => (
+                                                        <td key={colIndex} className="p-2 text-green-700 dark:text-green-300">
+                                                            {String(value)}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {parsedData.length > 3 && (
+                                        <p className="text-green-600 dark:text-green-400 text-center mt-2">
+                                            ... and {parsedData.length - 3} more records
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
+                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-between gap-4">
                     <button 
                         onClick={parseCSV}
                         disabled={!csvData.trim()}
-                        className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
                     >
-                        Parse CSV
+                        Parse & Validate
                     </button>
-                    {showPreview && (
+                    <div className="flex gap-4">
+                        <button 
+                            onClick={onClose} 
+                            className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4"
+                        >
+                            Cancel
+                        </button>
                         <button 
                             onClick={handleImport}
-                            className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700"
+                            disabled={parsedData.length === 0}
+                            className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
                         >
                             Import {parsedData.length} Records
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-// Main Work Order Management Component
-const WorkOrderManagement = () => {
-    // State management
-    const [activeView, setActiveView] = useState('dashboard');
-    const [workOrders, setWorkOrders] = useState(initialSampleData);
-    const [customers, setCustomers] = useState(initialCustomers);
-    const [technicians, setTechnicians] = useState(initialTechnicians);
-    const [invoices, setInvoices] = useState(initialInvoices);
-    const [quotes, setQuotes] = useState(initialQuotes);
-    const [items, setItems] = useState(initialItems);
-    
-    // Modal states
-    const [showAddCustomer, setShowAddCustomer] = useState(false);
-    const [showAddWorkOrder, setShowAddWorkOrder] = useState(false);
-    const [showAddTechnician, setShowAddTechnician] = useState(false);
-    const [showCreateInvoice, setShowCreateInvoice] = useState(false);
-    const [showCreateQuote, setShowCreateQuote] = useState(false);
-    const [editingCustomer, setEditingCustomer] = useState(null);
-    const [editingTechnician, setEditingTechnician] = useState(null);
-    const [editingInvoice, setEditingInvoice] = useState(null);
-    const [editingQuote, setEditingQuote] = useState(null);
-    const [addingLocationTo, setAddingLocationTo] = useState(null);
-    const [csvImportType, setCsvImportType] = useState(null);
+// --- Child Components ---
+const OrderCard = ({ order, onSelectOrder }) => (
+    <div className="bg-white dark:bg-slate-700 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}>
+        <div className="p-5">
+            <div className="flex justify-between items-start">
+                <span className={`text-xs font-bold uppercase px-2 py-1 rounded-full ${getPriorityStyles(order.Priority)}`}>{order.Priority}</span>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusStyles(order['Order Status'])}`}>{order['Order Status']}</span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mt-3 flex items-center"><Briefcase size={12} className="mr-1.5"/> {order.Client}</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white">{order.Company} - #{order['Loc #']}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{order.Task}</p>
+            <div className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                <div className="flex items-center"><User className="w-4 h-4 mr-2 text-gray-400" /><span>{order.technician?.join(', ') || 'Unassigned'}</span></div>
+                <div className="flex items-center"><CalendarIcon className="w-4 h-4 mr-2 text-gray-400" /><span>Scheduled: {excelDateToJSDateString(order['Schedule Date']) || 'Not Set'} {order.startTime && `(${formatTime(order.startTime)})`}</span></div>
+                {order.clientWO && <div className="flex items-center"><span className="font-bold mr-2">Client WO:</span><span>{order.clientWO}</span></div>}
+            </div>
+        </div>
+        <div className="bg-gray-50 dark:bg-slate-600 px-5 py-3">
+            <button onClick={() => onSelectOrder(order)} className="w-full text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">View Details</button>
+        </div>
+    </div>
+);
 
-    // Load PDF libraries on mount
-    useEffect(() => {
-        const loadLibraries = async () => {
-            // Load jsPDF
-            if (!window.jspdf) {
-                const script1 = document.createElement('script');
-                script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                document.head.appendChild(script1);
-            }
-            
-            // Load jsPDF autoTable plugin
-            if (!window.jspdf?.jsPDF?.API?.autoTable) {
-                const script2 = document.createElement('script');
-                script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
-                document.head.appendChild(script2);
-            }
-        };
-        loadLibraries();
-    }, []);
-
-    // Event handlers
-    const handleAddCustomer = (customerData) => {
-        const newCustomer = {
-            ...customerData,
-            id: Date.now(),
-            locations: customerData.locations || []
-        };
-        setCustomers(prev => [...prev, newCustomer]);
-    };
-
-    const handleUpdateCustomer = (updatedCustomer) => {
-        setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
-    };
-
-    const handleAddLocation = (customerId, locationData) => {
-        setCustomers(prev => prev.map(customer => 
-            customer.id === customerId 
-                ? { ...customer, locations: [...(customer.locations || []), locationData] }
-                : customer
-        ));
-    };
-
-    const handleAddWorkOrder = (orderData) => {
-        const newOrder = {
-            ...orderData,
-            'WO#': `WO-${Date.now()}`,
-            id: `WO-${Date.now()}`,
-            'Created Date': jsDateToExcel(new Date()),
-            'Order Status': 'Open',
-            technician: [],
-            notes: []
-        };
-
-        // Add new location to customer if provided
-        if (orderData._newLocation) {
-            const customerId = customers.find(c => c.name === orderData.Client)?.id;
-            if (customerId) {
-                handleAddLocation(customerId, orderData._newLocation);
-            }
-        }
-
-        setWorkOrders(prev => [...prev, newOrder]);
-        setShowAddWorkOrder(false);
-    };
-
-    const handleAddTechnician = (techData) => {
-        const newTech = {
-            ...techData,
-            id: Date.now()
-        };
-        setTechnicians(prev => [...prev, newTech]);
-    };
-
-    const handleUpdateTechnician = (updatedTech) => {
-        setTechnicians(prev => prev.map(t => t.id === updatedTech.id ? updatedTech : t));
-    };
-
-    const handleAddInvoice = (invoiceData) => {
-        setInvoices(prev => [...prev, invoiceData]);
-    };
-
-    const handleUpdateInvoice = (updatedInvoice) => {
-        setInvoices(prev => prev.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
-    };
-
-    const handleAddQuote = (quoteData) => {
-        setQuotes(prev => [...prev, quoteData]);
-    };
-
-    const handleUpdateQuote = (updatedQuote) => {
-        setQuotes(prev => prev.map(q => q.id === updatedQuote.id ? updatedQuote : q));
-    };
-
-    const handleAddItem = (itemData) => {
-        const newItem = {
-            ...itemData,
-            id: Date.now()
-        };
-        setItems(prev => [...prev, newItem]);
-    };
-
-    const handleCSVImport = (type, data) => {
-        if (type === 'customers') {
-            setCustomers(prev => [...prev, ...data]);
-        } else if (type === 'invoices') {
-            setInvoices(prev => [...prev, ...data]);
-        } else if (type === 'quotes') {
-            setQuotes(prev => [...prev, ...data]);
-        }
-        setCsvImportType(null);
-    };
-
-    // Navigation component
-    const NavigationBar = () => (
-        <nav className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <Wrench className="w-8 h-8 text-blue-600" />
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">WorkOrder Management</h1>
+const DashboardView = ({ orders, onSelectOrder, searchTerm, setSearchTerm, statusFilter, setStatusFilter }) => (
+    <>
+        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative md:col-span-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input type="text" placeholder="Search by WO#, Client, Location, Tech..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
                 </div>
-                <div className="flex items-center space-x-4">
-                    {['dashboard', 'work-orders', 'customers', 'technicians', 'billing', 'items'].map(view => (
-                        <button
-                            key={view}
-                            onClick={() => setActiveView(view)}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                activeView === view
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-                            }`}
-                        >
-                            {view.charAt(0).toUpperCase() + view.slice(1).replace('-', ' ')}
-                        </button>
+                <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full appearance-none pl-10 pr-8 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <option>All</option>
+                        <option>Open</option>
+                        <option>Scheduled</option>
+                        <option>In Progress</option>
+                        <option>On Hold</option>
+                        <option>Completed</option>
+                        <option>Cancelled</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                </div>
+            </div>
+        </div>
+        {orders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={onSelectOrder} />)}
+            </div>
+        ) : (
+            <div className="text-center py-16 px-6 bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Work Orders Found</h3>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
+            </div>
+        )}
+    </>
+);
+
+const DispatchView = ({ workOrders, technicians, onSelectOrder, onUpdateOrder }) => {
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const hours = Array.from({ length: 13 }, (_, i) => i + 7);
+    const activeTechnicians = technicians.filter(t => t.name !== 'Unassigned');
+
+    const getTechnicianColumn = (techName) => {
+        const index = activeTechnicians.findIndex(t => t.name === techName);
+        return index === -1 ? -1 : index + 2;
+    };
+
+    const timeToRow = (timeStr) => {
+        if (!timeStr) return 0;
+        const [h, m] = timeStr.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return 0;
+        return ((h - 7) * 4) + (m / 15) + 2;
+    };
+
+    const scheduledOrders = workOrders.filter(wo => excelDateToYYYYMMDD(wo['Schedule Date']) === selectedDate && wo.startTime && wo.endTime && wo.technician?.length > 0);
+    const unscheduledOrders = workOrders.filter(wo => wo['Order Status'] === 'Open' || !wo.technician || wo.technician.length === 0).sort((a, b) => {
+        const priorityOrder = { 'Emergency': 1, 'Urgent': 2, 'Regular': 3, 'Low': 4 };
+        return (priorityOrder[a.Priority] || 5) - (priorityOrder[b.Priority] || 5);
+    });
+
+    const handleDragStart = (e, order) => {
+        e.dataTransfer.setData("workOrder", JSON.stringify(order));
+    };
+
+    const handleDrop = (e, techName, time) => {
+        e.preventDefault();
+        const order = JSON.parse(e.dataTransfer.getData("workOrder"));
+        const newStartTime = time;
+        const newEndTime = `${String(parseInt(time.split(':')[0]) + 2).padStart(2, '0')}:${time.split(':')[1]}`;
+
+        onUpdateOrder(order.id, {
+            ...order,
+            technician: [techName],
+            'Schedule Date': yyyymmddToExcel(selectedDate),
+            startTime: newStartTime,
+            endTime: newEndTime,
+            'Order Status': 'Scheduled',
+        });
+    };
+
+    const handleUnassignDrop = (e) => {
+        e.preventDefault();
+        const order = JSON.parse(e.dataTransfer.getData("workOrder"));
+        onUpdateOrder(order.id, {
+            ...order,
+            technician: [],
+            'Schedule Date': null,
+            startTime: null,
+            endTime: null,
+            'Order Status': 'Open',
+        });
+    };
+    
+    const handleDragOver = (e) => e.preventDefault();
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm flex justify-between items-center">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Dispatch Board</h3>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+            </div>
+            <div className="flex gap-4">
+                <div className="w-1/4 bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm" onDrop={handleUnassignDrop} onDragOver={handleDragOver}>
+                    <h4 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">Unassigned Jobs</h4>
+                    <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                        {unscheduledOrders.map(order => (
+                            <div key={order.id} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 border-l-4 rounded cursor-grab ${getPriorityStyles(order.Priority)}`}>
+                                <p className="font-bold text-sm">{order.Company}</p>
+                                <p className="text-xs text-gray-600">{order.Task}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="w-3/4 bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm overflow-x-auto">
+                    <div className="grid gap-px bg-gray-200 dark:bg-slate-600 min-w-max" style={{gridTemplateColumns: `60px repeat(${activeTechnicians.length}, minmax(200px, 1fr))`, gridTemplateRows: `auto repeat(${hours.length * 4}, 20px)`}}>
+                        <div className="bg-gray-100 dark:bg-slate-600 sticky top-0 z-10"></div>
+                        {activeTechnicians.map(tech => (
+                            <div key={tech.id} className="bg-gray-100 dark:bg-slate-600 text-center font-bold p-2 sticky top-0 z-10 flex flex-col">
+                                <span className="text-gray-800 dark:text-white">{tech.name}</span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${getTechStatusStyles(tech.status)}`}>{tech.status}</span>
+                            </div>
+                        ))}
+                        {hours.map(hour => (
+                            <React.Fragment key={hour}>
+                                <div className="row-start-auto bg-gray-50 dark:bg-slate-600 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 -translate-y-2 sticky left-0 z-10" style={{ gridRow: (hour - 7) * 4 + 2 }}>{hour > 12 ? hour - 12 : hour}:00 {hour >= 12 ? 'PM' : 'AM'}</div>
+                                {activeTechnicians.map((tech, techIndex) => (
+                                    <React.Fragment key={tech.id}>
+                                        {Array.from({length: 4}).map((_, i) => (
+                                            <div 
+                                                key={`${tech.id}-${hour}-${i}`}
+                                                onDrop={(e) => handleDrop(e, tech.name, `${String(hour).padStart(2, '0')}:${String(i*15).padStart(2,'0')}`)} 
+                                                onDragOver={handleDragOver} 
+                                                className="border-t border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700" 
+                                                style={{ gridRow: (hour - 7) * 4 + i + 2, gridColumn: techIndex + 2 }}>
+                                            </div>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </React.Fragment>
+                        ))}
+                        {scheduledOrders.flatMap(order => 
+                            order.technician.map(techName => {
+                                const gridColumn = getTechnicianColumn(techName);
+                                const rowStart = timeToRow(order.startTime);
+                                const rowEnd = timeToRow(order.endTime);
+                                if (gridColumn < 0 || !rowStart || !rowEnd || rowEnd <= rowStart) return null;
+                                return (
+                                    <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getPriorityStyles(order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => onSelectOrder(order)}>
+                                        <p className="font-bold truncate">{order.Company}</p>
+                                        <p className="truncate">{order.Task}</p>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const RoutePlanningView = ({ workOrders, technicians }) => {
+    const [selectedTechId, setSelectedTechId] = useState('ALL');
+    const [viewType, setViewType] = useState('today');
+    const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const jobsForRange = useMemo(() => {
+        let startDate = new Date();
+        let endDate = new Date();
+        
+        switch(viewType) {
+            case 'today':
+                startDate = new Date();
+                endDate = new Date();
+                break;
+            case '3-day':
+                startDate = new Date();
+                endDate = new Date();
+                endDate.setDate(startDate.getDate() + 2);
+                break;
+            case 'week':
+                startDate = new Date();
+                const dayOfWeek = startDate.getDay();
+                startDate.setDate(startDate.getDate() - dayOfWeek);
+                endDate.setDate(startDate.getDate() + 6);
+                break;
+            case 'custom':
+                startDate = new Date(customStartDate + 'T00:00:00');
+                endDate = new Date(customEndDate + 'T00:00:00');
+                break;
+            default:
+                break;
+        }
+
+        const filtered = workOrders.filter(wo => {
+            const jobDate = excelToJSDate(wo['Schedule Date']);
+            return jobDate >= startDate && jobDate <= endDate;
+        });
+        
+        const techName = technicians.find(t => t.id === selectedTechId)?.name;
+        if (selectedTechId !== 'ALL') {
+            return filtered.filter(wo => wo.technician.includes(techName)).sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
+        }
+
+        return filtered.sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
+        
+    }, [selectedTechId, workOrders, technicians, viewType, customStartDate, customEndDate]);
+    
+    const groupedJobs = useMemo(() => {
+        return jobsForRange.reduce((acc, job) => {
+            const dateStr = excelDateToYYYYMMDD(job['Schedule Date']);
+            if (!acc[dateStr]) acc[dateStr] = {};
+
+            job.technician.forEach(techName => {
+                if (!acc[dateStr][techName]) acc[dateStr][techName] = [];
+                acc[dateStr][techName].push(job);
+            });
+            return acc;
+        }, {});
+    }, [jobsForRange]);
+
+    const handlePrint = () => window.print();
+
+    return (
+        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Route Planning</h3>
+                <div className="flex items-center gap-4">
+                    <select value={viewType} onChange={e => setViewType(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <option value="today">Today</option>
+                        <option value="3-day">Next 3 Days</option>
+                        <option value="week">This Week</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    {viewType === 'custom' && (
+                        <>
+                            <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </>
+                    )}
+                    <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} className="p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                        <option value="ALL">All Technicians</option>
+                        {technicians.filter(t=>t.name !== 'Unassigned').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700">
+                        <Printer size={20} /> Print Route
+                    </button>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1">
+                    <h4 className="font-bold text-lg mb-2 text-gray-800 dark:text-white">Job Order</h4>
+                    {Object.keys(groupedJobs).length > 0 ? (
+                        Object.entries(groupedJobs).map(([date, techJobs]) => (
+                            <div key={date} className="mb-4">
+                                <h5 className="font-bold text-lg mb-2 p-2 bg-gray-200 dark:bg-slate-600 text-gray-800 dark:text-white rounded-md sticky top-20">
+                                    {new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                </h5>
+                                {Object.entries(techJobs).map(([techName, jobs]) => (
+                                    <div key={techName} className="mb-4">
+                                        {selectedTechId === 'ALL' && <h6 className="font-bold text-md mb-2 p-2 bg-gray-100 dark:bg-slate-600 text-gray-800 dark:text-white rounded-md">{techName}</h6>}
+                                        <div className="space-y-2">
+                                            {jobs.map((job, index) => (
+                                                <div key={job.id} className="p-3 border border-gray-200 dark:border-slate-600 rounded-lg flex items-center gap-4 bg-white dark:bg-slate-700">
+                                                    <span className="text-xl font-bold text-gray-400 dark:text-gray-500">{index + 1}</span>
+                                                    <div>
+                                                        <p className="font-bold text-gray-800 dark:text-white">{formatTime(job.startTime)} - {formatTime(job.endTime)}</p>
+                                                        <p className="text-gray-700 dark:text-gray-300">{job.Company} - {job.City}</p>
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400">{job.Task}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-gray-600 dark:text-gray-400">No jobs scheduled for this selection.</p>
+                    )}
+                </div>
+                <div className="md:col-span-2 bg-gray-200 dark:bg-slate-600 rounded-lg flex items-center justify-center h-96">
+                    <div id="route-map" className="w-full h-full rounded-lg">
+                        <p className="text-gray-500 dark:text-gray-400 flex items-center justify-center h-full">
+                            Map will load here once Google Maps API key is configured
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CustomerManagementView = ({ customers, onAddCustomer, onUpdateCustomer, onAddLocation }) => {
+    const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState(null);
+    const [addingLocationTo, setAddingLocationTo] = useState(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+
+    const exportCustomersToCSV = () => {
+        const csvContent = [
+            ['Name', 'Type', 'Contact Name', 'Contact Email', 'Contact Phone', 'Street', 'City', 'State', 'Zip', 'Locations Count'],
+            ...customers.map(customer => [
+                customer.name,
+                customer.type,
+                customer.contact.name,
+                customer.contact.email,
+                customer.contact.phone,
+                customer.billingAddress.street,
+                customer.billingAddress.city,
+                customer.billingAddress.state,
+                customer.billingAddress.zip,
+                customer.locations.length
+            ])
+        ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Customer Management</h3>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
+                    >
+                        <Upload size={20} /> Import CSV
+                    </button>
+                    <button 
+                        onClick={exportCustomersToCSV}
+                        className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700"
+                    >
+                        <Download size={20} /> Export CSV
+                    </button>
+                    <button 
+                        onClick={() => setIsAddingCustomer(true)} 
+                        className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
+                    >
+                        <PlusCircle size={20} /> Add New Customer
+                    </button>
+                </div>
+            </div>
+            <div className="space-y-4">
+                {customers.map(customer => (
+                    <div key={customer.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <h4 className="text-lg font-bold text-gray-900 dark:text-white">{customer.name}</h4>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setEditingCustomer(customer)} className="text-sm text-blue-600 hover:underline">Edit Details</button>
+                                <button onClick={() => setAddingLocationTo(customer)} className="text-sm text-green-600 hover:underline">Add Location</button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div className="text-sm">
+                                <p className="font-semibold text-gray-600 dark:text-gray-400">Primary Contact</p>
+                                <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><User size={14}/> {customer.contact.name}</p>
+                                <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Mail size={14}/> {customer.contact.email}</p>
+                                <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><Phone size={14}/> {customer.contact.phone}</p>
+                            </div>
+                            <div className="text-sm">
+                                <p className="font-semibold text-gray-600 dark:text-gray-400">Billing Address</p>
+                                <p className="text-gray-700 dark:text-gray-300">{customer.billingAddress.street}</p>
+                                <p className="text-gray-700 dark:text-gray-300">{customer.billingAddress.city}, {customer.billingAddress.state} {customer.billingAddress.zip}</p>
+                            </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-600">
+                            <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Service Locations ({customer.locations.length})</h5>
+                            <div className="pl-4 border-l-2 border-gray-200 dark:border-slate-600 space-y-1">
+                                {customer.locations.map((loc, index) => (
+                                    <div key={`${loc.name}-${loc.locNum}-${index}`} className="text-sm text-gray-700 dark:text-gray-300">
+                                        <span className="font-semibold">{loc.name}</span> (#{loc.locNum}) - {loc.city}, {loc.state}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {isAddingCustomer && <AddCustomerModal onAddCustomer={onAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
+            {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={onUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
+            {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={onAddLocation} onClose={() => setAddingLocationTo(null)} />}
+            {showImportModal && (
+                <CSVImportModal 
+                    type="customers"
+                    onClose={() => setShowImportModal(false)}
+                    onImport={(data) => {
+                        data.forEach(customer => onAddCustomer(customer));
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
+const TechnicianManagementView = ({ technicians, onAddTechnician, onUpdateTechnician, onDeleteTechnician }) => {
+    const [isAdding, setIsAdding] = useState(false);
+    const [editing, setEditing] = useState(null);
+    
+    return (
+        <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Technician Management</h3>
+                <button onClick={() => setIsAdding(true)} className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">
+                    <PlusCircle size={20} /> Add New Technician
+                </button>
+            </div>
+            <div className="space-y-4">
+                {technicians.map(tech => (
+                    <div key={tech.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                            <h4 className="text-lg font-bold text-gray-900 dark:text-white">{tech.name}</h4>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-4 mt-1">
+                                <span className="flex items-center gap-1.5"><Mail size={14}/> {tech.email}</span>
+                                <span className="flex items-center gap-1.5"><Phone size={14}/> {tech.phone}</span>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTechStatusStyles(tech.status)}`}>{tech.status}</span>
+                            </div>
+                        </div>
+                        {tech.name !== 'Unassigned' && (
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setEditing(tech)} className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-full">
+                                    <Edit size={16}/>
+                                </button>
+                                <button onClick={() => onDeleteTechnician(tech.id)} className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-full">
+                                    <Trash2 size={16}/>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            {isAdding && <AddTechnicianModal onAdd={onAddTechnician} onClose={() => setIsAdding(false)} />}
+            {editing && <EditTechnicianModal technician={editing} onUpdate={onUpdateTechnician} onClose={() => setEditing(null)} />}
+        </div>
+    );
+};
+
+const WorkOrderDetailModal = ({ order, onClose, onUpdate, onAddNote, technicians }) => {
+    if (!order) return null;
+    const [newStatus, setNewStatus] = useState(order['Order Status']);
+    const [assignedTechnicians, setAssignedTechnicians] = useState(order.technician || []);
+    const [scheduleDate, setScheduleDate] = useState(excelDateToYYYYMMDD(order['Schedule Date']));
+    const [startTime, setStartTime] = useState(order.startTime || '');
+    const [endTime, setEndTime] = useState(order.endTime || '');
+    const [newNote, setNewNote] = useState('');
+    const [clientWO, setClientWO] = useState(order.clientWO || '');
+    
+    const handleTechChange = (techName) => {
+        const newTechs = assignedTechnicians.includes(techName)
+            ? assignedTechnicians.filter(t => t !== techName)
+            : [...assignedTechnicians, techName];
+        setAssignedTechnicians(newTechs);
+    };
+
+    const handleSaveChanges = () => {
+        const payload = {};
+        if (newStatus !== order['Order Status']) { 
+            payload['Order Status'] = newStatus; 
+            if (newStatus === 'Completed' && !order['Completed Date']) payload['Completed Date'] = jsDateToExcel(new Date()); 
+        }
+        if (JSON.stringify(assignedTechnicians) !== JSON.stringify(order.technician)) payload['technician'] = assignedTechnicians;
+        const newScheduleDateExcel = yyyymmddToExcel(scheduleDate);
+        if (newScheduleDateExcel !== order['Schedule Date'] || startTime !== order.startTime || endTime !== order.endTime) {
+            payload['Schedule Date'] = newScheduleDateExcel;
+            payload.startTime = startTime;
+            payload.endTime = endTime;
+            if (newStatus === 'Open' && scheduleDate) payload['Order Status'] = 'Scheduled';
+        }
+        if (clientWO !== order.clientWO) payload.clientWO = clientWO;
+        if (Object.keys(payload).length > 0) onUpdate(order.id, payload);
+    };
+
+    const details = [ 
+        { label: "Work Order #", value: order['WO#'], icon: <Wrench/> }, 
+        { label: "Client WO#", value: order.clientWO, icon: <Briefcase />}, 
+        { label: "Location", value: `${order.Company} (#${order['Loc #']})`, icon: <Building/> }, 
+        { label: "Address", value: `${order.City}, ${order.State}`, icon: <MapPin/> }, 
+        { label: "Priority", value: order.Priority, icon: <AlertTriangle/>, style: getPriorityStyles(order.Priority) + ' px-2 py-0.5 rounded-full text-xs font-semibold' }, 
+        { label: "Task", value: order.Task }, 
+        { label: "NTE Amount", value: formatCurrency(order.NTE) }, 
+        { label: "Created Date", value: excelDateToJSDateString(order['Created Date']) }
+    ];
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Work Order Details</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <X size={28} />
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        {details.map(d => (
+                            <div key={d.label} className="flex flex-col">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{d.label}</span>
+                                <span className={`text-base text-gray-900 dark:text-white font-semibold flex items-center gap-2 mt-1 ${d.style || ''}`}>
+                                    {d.icon && <span className="text-gray-400">{React.cloneElement(d.icon, { size: 16 })}</span>}
+                                    <span className={d.style || ''}>{d.value}</span>
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">Job Management</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
+                                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                    <option>Open</option>
+                                    <option>Scheduled</option>
+                                    <option>In Progress</option>
+                                    <option>On Hold</option>
+                                    <option>Completed</option>
+                                    <option>Cancelled</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Assigned Technicians</label>
+                                <div className="border border-gray-300 dark:border-slate-600 p-2 rounded-lg max-h-24 overflow-y-auto bg-white dark:bg-slate-700">
+                                    {technicians.filter(t=>t.name !== 'Unassigned').map(t => (
+                                        <div key={t.id} className="flex items-center">
+                                            <input 
+                                                type="checkbox" 
+                                                id={`tech-${t.id}`} 
+                                                checked={assignedTechnicians.includes(t.name)} 
+                                                onChange={() => handleTechChange(t.name)} 
+                                                className="mr-2" 
+                                            />
+                                            <label htmlFor={`tech-${t.id}`} className="text-gray-900 dark:text-white">{t.name}</label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Schedule Date</label>
+                                <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Start Time</label>
+                                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">End Time</label>
+                                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client WO#</label>
+                            <input type="text" value={clientWO} onChange={e => setClientWO(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                            <button onClick={handleSaveChanges} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
+                        </div>
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                            <MessageSquare size={20} className="mr-2"/>Work Notes
+                        </h3>
+                        <div className="space-y-3 max-h-48 overflow-y-auto bg-gray-50 dark:bg-slate-700 p-3 rounded-lg">
+                            {order.notes && order.notes.length > 0 ? order.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (
+                                <div key={index} className="text-sm bg-white dark:bg-slate-600 p-2 rounded shadow-sm">
+                                    <p className="text-gray-800 dark:text-gray-200">{note.text}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">{formatTimestamp(note.timestamp)}</p>
+                                </div>
+                            )) : <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No notes for this job yet.</p>}
+                        </div>
+                        <div className="mt-4">
+                            <textarea 
+                                value={newNote} 
+                                onChange={(e) => setNewNote(e.target.value)} 
+                                placeholder="Add a new note..." 
+                                rows="3" 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                            />
+                            <div className="flex justify-end mt-2">
+                                <button 
+                                    onClick={() => onAddNote(order.id, newNote, () => setNewNote(''))} 
+                                    disabled={!newNote.trim()} 
+                                    className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                                >
+                                    Add Note
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ReportingView = ({ workOrders, technicians }) => {
+    const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
+    const openOrders = workOrders.filter(wo => ['Open', 'Scheduled', 'In Progress'].includes(wo['Order Status']));
+    
+    const totalRevenue = completedOrders.reduce((sum, wo) => sum + (wo.NTE || 0), 0);
+    
+    const jobsByTech = useMemo(() => {
+        const techCounts = technicians
+            .filter(t => t.name !== 'Unassigned')
+            .map(tech => {
+                const count = workOrders.filter(wo => wo.technician.includes(tech.name) && wo['Order Status'] === 'Completed').length;
+                return { name: tech.name, count };
+            });
+        return techCounts.sort((a, b) => b.count - a.count);
+    }, [workOrders, technicians]);
+
+    const maxJobs = Math.max(...jobsByTech.map(t => t.count), 0);
+
+    const medalColor = (index) => {
+        if (index === 0) return 'text-yellow-500';
+        if (index === 1) return 'text-gray-400';
+        if (index === 2) return 'text-yellow-600';
+        return 'text-gray-400';
+    };
+
+    const handleDownloadPdf = () => {
+        alert("PDF download functionality would be implemented here with a proper PDF library");
+    };
+
+    return (
+        <div id="reporting-view" className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Reporting Dashboard</h3>
+                <button onClick={handleDownloadPdf} className="flex items-center gap-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700">
+                    <Download size={20} /> Download PDF
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                    <h4 className="text-lg font-semibold text-gray-600 dark:text-gray-400">Completed Jobs</h4>
+                    <p className="text-5xl font-bold text-green-600">{completedOrders.length}</p>
+                </div>
+                <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                    <h4 className="text-lg font-semibold text-gray-600 dark:text-gray-400">Potential Revenue</h4>
+                    <p className="text-5xl font-bold text-blue-600">{formatCurrency(totalRevenue)}</p>
+                </div>
+            </div>
+            
+            <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg">
+                <h4 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Technician Leaderboard</h4>
+                <div className="space-y-4">
+                    {jobsByTech.map((tech, index) => (
+                        <div key={tech.name} className="flex items-center gap-4">
+                            <div className="w-10 text-center">
+                                {index < 3 ? <Award size={24} className={medalColor(index)} /> : <span className="text-lg font-bold text-gray-400 dark:text-gray-500">{index + 1}</span>}
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-bold text-gray-800 dark:text-white">{tech.name}</p>
+                                <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-4 mt-1">
+                                    <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${maxJobs > 0 ? (tech.count / maxJobs) * 100 : 0}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="w-12 text-right font-bold text-lg text-gray-800 dark:text-white">{tech.count}</div>
+                        </div>
                     ))}
                 </div>
             </div>
-        </nav>
+        </div>
     );
+};
 
-    // Dashboard View
-    const DashboardView = () => {
-        const stats = useMemo(() => {
-            const totalRevenue = workOrders
-                .filter(wo => wo['Order Status'] === 'Completed')
-                .reduce((sum, wo) => sum + (wo.NTE || 0), 0);
-            
-            const pendingOrders = workOrders.filter(wo => wo['Order Status'] === 'Open').length;
-            const scheduledOrders = workOrders.filter(wo => wo['Order Status'] === 'Scheduled').length;
-            const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed').length;
-            
-            return {
-                totalRevenue,
-                pendingOrders,
-                scheduledOrders,
-                completedOrders,
-                totalCustomers: customers.length,
-                activeTechnicians: technicians.filter(t => t.status === 'Available').length
-            };
-        }, [workOrders, customers, technicians]);
+// Updated BillingView component to show line items and fix actions
+const BillingView = ({ invoices, quotes, workOrders, customers, onAddInvoice, onAddQuote, onEditInvoice, onEditQuote }) => {    const [activeTab, setActiveTab] = useState('invoices');
+    const [showCreateInvoice, setShowCreateInvoice] = useState(false);
+    const [showCreateQuote, setShowCreateQuote] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importType, setImportType] = useState('invoices');
+    const [expandedRows, setExpandedRows] = useState(new Set());
+    
+    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || inv.amount || 0), 0);
+    const paidInvoices = invoices.filter(inv => inv.status === 'Paid');
+    const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid');
+    const totalQuoteAmount = quotes.reduce((sum, q) => sum + (q.total || q.amount || 0), 0);
+    const pendingQuotes = quotes.filter(q => q.status === 'Sent' || q.status === 'Pending');
 
-        return (
-            <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(stats.totalRevenue)}</p>
-                            </div>
-                            <BarChart2 className="w-8 h-8 text-green-600" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Open Orders</p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pendingOrders}</p>
-                            </div>
-                            <AlertTriangle className="w-8 h-8 text-yellow-600" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Completed Orders</p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completedOrders}</p>
-                            </div>
-                            <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Active Technicians</p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activeTechnicians}</p>
-                            </div>
-                            <Users className="w-8 h-8 text-blue-600" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Work Orders</h3>
-                        <div className="space-y-3">
-                            {workOrders.slice(0, 5).map(order => (
-                                <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                    <div>
-                                        <p className="font-medium text-gray-900 dark:text-white">{order['WO#']}</p>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">{order.Client} - {order.Task}</p>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(order['Order Status'])}`}>
-                                        {order['Order Status']}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Technician Status</h3>
-                        <div className="space-y-3">
-                            {technicians.map(tech => (
-                                <div key={tech.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                    <div>
-                                        <p className="font-medium text-gray-900 dark:text-white">{tech.name}</p>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">{tech.email}</p>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTechStatusStyles(tech.status)}`}>
-                                        {tech.status}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+    const toggleRowExpansion = (id) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedRows(newExpanded);
     };
 
-    // Work Orders View
-    const WorkOrdersView = () => {
-        const [searchTerm, setSearchTerm] = useState('');
-        const [statusFilter, setStatusFilter] = useState('');
-        const [priorityFilter, setPriorityFilter] = useState('');
-
-        const filteredOrders = useMemo(() => {
-            return workOrders.filter(order => {
-                const matchesSearch = searchTerm === '' || 
-                    order['WO#'].toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    order.Client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    order.Task.toLowerCase().includes(searchTerm.toLowerCase());
-                
-                const matchesStatus = statusFilter === '' || order['Order Status'] === statusFilter;
-                const matchesPriority = priorityFilter === '' || order.Priority === priorityFilter;
-                
-                return matchesSearch && matchesStatus && matchesPriority;
-            });
-        }, [workOrders, searchTerm, statusFilter, priorityFilter]);
-
-        return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Work Orders</h2>
-                    <button
-                        onClick={() => setShowAddWorkOrder(true)}
-                        className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
-                    >
-                        <PlusCircle size={20} />
-                        Add Work Order
-                    </button>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                    <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                        <div className="flex-1">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                                <input
-                                    type="text"
-                                    placeholder="Search work orders..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                            </div>
-                        </div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="">All Statuses</option>
-                            <option value="Open">Open</option>
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="On Hold">On Hold</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                        <select
-                            value={priorityFilter}
-                            onChange={(e) => setPriorityFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option value="">All Priorities</option>
-                            <option value="Low">Low</option>
-                            <option value="Regular">Regular</option>
-                            <option value="Urgent">Urgent</option>
-                            <option value="Emergency">Emergency</option>
-                        </select>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-gray-200 dark:border-slate-700">
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">WO#</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Client</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Location</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Task</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Priority</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Status</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">NTE</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Schedule</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredOrders.map(order => (
-                                    <tr key={order.id} className="border-b border-gray-100 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                        <td className="py-3 px-4 font-medium text-blue-600 dark:text-blue-400">{order['WO#']}</td>
-                                        <td className="py-3 px-4 text-gray-900 dark:text-white">{order.Client}</td>
-                                        <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{order.Company} - {order.City}</td>
-                                        <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{order.Task}</td>
-                                        <td className="py-3 px-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityStyles(order.Priority)}`}>
-                                                {order.Priority}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(order['Order Status'])}`}>
-                                                {order['Order Status']}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-4 text-gray-900 dark:text-white">{formatCurrency(order.NTE)}</td>
-                                        <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
-                                            {order['Schedule Date'] ? excelDateToJSDateString(order['Schedule Date']) : 'Not scheduled'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        );
+    const getInvoiceStatusStyles = (status) => {
+        const styles = {
+            'paid': 'bg-green-100 text-green-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'overdue': 'bg-red-100 text-red-800',
+            'draft': 'bg-gray-100 text-gray-800'
+        };
+        return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
     };
 
-    // Customers View
-    const CustomersView = () => {
-        const [searchTerm, setSearchTerm] = useState('');
+    const getQuoteStatusStyles = (status) => {
+        const styles = {
+            'sent': 'bg-blue-100 text-blue-800',
+            'accepted': 'bg-green-100 text-green-800',
+            'rejected': 'bg-red-100 text-red-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'draft': 'bg-gray-100 text-gray-800'
+        };
+        return styles[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+    };
 
-        const filteredCustomers = useMemo(() => {
-            return customers.filter(customer =>
-                customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.type.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }, [customers, searchTerm]);
+    const exportInvoicesToCSV = () => {
+        const csvContent = [
+            ['Invoice #', 'Work Order', 'Customer', 'Date', 'Amount', 'Status', 'Line Items', 'Due Date'],
+            ...invoices.map(inv => [
+                inv.id,
+                inv.workOrderId || '',
+                inv.customerName,
+                new Date(inv.date).toLocaleDateString(),
+                inv.total || inv.amount || 0,
+                inv.status,
+                inv.lineItems ? inv.lineItems.length : 0,
+                inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : ''
+            ])
+        ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoices-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
 
-        return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Customers</h2>
+    const exportQuotesToCSV = () => {
+        const csvContent = [
+            ['Quote #', 'Customer', 'Date', 'Amount', 'Status', 'Line Items', 'Valid Until', 'Notes'],
+            ...quotes.map(quote => [
+                quote.id,
+                quote.customerName,
+                new Date(quote.date).toLocaleDateString(),
+                quote.total || quote.amount || 0,
+                quote.status,
+                quote.lineItems ? quote.lineItems.length : 0,
+                quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : '',
+                quote.notes || ''
+            ])
+        ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quotes-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount || 0);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-slate-700 p-6 rounded-lg shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white">Billing & Invoicing</h3>
                     <div className="flex gap-3">
-                        <button
-                            onClick={() => setCsvImportType('customers')}
-                            className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
-                        >
-                            <Upload size={20} />
-                            Import CSV
-                        </button>
-                        <button
-                            onClick={() => setShowAddCustomer(true)}
+                        <button 
+                            onClick={() => setShowCreateInvoice(true)}
                             className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
                         >
-                            <PlusCircle size={20} />
-                            Add Customer
+                            <FileText size={20} /> Create Invoice
+                        </button>
+                        <button 
+                            onClick={() => setShowCreateQuote(true)}
+                            className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
+                        >
+                            <PlusCircle size={20} /> Create Quote
                         </button>
                     </div>
                 </div>
-
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                    <div className="mb-6">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Search customers..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            />
-                        </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoices</h4>
+                        <p className="text-2xl font-bold text-blue-600">{invoices.length}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(totalInvoiceAmount)}</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredCustomers.map(customer => (
-                            <div key={customer.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{customer.name}</h3>
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getCustomerTypeStyles(customer.type)}`}>
-                                            {customer.type}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setEditingCustomer(customer)}
-                                            className="text-blue-600 hover:text-blue-800"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => setAddingLocationTo(customer)}
-                                            className="text-green-600 hover:text-green-800"
-                                        >
-                                            <MapPin size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                                    <div className="flex items-center gap-2">
-                                        <User size={14} />
-                                        <span>{customer.contact.name || 'No contact name'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Mail size={14} />
-                                        <span>{customer.contact.email || 'No email'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Phone size={14} />
-                                        <span>{customer.contact.phone || 'No phone'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Building size={14} />
-                                        <span>{customer.locations?.length || 0} locations</span>
-                                    </div>
-                                </div>
-
-                                {customer.locations && customer.locations.length > 0 && (
-                                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-600">
-                                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Locations:</p>
-                                        <div className="space-y-1">
-                                            {customer.locations.slice(0, 2).map((location, index) => (
-                                                <div key={index} className="text-xs text-gray-600 dark:text-gray-400">
-                                                    {location.name} (#{location.locNum}) - {location.city}, {location.state}
-                                                </div>
-                                            ))}
-                                            {customer.locations.length > 2 && (
-                                                <div className="text-xs text-gray-500 dark:text-gray-500">
-                                                    +{customer.locations.length - 2} more locations
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Paid Invoices</h4>
+                        <p className="text-2xl font-bold text-green-600">{paidInvoices.length}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(paidInvoices.reduce((sum, inv) => sum + (inv.total || inv.amount || 0), 0))}</p>
+                    </div>
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Outstanding</h4>
+                        <p className="text-2xl font-bold text-red-600">{unpaidInvoices.length}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(unpaidInvoices.reduce((sum, inv) => sum + (inv.total || inv.amount || 0), 0))}</p>
+                    </div>
+                    <div className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Quotes</h4>
+                        <p className="text-2xl font-bold text-yellow-600">{pendingQuotes.length}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(pendingQuotes.reduce((sum, q) => sum + (q.total || q.amount || 0), 0))}</p>
                     </div>
                 </div>
             </div>
-        );
-    };
 
-    // Technicians View
-    const TechniciansView = () => {
-        return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Technicians</h2>
-                    <button
-                        onClick={() => setShowAddTechnician(true)}
-                        className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
-                    >
-                        <PlusCircle size={20} />
-                        Add Technician
-                    </button>
+            <div className="bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                <div className="border-b border-gray-200 dark:border-slate-600">
+                    <nav className="-mb-px flex gap-6 px-6">
+                        <button 
+                            onClick={() => setActiveTab('invoices')} 
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                activeTab === 'invoices' 
+                                    ? 'border-blue-500 text-blue-600' 
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                            }`}
+                        >
+                            Invoices ({invoices.length})
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('quotes')} 
+                            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                activeTab === 'quotes' 
+                                    ? 'border-blue-500 text-blue-600' 
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                            }`}
+                        >
+                            Quotes ({quotes.length})
+                        </button>
+                    </nav>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {technicians.map(tech => (
-                            <div key={tech.id} className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{tech.name}</h3>
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTechStatusStyles(tech.status)}`}>
-                                            {tech.status}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={() => setEditingTechnician(tech)}
-                                        className="text-blue-600 hover:text-blue-800"
+                <div className="p-6">
+                    {activeTab === 'invoices' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Invoice Management</h4>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            setImportType('invoices');
+                                            setShowImportModal(true);
+                                        }}
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
                                     >
-                                        <Edit size={16} />
+                                        <Upload size={16} /> Import
+                                    </button>
+                                    <button 
+                                        onClick={exportInvoicesToCSV}
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
+                                    >
+                                        <Download size={16} /> Export
+                                    </button>
+                                    <button 
+                                        onClick={() => window.location.reload()}
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
+                                    >
+                                        <RefreshCw size={16} /> Refresh
                                     </button>
                                 </div>
+                            </div>
+                            
+                            {invoices.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border border-gray-200 dark:border-slate-600 rounded-lg">
+                                        <thead className="bg-gray-50 dark:bg-slate-600">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Invoice #</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Items</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Amount</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
+                                            {invoices.map(invoice => (
+                                                <React.Fragment key={invoice.id}>
+                                                    <tr className="hover:bg-gray-50 dark:hover:bg-slate-600">
+                                                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{invoice.id}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{invoice.customerName}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                            {new Date(invoice.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                            <button 
+                                                                onClick={() => toggleRowExpansion(invoice.id)}
+                                                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                                            >
+                                                                {invoice.lineItems ? invoice.lineItems.length : 0} items
+                                                                <ChevronDown 
+                                                                    size={16} 
+                                                                    className={`transform transition-transform ${expandedRows.has(invoice.id) ? 'rotate-180' : ''}`}
+                                                                />
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                                                            {formatCurrency(invoice.total || invoice.amount || 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getInvoiceStatusStyles(invoice.status)}`}>
+                                                                {invoice.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <div className="flex gap-2">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const details = `Invoice: ${invoice.id}\nCustomer: ${invoice.customerName}\nTotal: ${formatCurrency(invoice.total || invoice.amount || 0)}\nStatus: ${invoice.status}\nItems: ${invoice.lineItems ? invoice.lineItems.length : 0}`;
+                                                                        alert(details);
+                                                                    }}
+                                                                    className="text-blue-600 hover:text-blue-800 font-medium"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => alert(`Sending invoice ${invoice.id} to ${invoice.customerName}`)}
+                                                                    className="text-purple-600 hover:text-purple-800 font-medium"
+                                                                >
+                                                                    Send
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => onEditInvoice(invoice)}
+                                                                    className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {expandedRows.has(invoice.id) && invoice.lineItems && (
+                                                        <tr>
+                                                            <td colSpan="7" className="px-4 py-3 bg-gray-50 dark:bg-slate-600">
+                                                                <div className="space-y-2">
+                                                                    <h5 className="font-medium text-gray-800 dark:text-white">Line Items:</h5>
+                                                                    {invoice.lineItems.map((item, index) => (
+                                                                        <div key={index} className="flex justify-between items-center py-1 px-3 bg-white dark:bg-slate-700 rounded">
+                                                                            <span className="text-sm text-gray-700 dark:text-gray-300">{item.description}</span>
+                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                                                {item.quantity} × {formatCurrency(item.rate)} = {formatCurrency(item.amount)}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-600 flex justify-end">
+                                                                        <div className="text-sm">
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Subtotal:</span>
+                                                                                <span>{formatCurrency(invoice.subtotal || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Tax:</span>
+                                                                                <span>{formatCurrency(invoice.tax || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48 font-bold">
+                                                                                <span>Total:</span>
+                                                                                <span>{formatCurrency(invoice.total || invoice.amount || 0)}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Invoices Yet</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first invoice with line items.</p>
+                                    <button 
+                                        onClick={() => setShowCreateInvoice(true)}
+                                        className="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700"
+                                    >
+                                        Create Invoice
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                                    <div className="flex items-center gap-2">
-                                        <Mail size={14} />
-                                        <span>{tech.email || 'No email'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Phone size={14} />
-                                        <span>{tech.phone || 'No phone'}</span>
-                                    </div>
+                    {activeTab === 'quotes' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Quote Management</h4>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            setImportType('quotes');
+                                            setShowImportModal(true);
+                                        }}
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
+                                    >
+                                        <Upload size={16} /> Import
+                                    </button>
+                                    <button 
+                                        onClick={exportQuotesToCSV}
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
+                                    >
+                                        <Download size={16} /> Export
+                                    </button>
+                                    <button 
+                                        onClick={() => window.location.reload()}
+                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-500"
+                                    >
+                                        <RefreshCw size={16} /> Refresh
+                                    </button>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            
+                            {quotes.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border border-gray-200 dark:border-slate-600 rounded-lg">
+                                        <thead className="bg-gray-50 dark:bg-slate-600">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Quote #</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Customer</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Date</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Items</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Amount</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
+                                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-400">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-600">
+                                            {quotes.map(quote => (
+                                                <React.Fragment key={quote.id}>
+                                                    <tr className="hover:bg-gray-50 dark:hover:bg-slate-600">
+                                                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{quote.id}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{quote.customerName}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                            {new Date(quote.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                            <button 
+                                                                onClick={() => toggleRowExpansion(quote.id)}
+                                                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                                            >
+                                                                {quote.lineItems ? quote.lineItems.length : 0} items
+                                                                <ChevronDown 
+                                                                    size={16} 
+                                                                    className={`transform transition-transform ${expandedRows.has(quote.id) ? 'rotate-180' : ''}`}
+                                                                />
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+                                                            {formatCurrency(quote.total || quote.amount || 0)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuoteStatusStyles(quote.status)}`}>
+                                                                {quote.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <div className="flex gap-2">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const details = `Quote: ${quote.id}\nCustomer: ${quote.customerName}\nTotal: ${formatCurrency(quote.total || quote.amount || 0)}\nStatus: ${quote.status}\nItems: ${quote.lineItems ? quote.lineItems.length : 0}`;
+                                                                        alert(details);
+                                                                    }}
+                                                                    className="text-blue-600 hover:text-blue-800 font-medium"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => alert(`Sending quote ${quote.id} to ${quote.customerName}`)}
+                                                                    className="text-purple-600 hover:text-purple-800 font-medium"
+                                                                >
+                                                                    Send
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => onEditQuote(quote)}
+                                                                    className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => alert(`Converting quote ${quote.id} to invoice for ${quote.customerName}`)}
+                                                                    className="text-orange-600 hover:text-orange-800 font-medium"
+                                                                >
+                                                                    Convert
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {expandedRows.has(quote.id) && quote.lineItems && (
+                                                        <tr>
+                                                            <td colSpan="7" className="px-4 py-3 bg-gray-50 dark:bg-slate-600">
+                                                                <div className="space-y-2">
+                                                                    <h5 className="font-medium text-gray-800 dark:text-white">Line Items:</h5>
+                                                                    {quote.lineItems.map((item, index) => (
+                                                                        <div key={index} className="flex justify-between items-center py-1 px-3 bg-white dark:bg-slate-700 rounded">
+                                                                            <span className="text-sm text-gray-700 dark:text-gray-300">{item.description}</span>
+                                                                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                                                {item.quantity} × {formatCurrency(item.rate)} = {formatCurrency(item.amount)}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-600 flex justify-end">
+                                                                        <div className="text-sm">
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Subtotal:</span>
+                                                                                <span>{formatCurrency(quote.subtotal || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48">
+                                                                                <span>Tax:</span>
+                                                                                <span>{formatCurrency(quote.tax || 0)}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between w-48 font-bold">
+                                                                                <span>Total:</span>
+                                                                                <span>{formatCurrency(quote.total || quote.amount || 0)}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Quotes Yet</h3>
+                                    <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first quote with line items.</p>
+                                    <button 
+                                        onClick={() => setShowCreateQuote(true)}
+                                        className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700"
+                                    >
+                                        Create Quote
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
-        );
-    };
-
-    // Billing View
-    const BillingView = () => {
-        const [activeTab, setActiveTab] = useState('invoices');
-
-        return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Billing & Quotes</h2>
-                    <div className="flex gap-3">
-                        {activeTab === 'invoices' && (
-                            <>
-                                <button
-                                    onClick={() => setCsvImportType('invoices')}
-                                    className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
-                                >
-                                    <Upload size={20} />
-                                    Import CSV
-                                </button>
-                                <button
-                                    onClick={() => setShowCreateInvoice(true)}
-                                    className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"
-                                >
-                                    <PlusCircle size={20} />
-                                    Create Invoice
-                                </button>
-                            </>
-                        )}
-                        {activeTab === 'quotes' && (
-                            <>
-                                <button
-                                    onClick={() => setCsvImportType('quotes')}
-                                    className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
-                                >
-                                    <Upload size={20} />
-                                    Import CSV
-                                </button>
-                                <button
-                                    onClick={() => setShowCreateQuote(true)}
-                                    className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
-                                >
-                                    <PlusCircle size={20} />
-                                    Create Quote
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
-                    <div className="border-b border-gray-200 dark:border-slate-700">
-                        <nav className="flex space-x-8 px-6">
-                            <button
-                                onClick={() => setActiveTab('invoices')}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                                    activeTab === 'invoices'
-                                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
-                            >
-                                Invoices ({invoices.length})
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('quotes')}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                                    activeTab === 'quotes'
-                                        ? 'border-green-500 text-green-600 dark:text-green-400'
-                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
-                            >
-                                Quotes ({quotes.length})
-                            </button>
-                        </nav>
-                    </div>
-
-                    <div className="p-6">
-                        {activeTab === 'invoices' && (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-gray-200 dark:border-slate-700">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Invoice #</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Customer</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Date</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Amount</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Status</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {invoices.map(invoice => (
-                                            <tr key={invoice.id} className="border-b border-gray-100 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                                <td className="py-3 px-4 font-medium text-blue-600 dark:text-blue-400">{invoice.id}</td>
-                                                <td className="py-3 px-4 text-gray-900 dark:text-white">{invoice.customerName}</td>
-                                                <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
-                                                    {new Date(invoice.date).toLocaleDateString()}
-                                                </td>
-                                                <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">
-                                                    {formatCurrency(invoice.total || invoice.amount)}
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                        invoice.status === 'Paid' ? 'bg-green-100 text-green-800' :
-                                                        invoice.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                        invoice.status === 'Overdue' ? 'bg-red-100 text-red-800' :
-                                                        'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                        {invoice.status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => setEditingInvoice(invoice)}
-                                                            className="text-blue-600 hover:text-blue-800"
-                                                        >
-                                                            <Edit size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                const workOrder = workOrders.find(wo => wo.id === invoice.workOrderId);
-                                                                generateInvoicePDF(invoice, workOrder);
-                                                            }}
-                                                            className="text-green-600 hover:text-green-800"
-                                                        >
-                                                            <Download size={16} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {activeTab === 'quotes' && (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-gray-200 dark:border-slate-700">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Quote #</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Customer</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Date</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Amount</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Status</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {quotes.map(quote => (
-                                            <tr key={quote.id} className="border-b border-gray-100 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700">
-                                                <td className="py-3 px-4 font-medium text-green-600 dark:text-green-400">{quote.id}</td>
-                                                <td className="py-3 px-4 text-gray-900 dark:text-white">{quote.customerName}</td>
-                                                <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
-                                                    {new Date(quote.date).toLocaleDateString()}
-                                                </td>
-                                                <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">
-                                                    {formatCurrency(quote.total || quote.amount)}
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                        quote.status === 'Accepted' ? 'bg-green-100 text-green-800' :
-                                                        quote.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
-                                                        quote.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                        quote.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                                                        'bg-gray-100 text-gray-800'
-                                                    }`}>
-                                                        {quote.status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => setEditingQuote(quote)}
-                                                            className="text-blue-600 hover:text-blue-800"
-                                                        >
-                                                            <Edit size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => generateQuotePDF(quote)}
-                                                            className="text-green-600 hover:text-green-800"
-                                                        >
-                                                            <Download size={16} />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // Main render
-    return (
-        <div className="min-h-screen bg-gray-100 dark:bg-slate-900">
-            <NavigationBar />
             
-            <main className="p-6">
-                {activeView === 'dashboard' && <DashboardView />}
-                {activeView === 'work-orders' && <WorkOrdersView />}
-                {activeView === 'customers' && <CustomersView />}
-                {activeView === 'technicians' && <TechniciansView />}
-                {activeView === 'billing' && <BillingView />}
-                {activeView === 'items' && <ItemsManagementView 
-                    items={items} 
-                    onAddItem={handleAddItem}
-                    onUpdateItem={() => {}}
-                    onDeleteItem={() => {}}
-                />}
-            </main>
-
-            {/* Modals */}
-            {showAddCustomer && (
-                <AddCustomerModal
-                    onAddCustomer={handleAddCustomer}
-                    onClose={() => setShowAddCustomer(false)}
-                />
-            )}
-
-            {showAddWorkOrder && (
-                <AddWorkOrderModal
-                    onClose={() => setShowAddWorkOrder(false)}
-                    onAddOrder={handleAddWorkOrder}
-                    customers={customers}
-                />
-            )}
-
-            {showAddTechnician && (
-                <AddTechnicianModal
-                    onClose={() => setShowAddTechnician(false)}
-                    onAdd={handleAddTechnician}
-                />
-            )}
-
             {showCreateInvoice && (
-                <CreateInvoiceModal
+                <CreateInvoiceModal 
                     workOrders={workOrders}
                     customers={customers}
-                    items={items}
                     onClose={() => setShowCreateInvoice(false)}
-                    onAddInvoice={handleAddInvoice}
+                    onAddInvoice={onAddInvoice}
                 />
             )}
-
+            
             {showCreateQuote && (
-                <CreateQuoteModal
+                <CreateQuoteModal 
                     customers={customers}
-                    items={items}
                     onClose={() => setShowCreateQuote(false)}
-                    onAddQuote={handleAddQuote}
+                    onAddQuote={onAddQuote}
                 />
             )}
 
-            {editingCustomer && (
-                <EditCustomerModal
-                    customer={editingCustomer}
-                    onClose={() => setEditingCustomer(null)}
-                    onUpdateCustomer={handleUpdateCustomer}
+            {showImportModal && (
+                <CSVImportModal 
+                    type={importType}
+                    onClose={() => setShowImportModal(false)}
+                    onImport={(data) => {
+                        if (importType === 'invoices') {
+                            data.forEach(invoice => onAddInvoice(invoice));
+                        } else if (importType === 'quotes') {
+                            data.forEach(quote => onAddQuote(quote));
+                        }
+                    }}
                 />
             )}
+        </div>
+    );
+};
 
-            {editingTechnician && (
-                <EditTechnicianModal
-                    technician={editingTechnician}
-                    onClose={() => setEditingTechnician(null)}
-                    onUpdate={handleUpdateTechnician}
+// --- Main WorkOrderManagement Component ---
+const WorkOrderManagement = ({ userId, auth, db, storage }) => {
+    // State management with Firebase integration
+    const [workOrders, setWorkOrders] = useState([]);
+    const [customers, setCustomers] = useState([]);
+    const [technicians, setTechnicians] = useState([]);
+    const [invoices, setInvoices] = useState([]);
+    const [quotes, setQuotes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    
+    // UI State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [isAddingOrder, setIsAddingOrder] = useState(false);
+    const [currentView, setCurrentView] = useState('dashboard');
+    const [editingInvoice, setEditingInvoice] = useState(null);
+    const [editingQuote, setEditingQuote] = useState(null);
+
+    // =============================================================================
+    // SYNC FUNCTIONS - Auto-sync to Main Dashboard
+    // =============================================================================
+    
+    const syncToMainDashboard = async (workOrder, invoice = null) => {
+        if (!userId || !workOrder) return;
+        
+        try {
+            const batch = writeBatch(db);
+            let syncedData = { jobs: 0, income: 0 };
+            
+            // 1. SYNC COMPLETED WORK ORDER AS JOB FOR P&L
+            if (workOrder['Order Status'] === 'Completed') {
+                const jobData = {
+                    name: workOrder.Task || 'HVAC Service',
+                    revenue: parseFloat(workOrder.NTE || 0),
+                    materialCost: parseFloat(workOrder.MaterialCost || 0),
+                    laborCost: parseFloat(workOrder.LaborCost || 0),
+                    date: new Date().toISOString(),
+                    customer: workOrder.Client || 'Unknown Customer',
+                    notes: `Synced from Work Order #${workOrder['WO#'] || workOrder.id}`,
+                    syncedFromWorkOrder: workOrder.id,
+                    workOrderNumber: workOrder['WO#'],
+                    createdAt: serverTimestamp(),
+                    lastSynced: serverTimestamp()
+                };
+                
+                const existingJobRef = doc(db, 'artifacts', 'hvac-finance-dashboard', 'users', userId, 'jobs', `wo-${workOrder.id}`);
+                const existingJob = await getDoc(existingJobRef);
+                
+                if (!existingJob.exists()) {
+                    batch.set(existingJobRef, jobData);
+                    syncedData.jobs++;
+                    console.log(`✅ Job synced: ${workOrder.Task} - ${workOrder.NTE}`);
+                } else {
+                    batch.update(existingJobRef, { ...jobData, updatedAt: serverTimestamp() });
+                    console.log(`🔄 Job updated: ${workOrder.Task}`);
+                }
+            }
+            
+            // 2. SYNC PAID INVOICE AS INCOME
+            if (invoice && (invoice.status === 'Paid' || invoice.status === 'paid')) {
+                const incomeData = {
+                    source: `Invoice #${invoice.id}`,
+                    amount: parseFloat(invoice.total || invoice.amount || 0),
+                    frequency: 'One-time',
+                    description: `Payment: ${workOrder.Client} - ${workOrder.Task}`,
+                    category: 'HVAC Services',
+                    date: invoice.paidDate || new Date().toISOString(),
+                    syncedFromInvoice: invoice.id,
+                    workOrderId: workOrder.id,
+                    createdAt: serverTimestamp(),
+                    lastSynced: serverTimestamp()
+                };
+                
+                const existingIncomeRef = doc(db, 'artifacts', 'hvac-finance-dashboard', 'users', userId, 'incomes', `inv-${invoice.id}`);
+                const existingIncome = await getDoc(existingIncomeRef);
+                
+                if (!existingIncome.exists()) {
+                    batch.set(existingIncomeRef, incomeData);
+                    syncedData.income++;
+                    console.log(`💰 Income synced: ${invoice.total || invoice.amount}`);
+                } else {
+                    batch.update(existingIncomeRef, { ...incomeData, updatedAt: serverTimestamp() });
+                    console.log(`🔄 Income updated: ${invoice.total || invoice.amount}`);
+                }
+            }
+            
+            await batch.commit();
+            
+            if (syncedData.jobs > 0 || syncedData.income > 0) {
+                console.log(`✅ Dashboard Sync Complete - Jobs: ${syncedData.jobs}, Income: ${syncedData.income}`);
+            }
+            
+            return syncedData;
+            
+        } catch (error) {
+            console.error('❌ Failed to sync to dashboard:', error);
+        }
+    };
+
+    // Enhanced status update function with auto-sync
+    const updateWorkOrderStatus = async (workOrderId, newStatus) => {
+        try {
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', workOrderId);
+            await updateDoc(workOrderRef, { 
+                'Order Status': newStatus,
+                updatedAt: serverTimestamp()
+            });
+            
+            // AUTO-SYNC when status changes to Completed
+            if (newStatus === 'Completed') {
+                const workOrderSnap = await getDoc(workOrderRef);
+                if (workOrderSnap.exists()) {
+                    await syncToMainDashboard({ ...workOrderSnap.data(), id: workOrderId });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
+    };
+
+    // Enhanced invoice payment function with auto-sync
+    const markInvoicePaid = async (invoiceId, workOrderId) => {
+        try {
+            const invoiceRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices', invoiceId);
+            const paidInvoice = {
+                status: 'Paid',
+                paidDate: new Date().toISOString(),
+                updatedAt: serverTimestamp()
+            };
+            
+            await updateDoc(invoiceRef, paidInvoice);
+            
+            // Get work order and invoice data for sync
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', workOrderId);
+            const [workOrderSnap, invoiceSnap] = await Promise.all([
+                getDoc(workOrderRef),
+                getDoc(invoiceRef)
+            ]);
+            
+            if (workOrderSnap.exists() && invoiceSnap.exists()) {
+                await syncToMainDashboard(
+                    { ...workOrderSnap.data(), id: workOrderId }, 
+                    { ...invoiceSnap.data(), id: invoiceId }
+                );
+            }
+            
+        } catch (error) {
+            console.error('Error marking invoice paid:', error);
+        }
+    };
+
+    // Bulk sync function for existing data
+    const bulkSyncExistingData = async () => {
+        if (!confirm('This will sync all completed work orders and paid invoices to your financial dashboard. Continue?')) {
+            return;
+        }
+        
+        try {
+            let syncCount = 0;
+            
+            for (const workOrder of workOrders) {
+                if (workOrder['Order Status'] === 'Completed') {
+                    const matchingInvoice = invoices.find(inv => 
+                        inv.workOrderId === workOrder.id && 
+                        (inv.status === 'Paid' || inv.status === 'paid')
+                    );
+                    
+                    await syncToMainDashboard(
+                        workOrder,
+                        matchingInvoice || null
+                    );
+                    syncCount++;
+                }
+            }
+            
+            alert(`✅ Bulk sync complete! Processed ${syncCount} work orders.`);
+            
+        } catch (error) {
+            console.error('Bulk sync failed:', error);
+            alert(`❌ Bulk sync failed: ${error.message}`);
+        }
+    };
+
+    // =============================================================================
+    // FIREBASE DATA LISTENERS
+    // =============================================================================
+    
+    useEffect(() => {
+        if (!userId) return;
+        
+        const collectionsToWatch = {
+            workOrders: setWorkOrders,
+            customers: setCustomers,
+            technicians: setTechnicians,
+            invoices: setInvoices,
+            quotes: setQuotes
+        };
+        
+        const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) => 
+            onSnapshot(
+                query(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, colName)), 
+                (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setter(data);
+                    if (colName === 'workOrders') setLoading(false);
+                }, 
+                (err) => console.error(`Error fetching ${colName}:`, err)
+            )
+        );
+        
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, [userId, db]);
+
+    // =============================================================================
+    // COMPONENT FUNCTIONS - Updated for Firebase
+    // =============================================================================
+    
+    const filteredOrders = useMemo(() => 
+        workOrders.filter(order => 
+            (statusFilter === 'All' || order['Order Status'] === statusFilter) && 
+            Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
+        ), 
+        [workOrders, searchTerm, statusFilter]
+    );
+    
+    const handleUpdateOrder = async (orderId, payload) => {
+        try {
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', orderId);
+            await updateDoc(workOrderRef, { ...payload, updatedAt: serverTimestamp() });
+            
+            // Auto-sync if status changed to Completed
+            if (payload['Order Status'] === 'Completed') {
+                const workOrderSnap = await getDoc(workOrderRef);
+                if (workOrderSnap.exists()) {
+                    await syncToMainDashboard({ ...workOrderSnap.data(), id: orderId });
+                }
+            }
+            
+            // Update local selected order
+            if (selectedOrder && selectedOrder.id === orderId) {
+                setSelectedOrder(prev => ({ ...prev, ...payload }));
+            }
+        } catch (error) {
+            console.error('Error updating work order:', error);
+        }
+    };
+    
+    const handleAddNote = async (orderId, noteText, callback) => {
+        if (!noteText.trim()) return;
+        
+        try {
+            const newNote = { text: noteText.trim(), timestamp: new Date().toISOString() };
+            const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', orderId);
+            const workOrderSnap = await getDoc(workOrderRef);
+            
+            if (workOrderSnap.exists()) {
+                const currentNotes = workOrderSnap.data().notes || [];
+                await updateDoc(workOrderRef, { 
+                    notes: [...currentNotes, newNote],
+                    updatedAt: serverTimestamp()
+                });
+                
+                if (selectedOrder && selectedOrder.id === orderId) {
+                    setSelectedOrder(prev => ({ ...prev, notes: [...(prev.notes || []), newNote] }));
+                }
+                
+                callback();
+            }
+        } catch (error) {
+            console.error('Error adding note:', error);
+        }
+    };
+    
+    const handleAddNewOrder = async (newOrderData) => {
+        try {
+            const newId = `WO-${Date.now()}`;
+            
+            // Add location to customer if needed
+            if (newOrderData._newLocation) {
+                const customerToUpdate = customers.find(c => c.name === newOrderData.Client);
+                if (customerToUpdate) {
+                    const customerRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers', customerToUpdate.id);
+                    await updateDoc(customerRef, {
+                        locations: [...customerToUpdate.locations, newOrderData._newLocation],
+                        updatedAt: serverTimestamp()
+                    });
+                }
+            }
+            
+            const { _newLocation, ...orderData } = newOrderData;
+            
+            const newOrder = { 
+                ...orderData, 
+                "WO#": newId, 
+                "Created Date": jsDateToExcel(new Date()), 
+                "Order Status": orderData['Schedule Date'] ? 'Scheduled' : 'Open', 
+                notes: [], 
+                technician: [],
+                createdAt: serverTimestamp()
+            };
+            
+            await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders'), newOrder);
+            setIsAddingOrder(false);
+        } catch (error) {
+            console.error('Error adding work order:', error);
+        }
+    };
+    
+    const handleAddCustomer = async (customerData) => {
+        try {
+            if (Array.isArray(customerData)) {
+                const batch = writeBatch(db);
+                customerData.forEach(customer => {
+                    const customerRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers'));
+                    batch.set(customerRef, { 
+                        ...customer, 
+                        locations: customer.locations || [],
+                        createdAt: serverTimestamp()
+                    });
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers'), {
+                    ...customerData,
+                    locations: customerData.locations || [],
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding customer:', error);
+        }
+    };
+
+    const handleUpdateCustomer = async (updatedCustomer) => {
+        try {
+            const customerRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers', updatedCustomer.id);
+            await updateDoc(customerRef, { ...updatedCustomer, updatedAt: serverTimestamp() });
+        } catch (error) {
+            console.error('Error updating customer:', error);
+        }
+    };
+    
+    const handleAddLocationToCustomer = async (customerId, newLocation) => {
+        try {
+            const customer = customers.find(c => c.id === customerId);
+            if (customer) {
+                const customerRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'customers', customerId);
+                await updateDoc(customerRef, {
+                    locations: [...customer.locations, newLocation],
+                    updatedAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding location:', error);
+        }
+    };
+    
+    const handleAddTechnician = async (newTechData) => {
+        try {
+            await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'technicians'), {
+                ...newTechData,
+                createdAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error('Error adding technician:', error);
+        }
+    };
+    
+    const handleUpdateTechnician = async (updatedTech) => {
+        try {
+            const techRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'technicians', updatedTech.id);
+            await updateDoc(techRef, { ...updatedTech, updatedAt: serverTimestamp() });
+        } catch (error) {
+            console.error('Error updating technician:', error);
+        }
+    };
+    
+    const handleDeleteTechnician = async (techId) => {
+        try {
+            const techToDelete = technicians.find(t => t.id === techId);
+            if (techToDelete && confirm(`Delete ${techToDelete.name}?`)) {
+                // Remove from work orders
+                const batch = writeBatch(db);
+                workOrders.forEach(wo => {
+                    if (wo.technician.includes(techToDelete.name)) {
+                        const workOrderRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'workOrders', wo.id);
+                        batch.update(workOrderRef, {
+                            technician: wo.technician.filter(t => t !== techToDelete.name),
+                            updatedAt: serverTimestamp()
+                        });
+                    }
+                });
+                
+                // Delete technician
+                const techRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'technicians', techId);
+                batch.delete(techRef);
+                
+                await batch.commit();
+            }
+        } catch (error) {
+            console.error('Error deleting technician:', error);
+        }
+    };
+
+    const handleAddInvoice = async (invoiceData) => {
+        try {
+            if (Array.isArray(invoiceData)) {
+                const batch = writeBatch(db);
+                invoiceData.forEach(invoice => {
+                    const invoiceRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices'));
+                    batch.set(invoiceRef, { ...invoice, createdAt: serverTimestamp() });
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices'), {
+                    ...invoiceData,
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding invoice:', error);
+        }
+    };
+
+    const handleAddQuote = async (quoteData) => {
+        try {
+            if (Array.isArray(quoteData)) {
+                const batch = writeBatch(db);
+                quoteData.forEach(quote => {
+                    const quoteRef = doc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'quotes'));
+                    batch.set(quoteRef, { ...quote, createdAt: serverTimestamp() });
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'artifacts', 'workOrderManagement', 'users', userId, 'quotes'), {
+                    ...quoteData,
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error adding quote:', error);
+        }
+    };
+
+    const handleUpdateInvoice = async (updatedInvoice) => {
+        try {
+            const invoiceRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'invoices', updatedInvoice.id);
+            await updateDoc(invoiceRef, { ...updatedInvoice, updatedAt: serverTimestamp() });
+            
+            // Auto-sync if invoice was marked paid
+            if (updatedInvoice.status === 'Paid' && updatedInvoice.workOrderId) {
+                const workOrder = workOrders.find(wo => wo.id === updatedInvoice.workOrderId);
+                if (workOrder) {
+                    await syncToMainDashboard(workOrder, updatedInvoice);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating invoice:', error);
+        }
+    };
+
+    const handleUpdateQuote = async (updatedQuote) => {
+        try {
+            const quoteRef = doc(db, 'artifacts', 'workOrderManagement', 'users', userId, 'quotes', updatedQuote.id);
+            await updateDoc(quoteRef, { ...updatedQuote, updatedAt: serverTimestamp() });
+        } catch (error) {
+            console.error('Error updating quote:', error);
+        }
+    };
+
+    // =============================================================================
+    // SYNC STATUS INDICATORS - UI Components
+    // =============================================================================
+    
+    const SyncStatusIndicator = ({ workOrder, invoice }) => {
+        const isJobSynced = workOrder?.['Order Status'] === 'Completed';
+        const isIncomeSynced = invoice?.status === 'Paid';
+        
+        return (
+            <div className="flex items-center gap-2 text-sm">
+                <span className={`px-2 py-1 rounded text-xs ${
+                    isJobSynced ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                }`}>
+                    {isJobSynced ? '✅ Job Synced' : '⏳ Not Synced'}
+                </span>
+                {invoice && (
+                    <span className={`px-2 py-1 rounded text-xs ${
+                        isIncomeSynced ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                        {isIncomeSynced ? '💰 Income Synced' : '⏳ Pending Payment'}
+                    </span>
+                )}
+            </div>
+        );
+    };
+
+    const ManualSyncButton = ({ workOrder, invoice }) => (
+        <button
+            onClick={() => syncToMainDashboard(workOrder, invoice)}
+            className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+        >
+            🔄 Sync Now
+        </button>
+    );
+
+    // =============================================================================
+    // RENDER FUNCTIONS
+    // =============================================================================
+    
+    const renderContent = () => {
+        if (loading) {
+            return (
+                <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400">Loading work orders...</span>
+                </div>
+            );
+        }
+
+        switch(currentView) {
+            case 'customers':
+                return <CustomerManagementView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onAddLocation={handleAddLocationToCustomer} />;
+            case 'dispatch':
+                return <DispatchView workOrders={workOrders} technicians={technicians} onSelectOrder={setSelectedOrder} onUpdateOrder={handleUpdateOrder} />;
+            case 'technicians':
+                return <TechnicianManagementView technicians={technicians} onAddTechnician={handleAddTechnician} onUpdateTechnician={handleUpdateTechnician} onDeleteTechnician={handleDeleteTechnician} />;
+            case 'route':
+                return <RoutePlanningView workOrders={workOrders} technicians={technicians} />;
+            case 'reporting':
+                return <ReportingView workOrders={workOrders} technicians={technicians} />;
+            case 'billing':
+                return (
+                    <BillingView 
+                        invoices={invoices} 
+                        quotes={quotes} 
+                        workOrders={workOrders} 
+                        customers={customers} 
+                        onAddInvoice={handleAddInvoice} 
+                        onAddQuote={handleAddQuote}
+                        onEditInvoice={setEditingInvoice}
+                        onEditQuote={setEditingQuote}
+                    />
+                );
+            case 'dashboard':
+            default:
+                return <DashboardView orders={filteredOrders} onSelectOrder={setSelectedOrder} searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />;
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Work Order Management</h2>
+                        <div className="flex items-center gap-4 mt-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Auto-syncs with financial dashboard
+                            </p>
+                            <button
+                                onClick={bulkSyncExistingData}
+                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                            >
+                                🔄 Bulk Sync All Data
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setCurrentView('dashboard')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Dashboard
+                        </button>
+                        <button onClick={() => setCurrentView('dispatch')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'dispatch' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Dispatch
+                        </button>
+                        <button onClick={() => setCurrentView('route')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'route' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Route
+                        </button>
+                        <button onClick={() => setCurrentView('customers')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'customers' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Customers
+                        </button>
+                        <button onClick={() => setCurrentView('technicians')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'technicians' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Technicians
+                        </button>
+                        <button onClick={() => setCurrentView('billing')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'billing' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Billing
+                        </button>
+                        <button onClick={() => setCurrentView('reporting')} className={`px-3 py-1 rounded text-sm font-medium ${currentView === 'reporting' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'}`}>
+                            Reports
+                        </button>
+                        <button onClick={() => setIsAddingOrder(true)} className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                            <PlusCircle size={20} /> Add Work Order
+                        </button>
+                    </div>
+                </div>
+                {renderContent()}
+            </div>
+            
+            {selectedOrder && (
+                <WorkOrderDetailModal 
+                    order={selectedOrder} 
+                    onClose={() => setSelectedOrder(null)} 
+                    onUpdate={handleUpdateOrder} 
+                    onAddNote={handleAddNote} 
+                    technicians={technicians} 
                 />
             )}
-
+            {isAddingOrder && (
+                <AddWorkOrderModal 
+                    customers={customers} 
+                    onAddOrder={handleAddNewOrder} 
+                    onClose={() => setIsAddingOrder(false)} 
+                />
+            )}
             {editingInvoice && (
-                <EditInvoiceModal
+                <EditInvoiceModal 
                     invoice={editingInvoice}
                     onClose={() => setEditingInvoice(null)}
                     onUpdateInvoice={handleUpdateInvoice}
                 />
             )}
-
             {editingQuote && (
-                <EditQuoteModal
+                <EditQuoteModal 
                     quote={editingQuote}
                     onClose={() => setEditingQuote(null)}
                     onUpdateQuote={handleUpdateQuote}
-                />
-            )}
-
-            {addingLocationTo && (
-                <AddLocationModal
-                    customer={addingLocationTo}
-                    onClose={() => setAddingLocationTo(null)}
-                    onAddLocation={handleAddLocation}
-                />
-            )}
-
-            {csvImportType && (
-                <CSVImportModal
-                    type={csvImportType}
-                    onClose={() => setCsvImportType(null)}
-                    onImport={(data) => handleCSVImport(csvImportType, data)}
                 />
             )}
         </div>
@@ -3047,4 +3812,3 @@ const WorkOrderManagement = () => {
 };
 
 export default WorkOrderManagement;
-                     
