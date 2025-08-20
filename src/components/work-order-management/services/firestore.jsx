@@ -9,7 +9,7 @@ const getDocRef = (db, userId, collectionName, docId) => {
     return doc(db, 'artifacts', 'workOrderManagement', 'users', userId, collectionName, docId);
 };
 
-// --- Generic Listener (This is the missing function) ---
+// --- Generic Listener ---
 export const getCollectionListener = (db, userId, collectionName, callback) => {
     const q = query(getCollectionRef(db, userId, collectionName));
     return onSnapshot(q, (snapshot) => {
@@ -50,6 +50,12 @@ export const addCustomer = (db, userId, customerData) => {
 export const updateCustomer = (db, userId, customerId, payload) => {
     const customerRef = getDocRef(db, userId, 'customers', customerId);
     return updateDoc(customerRef, { ...payload, updatedAt: serverTimestamp() });
+};
+
+// ✅ ADDED THIS FUNCTION
+export const deleteCustomer = (db, userId, customerId) => {
+    const customerRef = getDocRef(db, userId, 'customers', customerId);
+    return deleteDoc(customerRef);
 };
 
 // --- Technician Functions ---
