@@ -1,18 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { FileText, PlusCircle, Download, Upload, RefreshCw, ChevronDown, CheckCircle, XCircle, Printer, Trash2 } from 'lucide-react';
+import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Trash2 } from 'lucide-react';
 import CreateInvoiceModal from '../modals/CreateInvoiceModal';
 import CreateQuoteModal from '../modals/CreateQuoteModal';
 import { formatCurrency } from '../utils/helpers';
 import { STATUS } from '../utils/constants';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
-import * as api from '../services/firestore'; // Import the api for PDF generation
+import * as api from '../services/firestore';
 
 // --- UPGRADED EDIT INVOICE MODAL ---
 const EditInvoiceModal = () => {
-    const { editingInvoice, setEditingInvoice, handlers, db, userId } = useWorkOrderContext();
-    const [lineItems, setLineItems] = useState(editingInvoice.lineItems || []);
-    const [discount, setDiscount] = useState(editingInvoice.discount || 0);
-    const [lateFee, setLateFee] = useState(editingInvoice.lateFee || 0);
+    const { editingInvoice, setEditingInvoice, db, userId } = useWorkOrderContext();
+    
+    const [lineItems, setLineItems] = useState([]);
+    const [discount, setDiscount] = useState(0);
+    const [lateFee, setLateFee] = useState(0);
+
+    React.useEffect(() => {
+        if (editingInvoice) {
+            setLineItems(editingInvoice.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+            setDiscount(editingInvoice.discount || 0);
+            setLateFee(editingInvoice.lateFee || 0);
+        }
+    }, [editingInvoice]);
+
 
     const handleItemChange = (index, field, value) => {
         const items = [...lineItems];
@@ -40,30 +50,28 @@ const EditInvoiceModal = () => {
                     <button onClick={() => setEditingInvoice(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><XCircle /></button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-4">
-                    {/* Line Items */}
                     <div>
-                        <h3 className="font-semibold mb-2">Line Items</h3>
+                        <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
                         {lineItems.map((item, index) => (
                             <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
-                                <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
-                                <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
-                                <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
-                                <span className="col-span-1 text-right font-mono">{formatCurrency(item.amount)}</span>
-                                <button onClick={() => removeItem(index)} className="col-span-1 text-red-500"><Trash2 size={18} /></button>
+                                <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', parseFloat(e.target.value))} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                <span className="col-span-1 text-right font-mono text-gray-800 dark:text-white">{formatCurrency(item.amount)}</span>
+                                <button onClick={() => removeItem(index)} className="col-span-1 text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
                             </div>
                         ))}
                         <button onClick={addItem} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add Item</button>
                     </div>
-                    {/* Fees and Discounts */}
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t dark:border-slate-600">
-                        <div><label>Discount ($)</label><input type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600" /></div>
-                        <div><label>Late Fee ($)</label><input type="number" value={lateFee} onChange={e => setLateFee(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600" /></div>
+                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400">Discount ($)</label><input type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" /></div>
+                        <div><label className="text-sm font-medium text-gray-600 dark:text-gray-400">Late Fee ($)</label><input type="number" value={lateFee} onChange={e => setLateFee(parseFloat(e.target.value) || 0)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" /></div>
                     </div>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-between items-center">
                     <button onClick={() => api.generateInvoicePdf(editingInvoice)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
                     <div>
-                        <button onClick={() => setEditingInvoice(null)} className="font-bold py-2 px-4">Cancel</button>
+                        <button onClick={() => setEditingInvoice(null)} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
                         <button onClick={handleSave} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
                     </div>
                 </div>
@@ -71,6 +79,22 @@ const EditInvoiceModal = () => {
         </div>
     );
 };
+
+// --- Placeholder for EditQuoteModal ---
+const EditQuoteModal = () => {
+    // This can be built out similar to EditInvoiceModal
+    const { editingQuote, setEditingQuote } = useWorkOrderContext();
+    if (!editingQuote) return null;
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl p-6">
+                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote #{editingQuote.id}</h2>
+                 <p className="text-gray-600 dark:text-gray-400 mt-4">Quote editing functionality can be built here.</p>
+                 <button onClick={() => setEditingQuote(null)} className="mt-6 bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Close</button>
+            </div>
+        </div>
+    )
+}
 
 
 const BillingView = () => {
@@ -126,24 +150,34 @@ const BillingView = () => {
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                <div className="border-b dark:border-slate-700"><nav className="-mb-px flex gap-6 px-6">{/* ... Tabs ... */}</nav></div>
+                <div className="border-b dark:border-slate-700">
+                    <nav className="-mb-px flex gap-6 px-6">
+                        <button onClick={() => setActiveTab('invoices')} className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'invoices' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'}`}>Invoices</button>
+                        <button onClick={() => setActiveTab('quotes')} className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'quotes' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'}`}>Quotes</button>
+                    </nav>
+                </div>
                 <div className="p-6">
                     {activeTab === 'invoices' && (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>{/* ... Table Headers ... */}</thead>
+                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" className="p-3">Invoice ID</th><th scope="col" className="p-3">Customer</th><th scope="col" className="p-3">Date</th><th scope="col" className="p-3">Items</th><th scope="col" className="p-3">Total</th><th scope="col" className="p-3">Status</th><th scope="col" className="p-3">Actions</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     {invoices.map(invoice => (
                                         <React.Fragment key={invoice.id}>
-                                            <tr>
-                                                <td className="p-3">{invoice.id}</td>
+                                            <tr className="bg-white border-b dark:bg-slate-800 dark:border-slate-700">
+                                                <td className="p-3 font-medium text-gray-900 dark:text-white">{invoice.id}</td>
                                                 <td className="p-3">{invoice.customerName}</td>
                                                 <td className="p-3">{new Date(invoice.date).toLocaleDateString()}</td>
                                                 <td className="p-3"><button onClick={() => toggleRowExpansion(invoice.id)} className="flex items-center gap-1">{invoice.lineItems?.length || 0} items <ChevronDown size={14} /></button></td>
-                                                <td className="p-3">{formatCurrency(invoice.total)}</td>
-                                                <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs ${getStatusStyles(invoice.status)}`}>{invoice.status}</span></td>
+                                                <td className="p-3 font-mono">{formatCurrency(invoice.total)}</td>
+                                                <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(invoice.status)}`}>{invoice.status}</span></td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-3">
+                                                        <button onClick={() => api.generateInvoicePdf(invoice)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"><Printer size={16} /></button>
                                                         {invoice.status !== STATUS.PAID ? (
                                                             <button onClick={() => handlers.markInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600 hover:text-green-500"><CheckCircle size={16} /> Mark Paid</button>
                                                         ) : (
@@ -153,8 +187,51 @@ const BillingView = () => {
                                                     </div>
                                                 </td>
                                             </tr>
-                                            {expandedRows.has(invoice.id) && (<tr><td colSpan="7" className="p-4 bg-gray-50 dark:bg-slate-900/50">{/* ... expanded view ... */}</td></tr>)}
+                                            {expandedRows.has(invoice.id) && (
+                                                <tr className="bg-gray-50 dark:bg-slate-900/50">
+                                                    <td colSpan="7" className="p-4">
+                                                        <h4 className="font-bold mb-2 text-gray-800 dark:text-white">Invoice Details:</h4>
+                                                        <ul className="list-disc pl-5 text-gray-700 dark:text-gray-300">
+                                                            {(invoice.lineItems || []).map((item, i) => <li key={i}>{item.quantity}x {item.description} @ {formatCurrency(item.rate)} = {formatCurrency(item.amount)}</li>)}
+                                                        </ul>
+                                                        <div className="mt-2 pt-2 border-t dark:border-slate-600 text-right text-gray-800 dark:text-white">
+                                                            <p>Subtotal: {formatCurrency(invoice.subtotal)}</p>
+                                                            {invoice.discount > 0 && <p className="text-green-600">Discount: -{formatCurrency(invoice.discount)}</p>}
+                                                            {invoice.lateFee > 0 && <p className="text-red-600">Late Fee: +{formatCurrency(invoice.lateFee)}</p>}
+                                                            <p className="font-bold">Total: {formatCurrency(invoice.total)}</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </React.Fragment>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                     {activeTab === 'quotes' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" className="p-3">Quote ID</th><th scope="col" className="p-3">Customer</th><th scope="col" className="p-3">Date</th><th scope="col" className="p-3">Total</th><th scope="col" className="p-3">Status</th><th scope="col" className="p-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {quotes.map(quote => (
+                                        <tr key={quote.id} className="bg-white border-b dark:bg-slate-800 dark:border-slate-700">
+                                            <td className="p-3 font-medium text-gray-900 dark:text-white">{quote.id}</td>
+                                            <td className="p-3">{quote.customerName}</td>
+                                            <td className="p-3">{new Date(quote.date).toLocaleDateString()}</td>
+                                            <td className="p-3 font-mono">{formatCurrency(quote.total)}</td>
+                                            <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(quote.status)}`}>{quote.status}</span></td>
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => api.generateQuotePdf(quote)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"><Printer size={16} /></button>
+                                                    <button onClick={() => setEditingQuote(quote)} className="font-semibold text-blue-600 hover:text-blue-500">Edit</button>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     ))}
                                 </tbody>
                             </table>
