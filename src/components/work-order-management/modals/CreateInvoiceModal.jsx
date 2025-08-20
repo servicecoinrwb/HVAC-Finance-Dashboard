@@ -12,7 +12,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
     const [taxRate, setTaxRate] = useState(0);
 
     const completedOrders = workOrders.filter(wo => wo['Order Status'] === 'Completed');
-    // This line defines the 'selectedOrder' variable, which was missing
+    // THIS LINE DEFINES the 'selectedOrder' variable, which was missing
     const selectedOrder = completedOrders.find(wo => wo.id === selectedWorkOrder); 
 
     const addLineItem = () => {
@@ -30,9 +30,11 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
         const targetItem = updated[index];
         targetItem[field] = value;
         
-        const quantity = parseFloat(targetItem.quantity) || 0;
-        const rate = parseFloat(targetItem.rate) || 0;
-        targetItem.amount = quantity * rate;
+        if (field === 'quantity' || field === 'rate') {
+            const quantity = parseFloat(targetItem.quantity) || 0;
+            const rate = parseFloat(targetItem.rate) || 0;
+            targetItem.amount = quantity * rate;
+        }
         
         setLineItems(updated);
     };
@@ -72,7 +74,7 @@ const CreateInvoiceModal = ({ workOrders, customers, onClose, onAddInvoice }) =>
                 </div>
                 
                 <div className="p-6 overflow-y-auto space-y-6">
-                     <div>
+                    <div>
                         <label className="flex items-center gap-2 mb-3">
                             <input type="checkbox" checked={useCustomCustomer} onChange={(e) => setUseCustomCustomer(e.target.checked)} />
                             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Create invoice for custom customer (not from work order)</span>
