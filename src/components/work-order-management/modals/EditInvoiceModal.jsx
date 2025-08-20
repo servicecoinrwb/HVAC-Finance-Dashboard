@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-// 1. Import the context hook to access shared state
-import { useWorkOrderContext } from './WorkOrderManagement.jsx';
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
 // 2. Remove all props from the component definition
 const EditInvoiceModal = () => {
