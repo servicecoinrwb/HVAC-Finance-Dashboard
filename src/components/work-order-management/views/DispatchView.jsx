@@ -1,17 +1,43 @@
 import React, { useState, useMemo } from 'react';
-import { excelDateToYYYYMMDD, yyyymmddToExcel, getDynamicStyles } from '../utils/helpers.jsx';
+import { excelDateToYYYYMMDD, yyyymmddToExcel } from '../utils/helpers.jsx';
 // 1. Import the context hook
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
-// 2. Remove props from the component definition
+// 2. New styling function with dark mode support
+// NOTE: This logic should ideally be moved to your shared 'helpers.jsx' file
+const getDynamicStyles = (type, value) => {
+    const styleMaps = {
+        priority: {
+            'emergency': 'bg-red-100 text-red-800 border-red-500 dark:bg-red-900/50 dark:text-red-200 dark:border-red-500',
+            'urgent': 'bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/50 dark:text-orange-200 dark:border-orange-500',
+            'regular': 'bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-500',
+            'low': 'bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-600/50 dark:text-gray-200 dark:border-gray-500',
+            'default': 'bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-600/50 dark:text-gray-200 dark:border-gray-500'
+        },
+        techStatus: {
+            'available': 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
+            'on site': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
+            'en route': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
+            'on break': 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200',
+            'on call': 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200',
+            'day off': 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200',
+            'default': 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200'
+        }
+    };
+    const map = styleMaps[type];
+    if (!map) return '';
+    return map[value?.toLowerCase()] || map['default'];
+};
+
+
 const DispatchView = () => {
-    // 3. Get data and handlers from the context
+    // Get data and handlers from the context
     const { workOrders, technicians, handlers, setSelectedOrder } = useWorkOrderContext();
 
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const hours = Array.from({ length: 13 }, (_, i) => i + 7);
 
-    // 4. Add guard clauses to safely use data
+    // Safely use data
     const activeTechnicians = useMemo(() => (technicians || []).filter(t => t.name !== 'Unassigned'), [technicians]);
 
     const { scheduledOrders, unscheduledOrders } = useMemo(() => {
@@ -87,7 +113,7 @@ const DispatchView = () => {
     
     const handleDragOver = (e) => e.preventDefault();
 
-    // 5. Add a main loading state check
+    // Add a main loading state check
     if (!workOrders || !technicians) {
         return <div className="p-6">Loading dispatch data...</div>;
     }
@@ -104,8 +130,8 @@ const DispatchView = () => {
                     <div className="space-y-2 max-h-[70vh] overflow-y-auto">
                         {unscheduledOrders.map(order => (
                             <div key={order.id} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 border-l-4 rounded cursor-grab ${getDynamicStyles('priority', order.Priority)}`}>
-                                <p className="font-bold text-sm">{order.Company}</p>
-                                <p className="text-xs text-gray-600">{order.Task}</p>
+                                <p className="font-bold text-sm text-gray-800 dark:text-gray-200">{order.Company}</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">{order.Task}</p>
                             </div>
                         ))}
                     </div>
@@ -145,8 +171,8 @@ const DispatchView = () => {
                                 if (gridColumn < 0 || !rowStart || !rowEnd || rowEnd <= rowStart) return null;
                                 return (
                                     <div key={`${order.id}-${techName}`} draggable onDragStart={(e) => handleDragStart(e, order)} className={`p-2 m-px rounded-lg text-xs cursor-grab overflow-hidden ${getDynamicStyles('priority', order.Priority)}`} style={{gridColumn, gridRow: `${rowStart} / ${rowEnd}`}} onClick={() => setSelectedOrder(order)}>
-                                        <p className="font-bold truncate">{order.Company}</p>
-                                        <p className="truncate">{order.Task}</p>
+                                        <p className="font-bold truncate text-gray-800 dark:text-gray-200">{order.Company}</p>
+                                        <p className="truncate text-gray-600 dark:text-gray-400">{order.Task}</p>
                                     </div>
                                 );
                             })
