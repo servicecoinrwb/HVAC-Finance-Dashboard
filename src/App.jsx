@@ -12,7 +12,7 @@ import CalendarSection from './components/CalendarSection';
 import { StatCard } from './components/StatCard';
 import { ItemFormModal } from './components/ItemFormModal';
 import { InvoiceManagement } from './components/InvoiceManagement';
-import WorkOrderManagement from './components/workordermanagement';
+import WorkOrderManagement from './components/work-order-management/WorkOrderManagement';
 import { ClientManagement } from './components/ClientManagement';
 import VehicleManagement from './components/VehicleManagement';
 import ValuationCalculator from './components/ValuationCalculator';
@@ -665,7 +665,7 @@ const App = () => {
             </div>
         </div>
     </>
-); // ← This was missing! The function wasn't properly closed
+); // 
 
 // Now your main component return should start here
 return (
