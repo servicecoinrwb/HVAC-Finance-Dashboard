@@ -4,7 +4,15 @@ import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
 import * as api from '../services/firestore';
 import { generateInvoicePdf } from '../utils/pdfGenerator';
-import { STATUS } from '../utils/constants.js';
+
+// ✅ Define STATUS constants locally to fix the build error.
+const STATUS = {
+    DRAFT: 'Draft',
+    PENDING: 'Pending',
+    PAID: 'Paid',
+    OVERDUE: 'Overdue',
+    CONVERTED: 'Converted',
+};
 
 const EditInvoiceModal = () => {
     const { editingInvoice, setEditingInvoice, db, userId, workOrders, customers } = useWorkOrderContext();
