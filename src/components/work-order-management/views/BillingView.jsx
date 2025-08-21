@@ -27,7 +27,11 @@ const CreateInvoiceModal = ({ onClose }) => {
         if (!wo) return alert('Please select a work order.');
         
         const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+        
+        const invoiceId = `INV-${Date.now()}`;
+
         const invoiceData = {
+            id: invoiceId,
             workOrderId: wo.id,
             customerId: (customers || []).find(c => c.name === wo.Client)?.id,
             customerName: wo.Client,
@@ -84,7 +88,11 @@ const CreateQuoteModal = ({ onClose }) => {
         if (!customer) return alert('Please select a customer.');
         
         const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+        const quoteId = `QUO-${Date.now()}`;
+
         const quoteData = {
+            id: quoteId,
             customerId: customer.id,
             customerName: customer.name,
             date: new Date().toISOString(),
@@ -131,12 +139,12 @@ const CreateQuoteModal = ({ onClose }) => {
 };
 
 const EditInvoiceModal = () => {
-    const { editingInvoice, setEditingInvoice, db, userId } = useWorkOrderContext();
+    const { editingInvoice, setEditingInvoice, db, userId, workOrders, customers } = useWorkOrderContext();
     const [lineItems, setLineItems] = useState([]);
     const [discount, setDiscount] = useState(0);
     const [lateFee, setLateFee] = useState(0);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (editingInvoice) {
             setLineItems(editingInvoice.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0 }]);
             setDiscount(editingInvoice.discount || 0);
@@ -189,7 +197,7 @@ const EditInvoiceModal = () => {
                     </div>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-between items-center">
-                    <button onClick={() => generateInvoicePdf(editingInvoice, useWorkOrderContext().workOrders, useWorkOrderContext().customers)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
+                    <button onClick={() => generateInvoicePdf(editingInvoice, workOrders, customers)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
                     <div>
                         <button onClick={() => setEditingInvoice(null)} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
                         <button onClick={handleSave} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
@@ -201,10 +209,10 @@ const EditInvoiceModal = () => {
 };
 
 const EditQuoteModal = () => {
-    const { editingQuote, setEditingQuote, db, userId } = useWorkOrderContext();
+    const { editingQuote, setEditingQuote, db, userId, customers } = useWorkOrderContext();
     const [lineItems, setLineItems] = useState([]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (editingQuote) {
             setLineItems(editingQuote.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0 }]);
         }
@@ -251,7 +259,7 @@ const EditQuoteModal = () => {
                     <button onClick={addItem} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add Item</button>
                 </div>
                 <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-between items-center">
-                    <button onClick={() => generateQuotePdf(editingQuote, useWorkOrderContext().customers)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
+                    <button onClick={() => generateQuotePdf(editingQuote, customers)} className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"><Printer size={16} /> View as PDF</button>
                     <div>
                         <button onClick={() => setEditingQuote(null)} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
                         <button onClick={handleSave} className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>

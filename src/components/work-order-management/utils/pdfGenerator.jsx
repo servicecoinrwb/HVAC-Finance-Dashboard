@@ -102,16 +102,21 @@ const generatePdf = (docData) => {
     doc.text('Total:', finalX - 50, y, { align: 'right' });
     doc.text(formatCurrency(data.total), finalX, y, { align: 'right' });
 
-    // --- Assets Section ---
+    // --- ✅ UPGRADED ASSETS SECTION ---
     if (workOrder && customer) {
         const location = (customer.locations || []).find(l => l.name === workOrder.Company && l.locNum === workOrder['Loc #']);
-        if (location && location.assets && location.assets.length > 0) {
+        // Use the specific list of serviced assets from the work order if it exists
+        const assetsToDisplay = workOrder.servicedAssets 
+            ? (location.assets || []).filter(asset => workOrder.servicedAssets.includes(asset.name))
+            : (location.assets || []);
+
+        if (assetsToDisplay.length > 0) {
             y += 15;
             doc.setFontSize(14);
             doc.setFont(undefined, 'bold');
             doc.text('Serviced Assets:', 20, y);
             y += 7;
-            const assetBody = location.assets.map(asset => [
+            const assetBody = assetsToDisplay.map(asset => [
                 asset.name,
                 asset.brand,
                 asset.model,
