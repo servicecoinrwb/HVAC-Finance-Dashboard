@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, PlusCircle, Trash2, Printer, FileText, XCircle } from 'lucide-react';
+import { X, PlusCircle, Trash2, Printer, FileText, XCircle, User, Mail, Phone } from 'lucide-react';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
 import * as api from '../services/firestore';
@@ -7,6 +7,7 @@ import { generateQuotePdf } from '../utils/pdfGenerator';
 import { STATUS } from '../utils/constants.jsx';
 
 const EditQuoteModal = () => {
+    // ✅ CORRECTED: Called useWorkOrderContext as a function
     const { editingQuote, setEditingQuote, db, userId, customers, handlers } = useWorkOrderContext();
     const [lineItems, setLineItems] = useState([]);
     const [description, setDescription] = useState('');
@@ -94,18 +95,24 @@ const EditQuoteModal = () => {
                 <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Quote #{editingQuote.id}</h2>
                     <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <X size={28} />
+                        <XCircle size={28} />
                     </button>
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-6">
-                    <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Customer: <span className="font-semibold text-gray-800 dark:text-white">{editingQuote.customerName}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Date: <span className="font-semibold text-gray-800 dark:text-white">{new Date(editingQuote.date).toLocaleDateString()}</span>
-                        </p>
+                    <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Bill To</h4>
+                            <p className="text-gray-800 dark:text-white">{customerForQuote?.name}</p>
+                            <p className="text-gray-600 dark:text-gray-300">{customerForQuote?.billingAddress?.street}</p>
+                            <p className="text-gray-600 dark:text-gray-300">{customerForQuote?.billingAddress?.city}, {customerForQuote?.billingAddress?.state} {customerForQuote?.billingAddress?.zip}</p>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Primary Contact</h4>
+                            <p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><User size={14}/> {customerForQuote?.contact?.name}</p>
+                            <p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Mail size={14}/> {customerForQuote?.contact?.email}</p>
+                            <p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Phone size={14}/> {customerForQuote?.contact?.phone}</p>
+                        </div>
                     </div>
                     
                     <div>

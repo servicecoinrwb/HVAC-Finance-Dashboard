@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, PlusCircle, Trash2, Printer, FileText, XCircle } from 'lucide-react';
+import { X, PlusCircle, Trash2, Printer, XCircle, User, Mail, Phone, Building } from 'lucide-react';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
 import * as api from '../services/firestore';
@@ -19,12 +19,16 @@ const EditInvoiceModal = () => {
         return workOrders.find(wo => wo.id === editingInvoice.workOrderId);
     }, [editingInvoice, workOrders]);
 
+    const customerForInvoice = useMemo(() => {
+        if (!editingInvoice || !customers) return null;
+        return customers.find(c => c.id === editingInvoice.customerId);
+    }, [editingInvoice, customers]);
+
     const serviceLocationAssets = useMemo(() => {
-        if (!associatedWorkOrder || !customers) return [];
-        const customer = customers.find(c => c.name === associatedWorkOrder.Client);
-        const location = customer?.locations?.find(l => l.name === associatedWorkOrder.Company && l.locNum === associatedWorkOrder['Loc #']);
+        if (!associatedWorkOrder || !customerForInvoice) return [];
+        const location = customerForInvoice?.locations?.find(l => l.name === associatedWorkOrder.Company && l.locNum === associatedWorkOrder['Loc #']);
         return location?.assets || [];
-    }, [associatedWorkOrder, customers]);
+    }, [associatedWorkOrder, customerForInvoice]);
 
     useEffect(() => {
         if (editingInvoice) {
@@ -89,13 +93,19 @@ const EditInvoiceModal = () => {
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-6">
-                    <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Customer: <span className="font-semibold text-gray-800 dark:text-white">{editingInvoice.customerName}</span>
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Date: <span className="font-semibold text-gray-800 dark:text-white">{new Date(editingInvoice.date).toLocaleDateString()}</span>
-                        </p>
+                    <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Bill To</h4>
+                            <p className="text-gray-800 dark:text-white">{customerForInvoice?.name}</p>
+                            <p className="text-gray-600 dark:text-gray-300">{customerForInvoice?.billingAddress?.street}</p>
+                            <p className="text-gray-600 dark:text-gray-300">{customerForInvoice?.billingAddress?.city}, {customerForInvoice?.billingAddress?.state} {customerForInvoice?.billingAddress?.zip}</p>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Service Location</h4>
+                            <p className="text-gray-800 dark:text-white">{associatedWorkOrder?.Company} (#{associatedWorkOrder?.['Loc #']})</p>
+                            <p className="text-gray-600 dark:text-gray-300">{associatedWorkOrder?.City}, {associatedWorkOrder?.State}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">WO#: {associatedWorkOrder?.['WO#']}</p>
+                        </div>
                     </div>
 
                     <div>
