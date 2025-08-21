@@ -29,16 +29,33 @@ const BillingView = () => {
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [isPdfReady, setIsPdfReady] = useState(false);
 
-    // ✅ This effect checks if the external PDF library has loaded
     useEffect(() => {
+        let attempts = 0;
+        const maxAttempts = 25; // 5 seconds max
+        
         const checkPdfLibrary = () => {
-            if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.autoTable) {
-                setIsPdfReady(true);
-            } else {
-                // If not ready, check again in a moment.
+            attempts++;
+            
+            if (window.jspdf && window.jspdf.jsPDF) {
+                try {
+                    const testDoc = new window.jspdf.jsPDF();
+                    if (typeof testDoc.autoTable === 'function') {
+                        setIsPdfReady(true);
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('PDF library test failed:', error);
+                }
+            }
+            
+            if (attempts < maxAttempts) {
                 setTimeout(checkPdfLibrary, 200);
+            } else {
+                console.error('PDF libraries failed to load after 5 seconds');
+                setIsPdfReady(false);
             }
         };
+        
         checkPdfLibrary();
     }, []);
 
@@ -86,6 +103,15 @@ const BillingView = () => {
             'Rejected': 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
         };
         return styles[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200';
+    };
+
+    // Handle PDF generation with proper error handling
+    const handlePdfGeneration = (generatorFunction, ...args) => {
+        const success = generatorFunction(...args);
+        if (success) {
+            console.log('PDF generated successfully');
+        }
+        // Errors are already handled by the generator functions
     };
 
     if (!invoices || !quotes || !workOrders || !customers) {
@@ -167,8 +193,13 @@ const BillingView = () => {
                                                 <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(invoice.status)}`}>{invoice.status}</span></td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-3">
-                                                        <button onClick={() => generateInvoicePdf(invoice, workOrders, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50 disabled:cursor-wait" disabled={!isPdfReady} title="View PDF">
-                                                            <Printer size={16} /> {!isPdfReady && '...'}
+                                                        <button 
+                                                            onClick={() => handlePdfGeneration(generateInvoicePdf, invoice, workOrders, customers)} 
+                                                            className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50 disabled:cursor-wait" 
+                                                            disabled={!isPdfReady} 
+                                                            title={isPdfReady ? "Generate PDF" : "PDF library loading..."}
+                                                        >
+                                                            <Printer size={16} /> {!isPdfReady && 'Loading...'}
                                                         </button>
                                                         {invoice.status !== STATUS.PAID ? (
                                                             <button onClick={() => handlers.markInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600 hover:text-green-500 text-xs"><CheckCircle size={16} /> Mark Paid</button>
@@ -219,8 +250,13 @@ const BillingView = () => {
                                             <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(quote.status)}`}>{quote.status}</span></td>
                                             <td className="p-3">
                                                 <div className="flex items-center gap-3">
-                                                    <button onClick={() => generateQuotePdf(quote, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50" disabled={!isPdfReady}>
-                                                        <Printer size={16} /> {!isPdfReady && '...'}
+                                                    <button 
+                                                        onClick={() => handlePdfGeneration(generateQuotePdf, quote, customers)} 
+                                                        className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50" 
+                                                        disabled={!isPdfReady}
+                                                        title={isPdfReady ? "Generate PDF" : "PDF library loading..."}
+                                                    >
+                                                        <Printer size={16} /> {!isPdfReady && 'Loading...'}
                                                     </button>
                                                     <button onClick={() => setEditingQuote(quote)} className="font-semibold text-blue-600 hover:text-blue-500">Edit</button>
                                                 </div>
