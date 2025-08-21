@@ -4,7 +4,15 @@ import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
 import * as api from '../services/firestore';
 import { generateQuotePdf } from '../utils/pdfGenerator';
-import { STATUS } from '../utils/constants.js';
+
+// ✅ Define STATUS constants locally to fix the build error.
+const STATUS = {
+    DRAFT: 'Draft',
+    PENDING: 'Pending',
+    PAID: 'Paid',
+    OVERDUE: 'Overdue',
+    CONVERTED: 'Converted',
+};
 
 const EditQuoteModal = () => {
     const { editingQuote, setEditingQuote, db, userId, customers, handlers } = useWorkOrderContext();
@@ -59,8 +67,8 @@ const EditQuoteModal = () => {
             status: STATUS.DRAFT,
         };
         handlers.addInvoice(invoiceData);
-        // Optionally, update the quote status to 'Converted'
-        handlers.updateQuote({ ...editingQuote, status: 'Converted' });
+        // Update the quote status to 'Converted'
+        handlers.updateQuote({ ...editingQuote, status: STATUS.CONVERTED });
         setEditingQuote(null);
     };
     
