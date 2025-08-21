@@ -4,7 +4,6 @@ import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown }
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
 // --- Utility Functions ---
-// 2. Updated styling function with dark mode support
 const getCustomerTypeStyles = (t) => ({
     'national account': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
     'commercial': 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200',
@@ -13,7 +12,7 @@ const getCustomerTypeStyles = (t) => ({
 }[t?.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200');
 
 
-// --- Modals (included for simplicity, can be moved to own files) ---
+// --- Modals ---
 const AddCustomerModal = ({ onClose, onAddCustomer }) => {
     const [name, setName] = useState('');
     const [type, setType] = useState('Commercial');
@@ -146,6 +145,7 @@ export const CustomerManagementView = () => {
     const [addingLocationTo, setAddingLocationTo] = useState(null);
     const [addingAssetTo, setAddingAssetTo] = useState(null); // { customer, locationIndex }
     const [expandedCustomers, setExpandedCustomers] = useState(new Set());
+    const [expandedLocations, setExpandedLocations] = useState({});
 
     const toggleCustomerExpansion = (customerId) => {
         const newSet = new Set(expandedCustomers);
@@ -155,6 +155,18 @@ export const CustomerManagementView = () => {
             newSet.add(customerId);
         }
         setExpandedCustomers(newSet);
+    };
+
+    const toggleLocationExpansion = (customerId, locationIndex) => {
+        setExpandedLocations(prev => {
+            const customerLocations = new Set(prev[customerId]);
+            if (customerLocations.has(locationIndex)) {
+                customerLocations.delete(locationIndex);
+            } else {
+                customerLocations.add(locationIndex);
+            }
+            return { ...prev, [customerId]: customerLocations };
+        });
     };
 
     const handleAddLocation = (customer, newLocation) => {
@@ -192,7 +204,7 @@ export const CustomerManagementView = () => {
                     const isExpanded = expandedCustomers.has(customer.id);
                     return (
                         <div key={customer.id} className="border border-gray-200 dark:border-slate-700 rounded-lg">
-                            <div className="p-4 flex justify-between items-center cursor-pointer" onClick={() => toggleCustomerExpansion(customer.id)}>
+                            <div className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50" onClick={() => toggleCustomerExpansion(customer.id)}>
                                 <div className="flex items-center gap-4">
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{customer.name}</h3>
                                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span>
@@ -215,37 +227,44 @@ export const CustomerManagementView = () => {
                                     <div className="mt-3 pt-3 border-t dark:border-slate-600">
                                         <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Service Locations ({(customer.locations || []).length})</h4>
                                         <div className="space-y-3">
-                                            {(customer.locations || []).map((loc, index) => (
+                                            {(customer.locations || []).map((loc, index) => {
+                                                const isLocationExpanded = expandedLocations[customer.id]?.has(index);
+                                                return (
                                                 <div key={index} className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 py-2">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold flex items-center gap-2"><Building size={14} /> {loc.name} (#{loc.locNum})</p>
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{loc.street}, {loc.city}, {loc.state} {loc.zip}</p>
+                                                    <div className="flex justify-between items-start cursor-pointer" onClick={() => toggleLocationExpansion(customer.id, index)}>
+                                                        <div className="flex items-center gap-2">
+                                                            <ChevronDown className={`transition-transform ${isLocationExpanded ? 'rotate-180' : ''}`} size={16} />
+                                                            <div>
+                                                                <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold flex items-center gap-2"><Building size={14} /> {loc.name} (#{loc.locNum})</p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{loc.street}, {loc.city}, {loc.state} {loc.zip}</p>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex gap-2">
+                                                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                                             <button onClick={() => setAddingAssetTo({ customer, locationIndex: index })} className="text-xs text-green-600 dark:text-green-400 hover:underline">Add Asset</button>
                                                             <button onClick={() => handleDeleteLocation(customer, index)} className="text-xs text-red-600 dark:text-red-400 hover:underline">Delete</button>
                                                         </div>
                                                     </div>
-                                                    <div className="mt-2 pl-6">
-                                                        <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400">Assets ({(loc.assets || []).length})</h5>
-                                                        <div className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 space-y-1 mt-1">
-                                                            {(loc.assets || []).map((asset, assetIndex) => (
-                                                                <div key={assetIndex} className="text-xs text-gray-600 dark:text-gray-400">
-                                                                    <p className="flex items-center gap-2 font-semibold"><HardHat size={12} /> {asset.name} ({asset.type})</p>
-                                                                    <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
-                                                                        <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
-                                                                        <li>Installed: {asset.installDate}</li>
-                                                                        <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
-                                                                        <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
-                                                                    </ul>
-                                                                </div>
-                                                            ))}
-                                                            {!(loc.assets || []).length && <p className="text-xs text-gray-400 dark:text-gray-500 italic">No assets recorded.</p>}
+                                                    {isLocationExpanded && (
+                                                        <div className="mt-2 pl-6">
+                                                            <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400">Assets ({(loc.assets || []).length})</h5>
+                                                            <div className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 space-y-1 mt-1">
+                                                                {(loc.assets || []).map((asset, assetIndex) => (
+                                                                    <div key={assetIndex} className="text-xs text-gray-600 dark:text-gray-400">
+                                                                        <p className="flex items-center gap-2 font-semibold"><HardHat size={12} /> {asset.name} ({asset.type})</p>
+                                                                        <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
+                                                                            <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
+                                                                            <li>Installed: {asset.installDate}</li>
+                                                                            <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
+                                                                            <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
+                                                                        </ul>
+                                                                    </div>
+                                                                ))}
+                                                                {!(loc.assets || []).length && <p className="text-xs text-gray-400 dark:text-gray-500 italic">No assets recorded.</p>}
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    )}
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
                                     </div>
                                 </div>
