@@ -171,3 +171,5 @@ const AddWorkOrderModal = () => {
         </div>
     );
 };
+
+export default AddWorkOrderModal;
