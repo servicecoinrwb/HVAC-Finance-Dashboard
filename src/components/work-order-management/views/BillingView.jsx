@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Trash2, HardHat, Building } from 'lucide-react';
+import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Trash2, HardHat, Building, Edit2 } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
 import { STATUS } from '../utils/constants';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
@@ -11,14 +11,14 @@ import { generateInvoicePdf, generateQuotePdf } from '../utils/pdfGenerator';
 const CreateInvoiceModal = ({ onClose }) => {
     const { workOrders, customers, handlers } = useWorkOrderContext();
     const [selectedWoId, setSelectedWoId] = useState('');
-    const [lineItems, setLineItems] = useState([]);
+    const [lineItems, setLineItems] = useState([{ description: 'Service Call', quantity: 1, rate: 150, amount: 150 }]);
 
     useEffect(() => {
         const wo = (workOrders || []).find(w => w.id === selectedWoId);
         if (wo) {
-            setLineItems(wo.lineItems || [{ description: 'Service Call', quantity: 1, rate: 0, amount: 0 }]);
+            setLineItems(wo.lineItems || [{ description: `Service for WO# ${wo['WO#']}`, quantity: 1, rate: 150, amount: 150 }]);
         } else {
-            setLineItems([]);
+            setLineItems([{ description: 'Service Call', quantity: 1, rate: 150, amount: 150 }]);
         }
     }, [selectedWoId, workOrders]);
 
@@ -27,7 +27,6 @@ const CreateInvoiceModal = ({ onClose }) => {
         if (!wo) return alert('Please select a work order.');
         
         const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-        
         const invoiceId = `INV-${Date.now()}`;
 
         const invoiceData = {
@@ -35,6 +34,7 @@ const CreateInvoiceModal = ({ onClose }) => {
             workOrderId: wo.id,
             customerId: (customers || []).find(c => c.name === wo.Client)?.id,
             customerName: wo.Client,
+            workOrderNumber: wo['WO#'],
             date: new Date().toISOString(),
             lineItems,
             subtotal,
@@ -88,7 +88,6 @@ const CreateQuoteModal = ({ onClose }) => {
         if (!customer) return alert('Please select a customer.');
         
         const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-
         const quoteId = `QUO-${Date.now()}`;
 
         const quoteData = {
@@ -277,6 +276,18 @@ const BillingView = () => {
     const [showCreateInvoice, setShowCreateInvoice] = useState(false);
     const [showCreateQuote, setShowCreateQuote] = useState(false);
     const [expandedRows, setExpandedRows] = useState(new Set());
+    const [isPdfReady, setIsPdfReady] = useState(false);
+
+    useEffect(() => {
+        const checkPdfLibrary = () => {
+            if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.autoTable) {
+                setIsPdfReady(true);
+            } else {
+                setTimeout(checkPdfLibrary, 200);
+            }
+        };
+        checkPdfLibrary();
+    }, []);
 
     const financialSummary = useMemo(() => {
         const safeInvoices = invoices || [];
@@ -351,7 +362,9 @@ const BillingView = () => {
                                                 <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(invoice.status)}`}>{invoice.status}</span></td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-3">
-                                                        <button onClick={() => generateInvoicePdf(invoice, workOrders, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"><Printer size={16} /></button>
+                                                        <button onClick={() => generateInvoicePdf(invoice, workOrders, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50" disabled={!isPdfReady}>
+                                                            <Printer size={16} /> {isPdfReady ? '' : '...'}
+                                                        </button>
                                                         {invoice.status !== STATUS.PAID ? (
                                                             <button onClick={() => handlers.markInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600 hover:text-green-500"><CheckCircle size={16} /> Mark Paid</button>
                                                         ) : (
@@ -401,7 +414,9 @@ const BillingView = () => {
                                             <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(quote.status)}`}>{quote.status}</span></td>
                                             <td className="p-3">
                                                 <div className="flex items-center gap-3">
-                                                    <button onClick={() => generateQuotePdf(quote, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"><Printer size={16} /></button>
+                                                    <button onClick={() => generateQuotePdf(quote, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50" disabled={!isPdfReady}>
+                                                        <Printer size={16} /> {isPdfReady ? '' : '...'}
+                                                    </button>
                                                     <button onClick={() => setEditingQuote(quote)} className="font-semibold text-blue-600 hover:text-blue-500">Edit</button>
                                                 </div>
                                             </td>

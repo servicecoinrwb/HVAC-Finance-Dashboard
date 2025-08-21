@@ -1,10 +1,12 @@
 import { formatCurrency, excelDateToJSDateString } from './helpers';
 
-// NOTE: This file assumes jsPDF and autoTable are loaded globally via script tags in your index.html
+// NOTE: This file assumes jsPDF and its autoTable plugin are loaded globally
+// via <script> tags in your main index.html file.
 
 const generatePdf = (docData) => {
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-        alert('PDF library is not loaded. Please ensure you have an internet connection and try again.');
+    // More robust check for both the main library and the autoTable plugin
+    if (!window.jspdf || !window.jspdf.jsPDF || !window.jspdf.jsPDF.autoTable) {
+        alert('The PDF generation library is still loading. Please wait a moment and try again.');
         return;
     }
 
@@ -83,7 +85,7 @@ const generatePdf = (docData) => {
     y = doc.lastAutoTable.finalY + 10;
 
     // --- Totals Section ---
-    const finalX = 200;
+    const finalX = 200; // Right edge alignment
     doc.setFontSize(12);
     doc.text('Subtotal:', finalX - 50, y, { align: 'right' });
     doc.text(formatCurrency(data.subtotal), finalX, y, { align: 'right' });
@@ -102,15 +104,15 @@ const generatePdf = (docData) => {
     doc.text('Total:', finalX - 50, y, { align: 'right' });
     doc.text(formatCurrency(data.total), finalX, y, { align: 'right' });
 
-    // --- ✅ UPGRADED ASSETS SECTION ---
+    // --- Serviced Assets Section ---
     if (workOrder && customer) {
         const location = (customer.locations || []).find(l => l.name === workOrder.Company && l.locNum === workOrder['Loc #']);
-        // Use the specific list of serviced assets from the work order if it exists
         const assetsToDisplay = workOrder.servicedAssets 
-            ? (location.assets || []).filter(asset => workOrder.servicedAssets.includes(asset.name))
-            : (location.assets || []);
+            ? (location?.assets || []).filter(asset => workOrder.servicedAssets.includes(asset.name))
+            : (location?.assets || []);
 
         if (assetsToDisplay.length > 0) {
+            y = doc.lastAutoTable.finalY > y ? doc.lastAutoTable.finalY : y;
             y += 15;
             doc.setFontSize(14);
             doc.setFont(undefined, 'bold');
