@@ -10,7 +10,6 @@ import CreateQuoteModal from '../modals/CreateQuoteModal.jsx';
 import EditInvoiceModal from '../modals/EditInvoiceModal.jsx';
 import EditQuoteModal from '../modals/EditQuoteModal.jsx';
 
-
 const BillingView = () => {
     const { 
         invoices, 
@@ -148,17 +147,86 @@ const BillingView = () => {
                 <div className="p-6">
                     {activeTab === 'invoices' && (
                         <div className="overflow-x-auto">
-                            {/* ... Invoice Table JSX ... */}
+                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" className="p-3">Invoice ID</th><th scope="col" className="p-3">Customer</th><th scope="col" className="p-3">Date</th><th scope="col" className="p-3">Items</th><th scope="col" className="p-3">Total</th><th scope="col" className="p-3">Status</th><th scope="col" className="p-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {invoices.map(invoice => (
+                                        <React.Fragment key={invoice.id}>
+                                            <tr className="bg-white border-b dark:bg-slate-800 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                                <td className="p-3 font-medium text-gray-900 dark:text-white">#{invoice.id}</td>
+                                                <td className="p-3">{invoice.customerName}</td>
+                                                <td className="p-3">{new Date(invoice.date).toLocaleDateString()}</td>
+                                                <td className="p-3"><button onClick={() => toggleRowExpansion(invoice.id)} className="flex items-center gap-1 text-blue-600 hover:text-blue-500">{invoice.lineItems?.length || 0} items <ChevronDown size={14} /></button></td>
+                                                <td className="p-3 font-mono font-semibold">{formatCurrency(invoice.total)}</td>
+                                                <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(invoice.status)}`}>{invoice.status}</span></td>
+                                                <td className="p-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <button onClick={() => generateInvoicePdf(invoice, workOrders, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white" title="View PDF"><Printer size={16} /></button>
+                                                        {invoice.status !== STATUS.PAID ? (
+                                                            <button onClick={() => handlers.markInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600 hover:text-green-500 text-xs"><CheckCircle size={16} /> Mark Paid</button>
+                                                        ) : (
+                                                            <button onClick={() => handlers.markInvoicePaid(invoice.id, false)} className="flex items-center gap-1 text-orange-600 hover:text-orange-500 text-xs"><XCircle size={16} /> Mark Unpaid</button>
+                                                        )}
+                                                        <button onClick={() => setEditingInvoice(invoice)} className="flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-500 text-xs"><Edit2 size={16} /> Edit</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {expandedRows.has(invoice.id) && (
+                                                <tr className="bg-gray-50 dark:bg-slate-900/50">
+                                                    <td colSpan="7" className="p-4">
+                                                        <h4 className="font-bold mb-2 text-gray-800 dark:text-white">Invoice Details:</h4>
+                                                        <ul className="list-disc pl-5 text-gray-700 dark:text-gray-300 space-y-1">
+                                                            {(invoice.lineItems || []).map((item, i) => <li key={i}>{item.quantity}x {item.description} @ {formatCurrency(item.rate)} = {formatCurrency(item.amount)}</li>)}
+                                                        </ul>
+                                                        <div className="mt-2 pt-2 border-t dark:border-slate-600 text-right text-gray-800 dark:text-white">
+                                                            <p>Subtotal: {formatCurrency(invoice.subtotal)}</p>
+                                                            {invoice.discount > 0 && <p className="text-green-600">Discount: -{formatCurrency(invoice.discount)}</p>}
+                                                            {invoice.lateFee > 0 && <p className="text-red-600">Late Fee: +{formatCurrency(invoice.lateFee)}</p>}
+                                                            <p className="font-bold text-lg">Total: {formatCurrency(invoice.total)}</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                      {activeTab === 'quotes' && (
                         <div className="overflow-x-auto">
-                           {/* ... Quote Table JSX ... */}
+                           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" className="p-3">Quote ID</th><th scope="col" className="p-3">Customer</th><th scope="col" className="p-3">Date</th><th scope="col" className="p-3">Total</th><th scope="col" className="p-3">Status</th><th scope="col" className="p-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {quotes.map(quote => (
+                                        <tr key={quote.id} className="bg-white border-b dark:bg-slate-800 dark:border-slate-700">
+                                            <td className="p-3 font-medium text-gray-900 dark:text-white">{quote.id}</td>
+                                            <td className="p-3">{quote.customerName}</td>
+                                            <td className="p-3">{new Date(quote.date).toLocaleDateString()}</td>
+                                            <td className="p-3 font-mono">{formatCurrency(quote.total)}</td>
+                                            <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(quote.status)}`}>{quote.status}</span></td>
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => generateQuotePdf(quote, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white" disabled={!isPdfReady}><Printer size={16} /></button>
+                                                    <button onClick={() => setEditingQuote(quote)} className="font-semibold text-blue-600 hover:text-blue-500">Edit</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
             </div>
-
             {showCreateInvoice && <CreateInvoiceModal onClose={() => setShowCreateInvoice(false)} />}
             {showCreateQuote && <CreateQuoteModal onClose={() => setShowCreateQuote(false)} />}
             {editingInvoice && <EditInvoiceModal />}
