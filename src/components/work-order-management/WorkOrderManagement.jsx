@@ -12,7 +12,8 @@ import { TechnicianManagementView } from './views/TechnicianManagementView.jsx';
 import BillingView from './views/BillingView.jsx';
 import ReportingView from './views/ReportingView.jsx';
 import MarginCalculatorView from './views/MarginCalculatorView.jsx';
-import { AddWorkOrderModal } from './modals/AddWorkOrderModal.jsx';
+// ✅ Corrected the modal imports to be default
+import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
 import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
 import EditInvoiceModal from './modals/EditInvoiceModal.jsx';
 import EditQuoteModal from './modals/EditQuoteModal.jsx';
@@ -48,7 +49,6 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         addNewOrder: (data) => api.addWorkOrder(db, userId, data).then(() => setIsAddingOrder(false)),
         addCustomer: (data) => api.addCustomer(db, userId, data),
         updateCustomer: (customer) => api.updateCustomer(db, userId, customer.id, customer),
-        // ✅ ADDED DELETE CUSTOMER HANDLER
         deleteCustomer: (id) => api.deleteCustomer(db, userId, id),
         addTechnician: (data) => api.addTechnician(db, userId, data),
         updateTechnician: (tech) => api.updateTechnician(db, userId, tech.id, tech),
