@@ -4,7 +4,7 @@ import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
 import * as api from '../services/firestore';
 import { generateQuotePdf } from '../utils/pdfGenerator';
-import { STATUS } from '../utils/constants.js';
+import { STATUS } from '../utils/constants.jsx';
 
 const EditQuoteModal = () => {
     const { editingQuote, setEditingQuote, db, userId, customers, handlers } = useWorkOrderContext();
