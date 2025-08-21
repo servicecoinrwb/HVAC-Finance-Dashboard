@@ -10,6 +10,7 @@ export const STATUS = {
     PAID: 'Paid',
     PENDING: 'Pending',
     OVERDUE: 'Overdue',
+    CONVERTED: 'Converted',
     DRAFT: 'Draft',
     SENT: 'Sent',
     ACCEPTED: 'Accepted',
