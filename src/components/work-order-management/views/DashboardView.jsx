@@ -1,5 +1,5 @@
-import React from 'react';
-import { Search, Filter, ChevronDown, Briefcase, User, Calendar as CalendarIcon } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Search, Filter, ChevronDown, Briefcase, User, Calendar as CalendarIcon, Wrench, Check, DollarSign, BarChart } from 'lucide-react';
 // 1. Import the context hook to access shared state
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
@@ -7,7 +7,6 @@ import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 const excelToJSDate = (d) => d && typeof d === 'number' ? new Date(Math.round((d - 25569) * 86400 * 1000)) : null;
 const excelDateToJSDateString = (d) => { const date = excelToJSDate(d); return date ? date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : null; };
 const formatTime = (timeStr) => { if (!timeStr) return ''; const [h, m] = timeStr.split(':'); const hours = parseInt(h, 10); const suffix = hours >= 12 ? 'PM' : 'AM'; const hh = ((hours + 11) % 12 + 1); return `${hh}:${m} ${suffix}`; };
-// ✅ Added the missing formatCurrency function
 const formatCurrency = (a) => a === null || a === undefined ? "N/A" : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(a);
 
 const getPriorityStyles = (p) => ({
@@ -26,6 +25,27 @@ const getStatusStyles = (s) => ({
     'cancelled':'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
 }[s?.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200');
 
+// --- Reusable Components ---
+
+const KpiCard = ({ title, value, icon, color }) => {
+    const colors = {
+        blue: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300',
+        green: 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300',
+        yellow: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-300',
+        purple: 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300',
+    };
+    return (
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm flex items-center gap-4">
+            <div className={`p-3 rounded-full ${colors[color] || colors.blue}`}>
+                {icon}
+            </div>
+            <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-white">{value}</p>
+            </div>
+        </div>
+    );
+};
 
 const OrderCard = ({ order, onSelectOrder }) => (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-transparent dark:border-slate-700 border-l-4" style={{borderColor: getPriorityStyles(order.Priority).borderColor}}>
@@ -51,6 +71,8 @@ const OrderCard = ({ order, onSelectOrder }) => (
 
 export const DashboardView = () => {
     const { 
+        workOrders,
+        invoices,
         filteredOrders, 
         setSelectedOrder, 
         searchTerm, 
@@ -59,10 +81,43 @@ export const DashboardView = () => {
         setStatusFilter 
     } = useWorkOrderContext();
 
+    const kpiData = useMemo(() => {
+        const safeOrders = workOrders || [];
+        const safeInvoices = invoices || [];
+        
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const openOrders = safeOrders.filter(wo => wo['Order Status'] === 'Open').length;
+        
+        const completedThisMonth = safeOrders.filter(wo => {
+            const completedDate = excelToJSDate(wo['Completed Date']);
+            return wo['Order Status'] === 'Completed' && completedDate >= startOfMonth;
+        }).length;
+
+        const billedThisMonth = safeInvoices.filter(inv => new Date(inv.date) >= startOfMonth)
+            .reduce((sum, inv) => sum + (inv.total || 0), 0);
+        
+        const avgInvoiceValue = safeInvoices.length > 0 
+            ? safeInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0) / safeInvoices.length
+            : 0;
+
+        return { openOrders, completedThisMonth, billedThisMonth, avgInvoiceValue };
+    }, [workOrders, invoices]);
+
     const orders = filteredOrders;
 
     return (
     <>
+        {/* --- KPI Section --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <KpiCard title="Open Work Orders" value={kpiData.openOrders} icon={<Wrench size={24} />} color="yellow" />
+            <KpiCard title="Completed This Month" value={kpiData.completedThisMonth} icon={<Check size={24} />} color="green" />
+            <KpiCard title="Billed This Month" value={formatCurrency(kpiData.billedThisMonth)} icon={<DollarSign size={24} />} color="blue" />
+            <KpiCard title="Avg. Invoice Value" value={formatCurrency(kpiData.avgInvoiceValue)} icon={<BarChart size={24} />} color="purple" />
+        </div>
+
+        {/* --- Search and Filter --- */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm mb-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="relative md:col-span-2">
@@ -100,7 +155,9 @@ export const DashboardView = () => {
                 </div>
             </div>
         </div>
-        {orders.length > 0 ? (
+        
+        {/* --- Work Order List --- */}
+        {(orders || []).length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} />)}
             </div>
