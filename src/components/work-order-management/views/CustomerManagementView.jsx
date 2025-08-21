@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown, Edit } from 'lucide-react';
 // 1. Import the context hook
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
@@ -360,4 +360,4 @@ export const CustomerManagementView = () => {
             {editingAsset && <EditAssetModal asset={editingAsset.asset} customer={editingAsset.customer} locationIndex={editingAsset.locationIndex} assetIndex={editingAsset.assetIndex} onUpdateAsset={handleUpdateAsset} onClose={() => setEditingAsset(null)} />}
         </div>
     );
-};
+};    
