@@ -12,8 +12,8 @@ import { TechnicianManagementView } from './views/TechnicianManagementView.jsx';
 import BillingView from './views/BillingView.jsx';
 import ReportingView from './views/ReportingView.jsx';
 import MarginCalculatorView from './views/MarginCalculatorView.jsx';
-// ✅ Corrected the modal imports to match their export types
-import { AddWorkOrderModal } from './modals/AddWorkOrderModal.jsx';
+// ✅ Corrected the modal imports to be default
+import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
 import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
 import EditInvoiceModal from './modals/EditInvoiceModal.jsx';
 import EditQuoteModal from './modals/EditQuoteModal.jsx';
