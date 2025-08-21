@@ -12,11 +12,11 @@ import { TechnicianManagementView } from './views/TechnicianManagementView.jsx';
 import BillingView from './views/BillingView.jsx';
 import ReportingView from './views/ReportingView.jsx';
 import MarginCalculatorView from './views/MarginCalculatorView.jsx';
-// ✅ Corrected the modal imports to be named
-import { AddWorkOrderModal } from './modals/AddWorkOrderModal.jsx';
-import { WorkOrderDetailModal } from './modals/WorkOrderDetailModal.jsx';
-import { EditInvoiceModal } from './modals/EditInvoiceModal.jsx';
-import { EditQuoteModal } from './modals/EditQuoteModal.jsx';
+// ✅ Corrected the modal imports to be default
+import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
+import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
+import EditInvoiceModal from './modals/EditInvoiceModal.jsx';
+import EditQuoteModal from './modals/EditQuoteModal.jsx';
 
 // 1. Create a Context to hold all our shared data and functions
 const WorkOrderContext = createContext(null);
