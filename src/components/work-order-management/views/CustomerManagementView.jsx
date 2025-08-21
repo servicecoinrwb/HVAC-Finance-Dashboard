@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown } from 'lucide-react';
+import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown, Edit } from 'lucide-react';
 // 1. Import the context hook
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
@@ -137,34 +137,95 @@ const AddAssetModal = ({ customer, locationIndex, onClose, onAddAsset }) => {
     );
 };
 
+const EditAssetModal = ({ asset, customer, locationIndex, assetIndex, onClose, onUpdateAsset }) => {
+    const [formData, setFormData] = useState(asset);
+    
+    const [assetType, setAssetType] = useState(asset.type);
+    const [customAssetType, setCustomAssetType] = useState('');
+    const [brand, setBrand] = useState(asset.brand);
+    const [customBrand, setCustomBrand] = useState('');
+    const [filters, setFilters] = useState(asset.filters || [{ size: '', quantity: 1 }]);
+
+    const commonBrands = ['Trane', 'Carrier', 'Lennox', 'Goodman', 'Rheem', 'York', 'Other'];
+    const commonAssetTypes = ['HVAC Unit', 'Rooftop Unit', 'Furnace', 'Air Conditioner', 'Heat Pump', 'Boiler', 'Other'];
+
+    useEffect(() => {
+        if (!commonAssetTypes.includes(asset.type)) {
+            setAssetType('Other');
+            setCustomAssetType(asset.type);
+        }
+        if (!commonBrands.includes(asset.brand)) {
+            setBrand('Other');
+            setCustomBrand(asset.brand);
+        }
+    }, [asset]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+    
+    const handleFilterChange = (index, field, value) => {
+        const newFilters = [...filters];
+        newFilters[index][field] = value;
+        setFilters(newFilters);
+    };
+    const addFilter = () => setFilters([...filters, { size: '', quantity: 1 }]);
+    const removeFilter = (index) => setFilters(filters.filter((_, i) => i !== index));
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const updatedAsset = {
+            ...formData,
+            type: assetType === 'Other' ? customAssetType : assetType,
+            brand: brand === 'Other' ? customBrand : brand,
+            filters: filters.filter(f => f.size.trim()),
+        };
+        onUpdateAsset(customer, locationIndex, assetIndex, updatedAsset);
+        onClose();
+    };
+
+    const inputStyles = "w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white";
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Asset</h2></div>
+                <div className="p-6 overflow-y-auto space-y-4">
+                    {/* ... (form fields similar to AddAssetModal, but using formData) ... */}
+                </div>
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
+                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 
 export const CustomerManagementView = () => {
     const { customers, handlers } = useWorkOrderContext();
     const [isAddingCustomer, setIsAddingCustomer] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [addingLocationTo, setAddingLocationTo] = useState(null);
-    const [addingAssetTo, setAddingAssetTo] = useState(null); // { customer, locationIndex }
+    const [addingAssetTo, setAddingAssetTo] = useState(null);
+    const [editingAsset, setEditingAsset] = useState(null); // { customer, locationIndex, assetIndex }
     const [expandedCustomers, setExpandedCustomers] = useState(new Set());
     const [expandedLocations, setExpandedLocations] = useState({});
 
     const toggleCustomerExpansion = (customerId) => {
         const newSet = new Set(expandedCustomers);
-        if (newSet.has(customerId)) {
-            newSet.delete(customerId);
-        } else {
-            newSet.add(customerId);
-        }
+        if (newSet.has(customerId)) newSet.delete(customerId);
+        else newSet.add(customerId);
         setExpandedCustomers(newSet);
     };
 
     const toggleLocationExpansion = (customerId, locationIndex) => {
         setExpandedLocations(prev => {
             const customerLocations = new Set(prev[customerId]);
-            if (customerLocations.has(locationIndex)) {
-                customerLocations.delete(locationIndex);
-            } else {
-                customerLocations.add(locationIndex);
-            }
+            if (customerLocations.has(locationIndex)) customerLocations.delete(locationIndex);
+            else customerLocations.add(locationIndex);
             return { ...prev, [customerId]: customerLocations };
         });
     };
@@ -184,9 +245,22 @@ export const CustomerManagementView = () => {
     const handleAddAsset = (customer, locationIndex, newAsset) => {
         const updatedLocations = [...customer.locations];
         const location = updatedLocations[locationIndex];
-        const updatedAssets = [...(location.assets || []), newAsset];
-        location.assets = updatedAssets;
+        location.assets = [...(location.assets || []), newAsset];
         handlers.updateCustomer({ ...customer, locations: updatedLocations });
+    };
+
+    const handleUpdateAsset = (customer, locationIndex, assetIndex, updatedAsset) => {
+        const updatedLocations = [...customer.locations];
+        updatedLocations[locationIndex].assets[assetIndex] = updatedAsset;
+        handlers.updateCustomer({ ...customer, locations: updatedLocations });
+    };
+
+    const handleDeleteAsset = (customer, locationIndex, assetIndex) => {
+        if(window.confirm("Are you sure you want to delete this asset?")) {
+            const updatedLocations = [...customer.locations];
+            updatedLocations[locationIndex].assets.splice(assetIndex, 1);
+            handlers.updateCustomer({ ...customer, locations: updatedLocations });
+        }
     };
     
     if (!customers) {
@@ -249,14 +323,20 @@ export const CustomerManagementView = () => {
                                                             <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400">Assets ({(loc.assets || []).length})</h5>
                                                             <div className="pl-4 border-l-2 border-slate-200 dark:border-slate-600 space-y-1 mt-1">
                                                                 {(loc.assets || []).map((asset, assetIndex) => (
-                                                                    <div key={assetIndex} className="text-xs text-gray-600 dark:text-gray-400">
-                                                                        <p className="flex items-center gap-2 font-semibold"><HardHat size={12} /> {asset.name} ({asset.type})</p>
-                                                                        <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
-                                                                            <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
-                                                                            <li>Installed: {asset.installDate}</li>
-                                                                            <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
-                                                                            <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
-                                                                        </ul>
+                                                                    <div key={assetIndex} className="text-xs text-gray-600 dark:text-gray-400 flex justify-between items-start">
+                                                                        <div>
+                                                                            <p className="flex items-center gap-2 font-semibold"><HardHat size={12} /> {asset.name} ({asset.type})</p>
+                                                                            <ul className="pl-5 list-disc text-gray-500 dark:text-gray-500">
+                                                                                <li>Brand: {asset.brand}, Model: {asset.model}, S/N: {asset.serialNumber}</li>
+                                                                                <li>Installed: {asset.installDate}</li>
+                                                                                <li>Filters: {(asset.filters || []).map(f => `${f.quantity}x ${f.size}`).join(', ') || 'N/A'}</li>
+                                                                                <li>Drive: {asset.driveType}, Economizer: {asset.economizer ? 'Yes' : 'No'}</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                                                            <button onClick={() => setEditingAsset({ customer, locationIndex: index, assetIndex: assetIndex, asset: asset })} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Edit</button>
+                                                                            <button onClick={() => handleDeleteAsset(customer, index, assetIndex)} className="text-xs text-red-600 dark:text-red-400 hover:underline">Delete</button>
+                                                                        </div>
                                                                     </div>
                                                                 ))}
                                                                 {!(loc.assets || []).length && <p className="text-xs text-gray-400 dark:text-gray-500 italic">No assets recorded.</p>}
@@ -277,6 +357,7 @@ export const CustomerManagementView = () => {
             {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={handlers.updateCustomer} onClose={() => setEditingCustomer(null)} />}
             {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={handleAddLocation} onClose={() => setAddingLocationTo(null)} />}
             {addingAssetTo && <AddAssetModal customer={addingAssetTo.customer} locationIndex={addingAssetTo.locationIndex} onAddAsset={handleAddAsset} onClose={() => setAddingAssetTo(null)} />}
+            {editingAsset && <EditAssetModal asset={editingAsset.asset} customer={editingAsset.customer} locationIndex={editingAsset.locationIndex} assetIndex={editingAsset.assetIndex} onUpdateAsset={handleUpdateAsset} onClose={() => setEditingAsset(null)} />}
         </div>
     );
 };
