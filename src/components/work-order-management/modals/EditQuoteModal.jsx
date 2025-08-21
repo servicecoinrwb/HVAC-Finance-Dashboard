@@ -1,26 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, PlusCircle, Trash2, Printer, FileText, XCircle } from 'lucide-react';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
 import * as api from '../services/firestore';
 import { generateQuotePdf } from '../utils/pdfGenerator';
-
-// ✅ Define STATUS constants locally to fix the build error.
-const STATUS = {
-    DRAFT: 'Draft',
-    PENDING: 'Pending',
-    PAID: 'Paid',
-    OVERDUE: 'Overdue',
-    CONVERTED: 'Converted',
-};
+import { STATUS } from '../utils/constants.js';
 
 const EditQuoteModal = () => {
     const { editingQuote, setEditingQuote, db, userId, customers, handlers } = useWorkOrderContext();
     const [lineItems, setLineItems] = useState([]);
+    const [description, setDescription] = useState('');
+
+    const customerForQuote = useMemo(() => {
+        if (!editingQuote || !customers) return null;
+        return customers.find(c => c.id === editingQuote.customerId);
+    }, [editingQuote, customers]);
+
+    const allAssetsForCustomer = useMemo(() => {
+        if (!customerForQuote || !customerForQuote.locations) return [];
+        return customerForQuote.locations.flatMap(loc => loc.assets || []);
+    }, [customerForQuote]);
 
     useEffect(() => {
         if (editingQuote) {
-            setLineItems(editingQuote.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+            setLineItems(editingQuote.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0, asset: '' }]);
+            setDescription(editingQuote.description || '');
         }
     }, [editingQuote]);
 
@@ -36,7 +40,7 @@ const EditQuoteModal = () => {
         setLineItems(items);
     };
 
-    const addItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    const addItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0, asset: '' }]);
     const removeItem = (index) => {
         if (lineItems.length > 1) {
             setLineItems(lineItems.filter((_, i) => i !== index));
@@ -45,7 +49,13 @@ const EditQuoteModal = () => {
 
     const handleSave = () => {
         const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-        const updatedQuote = { ...editingQuote, lineItems, subtotal, total: subtotal };
+        const updatedQuote = { 
+            ...editingQuote, 
+            lineItems, 
+            subtotal, 
+            total: subtotal,
+            description 
+        };
         api.updateQuote(db, userId, editingQuote.id, updatedQuote);
         setEditingQuote(null);
     };
@@ -65,10 +75,10 @@ const EditQuoteModal = () => {
             lateFee: 0,
             total: subtotal,
             status: STATUS.DRAFT,
+            description,
         };
         handlers.addInvoice(invoiceData);
-        // Update the quote status to 'Converted'
-        handlers.updateQuote({ ...editingQuote, status: STATUS.CONVERTED });
+        handlers.updateQuote({ ...editingQuote, status: 'Converted' });
         setEditingQuote(null);
     };
     
@@ -97,14 +107,29 @@ const EditQuoteModal = () => {
                             Date: <span className="font-semibold text-gray-800 dark:text-white">{new Date(editingQuote.date).toLocaleDateString()}</span>
                         </p>
                     </div>
+                    
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote Description</label>
+                        <textarea
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Describe the work being quoted..."
+                            className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+                            rows="3"
+                        ></textarea>
+                    </div>
 
                     <div>
                         <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
                         <div className="space-y-2">
                             {lineItems.map((item, index) => (
                                 <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                                    <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
-                                    <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                    <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-5 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                    <select value={item.asset || ''} onChange={e => handleItemChange(index, 'asset', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white">
+                                        <option value="">-- No Asset --</option>
+                                        {allAssetsForCustomer.map(asset => <option key={asset.name} value={asset.name}>{asset.name}</option>)}
+                                    </select>
+                                    <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="col-span-1 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
                                     <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
                                     <span className="col-span-1 text-right font-mono text-gray-800 dark:text-white">{formatCurrency(item.amount)}</span>
                                     <button onClick={() => removeItem(index)} className="col-span-1 text-red-500 hover:text-red-400 disabled:opacity-50" disabled={lineItems.length === 1}><Trash2 size={18} /></button>

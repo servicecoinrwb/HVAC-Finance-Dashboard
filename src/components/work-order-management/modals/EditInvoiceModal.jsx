@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, PlusCircle, Trash2, Printer, FileText, XCircle } from 'lucide-react';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import { formatCurrency } from '../utils/helpers';
@@ -20,14 +20,28 @@ const EditInvoiceModal = () => {
     const [lineItems, setLineItems] = useState([]);
     const [discount, setDiscount] = useState(0);
     const [lateFee, setLateFee] = useState(0);
+    const [description, setDescription] = useState('');
+
+    const associatedWorkOrder = useMemo(() => {
+        if (!editingInvoice || !workOrders) return null;
+        return workOrders.find(wo => wo.id === editingInvoice.workOrderId);
+    }, [editingInvoice, workOrders]);
+
+    const serviceLocationAssets = useMemo(() => {
+        if (!associatedWorkOrder || !customers) return [];
+        const customer = customers.find(c => c.name === associatedWorkOrder.Client);
+        const location = customer?.locations?.find(l => l.name === associatedWorkOrder.Company && l.locNum === associatedWorkOrder['Loc #']);
+        return location?.assets || [];
+    }, [associatedWorkOrder, customers]);
 
     useEffect(() => {
         if (editingInvoice) {
-            setLineItems(editingInvoice.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+            setLineItems(editingInvoice.lineItems || [{ description: '', quantity: 1, rate: 0, amount: 0, asset: '' }]);
             setDiscount(editingInvoice.discount || 0);
             setLateFee(editingInvoice.lateFee || 0);
+            setDescription(editingInvoice.description || associatedWorkOrder?.Task || '');
         }
-    }, [editingInvoice]);
+    }, [editingInvoice, associatedWorkOrder]);
 
     const handleItemChange = (index, field, value) => {
         const items = [...lineItems];
@@ -42,7 +56,7 @@ const EditInvoiceModal = () => {
     };
 
     const addItem = () => {
-        setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+        setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0, asset: '' }]);
     };
 
     const removeItem = (index) => {
@@ -52,7 +66,14 @@ const EditInvoiceModal = () => {
     };
 
     const handleSave = () => {
-        api.updateInvoiceItems(db, userId, editingInvoice.id, lineItems, discount, lateFee);
+        const payload = {
+            ...editingInvoice,
+            lineItems,
+            discount,
+            lateFee,
+            description
+        };
+        api.updateInvoice(db, userId, editingInvoice.id, payload);
         setEditingInvoice(null);
     };
     
@@ -86,12 +107,27 @@ const EditInvoiceModal = () => {
                     </div>
 
                     <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Work Description</label>
+                        <textarea
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Describe the work performed..."
+                            className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white"
+                            rows="3"
+                        ></textarea>
+                    </div>
+
+                    <div>
                         <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
                         <div className="space-y-2">
                             {lineItems.map((item, index) => (
                                 <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                                    <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
-                                    <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                    <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-5 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
+                                    <select value={item.asset || ''} onChange={e => handleItemChange(index, 'asset', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white">
+                                        <option value="">-- No Asset --</option>
+                                        {serviceLocationAssets.map(asset => <option key={asset.name} value={asset.name}>{asset.name}</option>)}
+                                    </select>
+                                    <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="col-span-1 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
                                     <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white" />
                                     <span className="col-span-1 text-right font-mono text-gray-800 dark:text-white">{formatCurrency(item.amount)}</span>
                                     <button onClick={() => removeItem(index)} className="col-span-1 text-red-500 hover:text-red-400 disabled:opacity-50" disabled={lineItems.length === 1}><Trash2 size={18} /></button>
