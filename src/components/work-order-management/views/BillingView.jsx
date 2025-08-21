@@ -29,11 +29,13 @@ const BillingView = () => {
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [isPdfReady, setIsPdfReady] = useState(false);
 
+    // ✅ This effect checks if the external PDF library has loaded
     useEffect(() => {
         const checkPdfLibrary = () => {
             if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.autoTable) {
                 setIsPdfReady(true);
             } else {
+                // If not ready, check again in a moment.
                 setTimeout(checkPdfLibrary, 200);
             }
         };
@@ -165,7 +167,9 @@ const BillingView = () => {
                                                 <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(invoice.status)}`}>{invoice.status}</span></td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-3">
-                                                        <button onClick={() => generateInvoicePdf(invoice, workOrders, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white" title="View PDF"><Printer size={16} /></button>
+                                                        <button onClick={() => generateInvoicePdf(invoice, workOrders, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50 disabled:cursor-wait" disabled={!isPdfReady} title="View PDF">
+                                                            <Printer size={16} /> {!isPdfReady && '...'}
+                                                        </button>
                                                         {invoice.status !== STATUS.PAID ? (
                                                             <button onClick={() => handlers.markInvoicePaid(invoice.id, true)} className="flex items-center gap-1 text-green-600 hover:text-green-500 text-xs"><CheckCircle size={16} /> Mark Paid</button>
                                                         ) : (
@@ -215,7 +219,9 @@ const BillingView = () => {
                                             <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(quote.status)}`}>{quote.status}</span></td>
                                             <td className="p-3">
                                                 <div className="flex items-center gap-3">
-                                                    <button onClick={() => generateQuotePdf(quote, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white" disabled={!isPdfReady}><Printer size={16} /></button>
+                                                    <button onClick={() => generateQuotePdf(quote, customers)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50" disabled={!isPdfReady}>
+                                                        <Printer size={16} /> {!isPdfReady && '...'}
+                                                    </button>
                                                     <button onClick={() => setEditingQuote(quote)} className="font-semibold text-blue-600 hover:text-blue-500">Edit</button>
                                                 </div>
                                             </td>
