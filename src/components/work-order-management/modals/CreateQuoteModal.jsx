@@ -1,214 +1,146 @@
-import React, { useState } from 'react';
-import { X, PlusCircle, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, PlusCircle, Trash2, User, Mail, Phone } from 'lucide-react';
+import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
+import { formatCurrency } from '../utils/helpers';
+import { STATUS } from '../utils/constants';
 
-const CreateQuoteModal = ({ customers, onClose, onAddQuote }) => {
-    const [customerName, setCustomerName] = useState('');
-    const [validUntil, setValidUntil] = useState('');
-    const [notes, setNotes] = useState('');
-    const [lineItems, setLineItems] = useState([
-        { description: '', quantity: 1, rate: 0, amount: 0 }
-    ]);
-    const [taxRate, setTaxRate] = useState(0);
+const CreateQuoteModal = ({ onClose }) => {
+    const { workOrders, customers, handlers } = useWorkOrderContext();
+    
+    const [selectedWoId, setSelectedWoId] = useState('');
+    const [lineItems, setLineItems] = useState([{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+    const [description, setDescription] = useState('');
 
-    const addLineItem = () => {
-        setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    const associatedWorkOrder = useMemo(() => {
+        if (!selectedWoId || !workOrders) return null;
+        return workOrders.find(wo => wo.id === selectedWoId);
+    }, [selectedWoId, workOrders]);
+
+    const customerForQuote = useMemo(() => {
+        if (!associatedWorkOrder || !customers) return null;
+        return customers.find(c => c.name === associatedWorkOrder.Client);
+    }, [associatedWorkOrder, customers]);
+
+    useEffect(() => {
+        if (associatedWorkOrder) {
+            setLineItems(associatedWorkOrder.lineItems || [{ description: `Quote for WO# ${associatedWorkOrder['WO#']}`, quantity: 1, rate: 0, amount: 0 }]);
+            setDescription(associatedWorkOrder.Task || '');
+        } else {
+            setLineItems([{ description: '', quantity: 1, rate: 0, amount: 0 }]);
+            setDescription('');
+        }
+    }, [associatedWorkOrder]);
+
+    const handleItemChange = (index, field, value) => {
+        const items = [...lineItems];
+        const currentItem = items[index];
+        currentItem[field] = value;
+        const quantity = parseFloat(currentItem.quantity) || 0;
+        const rate = parseFloat(currentItem.rate) || 0;
+        currentItem.amount = quantity * rate;
+        setLineItems(items);
     };
 
-    const removeLineItem = (index) => {
+    const addItem = () => setLineItems([...lineItems, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    const removeItem = (index) => {
         if (lineItems.length > 1) {
             setLineItems(lineItems.filter((_, i) => i !== index));
         }
     };
 
-    const updateLineItem = (index, field, value) => {
-        const updated = [...lineItems];
-        updated[index][field] = value;
+    const handleSubmit = () => {
+        if (!associatedWorkOrder) return alert('Please select a work order to generate a quote.');
         
-        if (field === 'quantity' || field === 'rate') {
-            updated[index].amount = updated[index].quantity * updated[index].rate;
-        }
-        
-        setLineItems(updated);
-    };
+        const subtotal = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+        const quoteId = `QUO-${Date.now()}`;
 
-    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
-    const tax = subtotal * (taxRate / 100);
-    const total = subtotal + tax;
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
         const quoteData = {
-            id: `QT-${Date.now()}`,
-            customerName,
+            id: quoteId,
+            workOrderId: associatedWorkOrder.id,
+            customerId: customerForQuote?.id || '',
+            customerName: associatedWorkOrder.Client,
             date: new Date().toISOString(),
-            status: 'Draft',
             lineItems,
             subtotal,
-            tax,
-            total,
-            validUntil: validUntil ? new Date(validUntil).toISOString() : null,
-            notes
+            total: subtotal,
+            status: 'Draft',
+            description,
         };
-
-        onAddQuote(quoteData);
+        handlers.addQuote(quoteData);
         onClose();
     };
+    
+    const total = lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+    if (!workOrders || !customers) {
+        return (
+             <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-lg">Loading Data...</div>
+            </div>
+        )
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Quote</h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <X size={28} />
-                    </button>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X size={28} /></button>
                 </div>
-                
                 <div className="p-6 overflow-y-auto space-y-6">
                     <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
-                        <input 
-                            type="text" 
-                            value={customerName} 
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                            required
-                            placeholder="Enter customer name"
-                        />
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Select Work Order to Quote</label>
+                        <select value={selectedWoId} onChange={e => setSelectedWoId(e.target.value)} className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600">
+                            <option value="">-- Select Work Order --</option>
+                            {(workOrders || []).map(wo => <option key={wo.id} value={wo.id}>{wo['WO#']} - {wo.Company}</option>)}
+                        </select>
                     </div>
 
-                    {/* Line Items Section */}
-                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Line Items</h3>
-                            <button 
-                                type="button" 
-                                onClick={addLineItem}
-                                className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
-                            >
-                                <PlusCircle size={16} /> Add Item
-                            </button>
+                    {associatedWorkOrder && customerForQuote && (
+                        <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="font-semibold text-gray-600 dark:text-gray-400">Bill To</h4>
+                                <p className="text-gray-800 dark:text-white">{customerForQuote.name}</p>
+                                <p className="text-gray-600 dark:text-gray-300">{customerForQuote.billingAddress?.street}</p>
+                                <p className="text-gray-600 dark:text-gray-300">{customerForQuote.billingAddress?.city}, {customerForQuote.billingAddress?.state} {customerForQuote.billingAddress?.zip}</p>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-gray-600 dark:text-gray-400">Service Location</h4>
+                                <p className="text-gray-800 dark:text-white">{associatedWorkOrder.Company} (#{associatedWorkOrder['Loc #']})</p>
+                                <p className="text-gray-600 dark:text-gray-300">{associatedWorkOrder.City}, {associatedWorkOrder.State}</p>
+                            </div>
                         </div>
-                        
-                        <div className="space-y-3">
+                    )}
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Quote Description</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the work to be quoted..." className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" rows="3"></textarea>
+                    </div>
+
+                    <div>
+                        <h3 className="font-semibold mb-2 text-gray-800 dark:text-white">Line Items</h3>
+                        <div className="space-y-2">
                             {lineItems.map((item, index) => (
-                                <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Description</label>
-                                        <input 
-                                            type="text" 
-                                            value={item.description}
-                                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
-                                            placeholder="Service description"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Quantity</label>
-                                        <input 
-                                            type="number" 
-                                            min="1"
-                                            step="1"
-                                            value={item.quantity}
-                                            onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 1)}
-                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Rate ($)</label>
-                                        <input 
-                                            type="number" 
-                                            min="0"
-                                            step="0.01"
-                                            value={item.rate}
-                                            onChange={(e) => updateLineItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-600 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 dark:text-gray-400">Amount ($)</label>
-                                        <input 
-                                            type="text" 
-                                            value={item.amount.toFixed(2)}
-                                            readOnly
-                                            className="w-full p-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-gray-100 dark:bg-slate-500 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-                                    <div className="flex items-end">
-                                        <button 
-                                            type="button" 
-                                            onClick={() => removeLineItem(index)}
-                                            disabled={lineItems.length === 1}
-                                            className="w-full p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+                                <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                                    <input type="text" placeholder="Description" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} className="col-span-6 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                                    <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                                    <input type="number" placeholder="Rate" value={item.rate} onChange={e => handleItemChange(index, 'rate', e.target.value)} className="col-span-2 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600" />
+                                    <span className="col-span-1 text-right font-mono">{formatCurrency(item.amount)}</span>
+                                    <button onClick={() => removeItem(index)} className="col-span-1 text-red-500" disabled={lineItems.length === 1}><Trash2 size={18} /></button>
                                 </div>
                             ))}
                         </div>
+                        <button onClick={addItem} className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add Item</button>
                     </div>
-
-                    {/* Tax, Dates, and Totals */}
-                    <div className="border border-gray-200 dark:border-slate-600 rounded-lg p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Tax Rate (%)</label>
-                                <input 
-                                    type="number" 
-                                    min="0"
-                                    step="0.01"
-                                    value={taxRate}
-                                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                    placeholder="0.00"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Valid Until (Optional)</label>
-                                <input 
-                                    type="date" 
-                                    value={validUntil} 
-                                    onChange={(e) => setValidUntil(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                />
-                            </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Additional Notes</label>
-                            <textarea 
-                                value={notes} 
-                                onChange={(e) => setNotes(e.target.value)}
-                                rows="3"
-                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                placeholder="Any additional notes or terms..."
-                            />
-                        </div>
-                        
-                        <div className="pt-4 border-t border-gray-200 dark:border-slate-600">
-                            <div className="flex justify-end space-y-2">
-                                <div className="text-right">
-                                    <div className="flex justify-between w-48"><span className="text-gray-600 dark:text-gray-400">Subtotal:</span><span className="font-semibold">${subtotal.toFixed(2)}</span></div>
-                                    <div className="flex justify-between w-48"><span className="text-gray-600 dark:text-gray-400">Tax:</span><span className="font-semibold">${tax.toFixed(2)}</span></div>
-                                    <div className="flex justify-between w-48 text-lg font-bold border-t pt-2"><span>Total:</span><span>${total.toFixed(2)}</span></div>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg text-right">
+                        <p className="font-bold text-lg text-gray-800 dark:text-white">Total: <span className="font-mono">{formatCurrency(total)}</span></p>
                     </div>
                 </div>
-
-                <div className="p-6 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-slate-600 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">
-                        Cancel
-                    </button>
-                    <button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">
-                        Create Quote
-                    </button>
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button type="button" onClick={onClose} className="font-bold py-2 px-4 text-gray-700 dark:text-gray-300">Cancel</button>
+                    <button type="button" onClick={handleSubmit} className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700" disabled={!selectedWoId}>Create Quote</button>
                 </div>
-            </form>
+            </div>
         </div>
     );
 };
