@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, PlusCircle, UserX } from 'lucide-react';
 // ✅ Corrected the import path to the helpers file
-import { excelDateToYYYYMMDD } from './work-order-management/utils/helpers';
+import { excelDateToYYYYMMDD } from './work-order-management/utils/helpers.jsx';
 
 const CalendarSection = ({ workOrders, tasks, technicians, openModal }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
