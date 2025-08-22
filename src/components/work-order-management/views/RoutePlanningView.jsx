@@ -20,7 +20,7 @@ const RoutePlanningView = () => {
             if (window.google && window.google.maps) {
                 setIsMapApiLoaded(true);
             } else {
-                setTimeout(checkGoogleMaps, 100);
+                setTimeout(checkGoogleMaps, 100); // Check again shortly
             }
         };
         checkGoogleMaps();
@@ -29,7 +29,7 @@ const RoutePlanningView = () => {
     useEffect(() => {
         if (isMapApiLoaded && mapRef.current && !map) {
             setMap(new window.google.maps.Map(mapRef.current, {
-                center: { lat: 42.4731, lng: -83.2504 },
+                center: { lat: 42.4731, lng: -83.2504 }, // Centered on Southfield, MI
                 zoom: 10,
             }));
         }
@@ -55,7 +55,8 @@ const RoutePlanningView = () => {
                 startDate = new Date(now);
                 const dayOfWeek = startDate.getDay();
                 startDate.setDate(startDate.getDate() - dayOfWeek);
-                endDate = new Date(startDate); // Correctly create a new date object
+                // ✅ Corrected: Create a new Date object for endDate
+                endDate = new Date(startDate); 
                 endDate.setDate(startDate.getDate() + 6);
                 break;
             case 'custom':
@@ -80,9 +81,10 @@ const RoutePlanningView = () => {
         return filtered.sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
     }, [selectedTechId, workOrders, technicians, viewType, customStartDate, customEndDate]);
     
+    // Update map markers when jobs change
     useEffect(() => {
         if (map && customers) {
-            // Clear existing markers
+            // ✅ Clear existing markers from the map
             markers.forEach(marker => marker.setMap(null));
             const newMarkers = [];
             
@@ -104,6 +106,7 @@ const RoutePlanningView = () => {
                     bounds.extend(position);
                 }
             });
+            // ✅ Save the new markers to state
             setMarkers(newMarkers);
 
             if (jobsForRange.length > 0 && !bounds.isEmpty()) {
