@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { formatCurrency, excelDateToJSDateString } from '../utils/helpers'; // Assuming you have this helper
-
+import { formatCurrency, excelDateToJSDateString } from './work-order-management/utils/helpers.jsx';
 export const PnLStatement = ({ workOrders, bills, weeklyCosts, reportingPeriod, dateRange }) => {
 
     // ✅ Guard Clause: Add a check at the top of the component
