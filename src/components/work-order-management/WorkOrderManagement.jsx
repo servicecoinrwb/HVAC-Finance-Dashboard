@@ -44,20 +44,57 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
     
     // 2. Wrap all handlers in useCallback for performance
     const handlers = useMemo(() => ({
+        // Work Order handlers
         updateOrder: (id, payload) => api.updateWorkOrder(db, userId, id, payload),
         addNote: (id, text, cb) => api.addNoteToWorkOrder(db, userId, id, text).then(cb),
         addNewOrder: (data) => api.addWorkOrder(db, userId, data).then(() => setIsAddingOrder(false)),
+        
+        // Customer handlers
         addCustomer: (data) => api.addCustomer(db, userId, data),
         updateCustomer: (customer) => api.updateCustomer(db, userId, customer.id, customer),
         deleteCustomer: (id) => api.deleteCustomer(db, userId, id),
+        
+        // Technician handlers
         addTechnician: (data) => api.addTechnician(db, userId, data),
         updateTechnician: (tech) => api.updateTechnician(db, userId, tech.id, tech),
         deleteTechnician: (id) => { if (window.confirm("Are you sure?")) api.deleteTechnician(db, userId, id, workOrders); },
+        
+        // Billing handlers
         addInvoice: (data) => api.addInvoice(db, userId, data),
         addQuote: (data) => api.addQuote(db, userId, data),
         updateInvoice: (invoice) => api.updateInvoice(db, userId, invoice.id, invoice),
         updateQuote: (quote) => api.updateQuote(db, userId, quote.id, quote),
         markInvoicePaid: (id, isPaid) => api.updateInvoice(db, userId, id, { status: isPaid ? 'Paid' : 'Pending', paidDate: isPaid ? new Date().toISOString() : null }),
+        
+        // Enhanced quote workflow handlers
+        approveQuote: (quote) => api.updateQuote(db, userId, quote.id, { ...quote, status: 'Approved', approvedAt: new Date().toISOString() }),
+        rejectQuote: (quote) => api.updateQuote(db, userId, quote.id, { ...quote, status: 'Rejected', rejectedAt: new Date().toISOString() }),
+        convertQuoteToWorkOrder: async (quote) => {
+            const workOrderData = {
+                'WO#': `WO-${Date.now()}`,
+                Client: quote.customerName,
+                Company: quote.customerName,
+                Task: `Work from Quote #${quote.id}`,
+                NTE: quote.total,
+                'Order Status': 'Open',
+                'Schedule Date': '',
+                Priority: 'Regular',
+                technician: [],
+                quoteId: quote.id,
+                lineItems: quote.lineItems || [],
+                notes: [`Created from approved quote #${quote.id}`]
+            };
+            
+            // Add the work order
+            await api.addWorkOrder(db, userId, workOrderData);
+            
+            // Update quote status
+            return api.updateQuote(db, userId, quote.id, { 
+                ...quote, 
+                status: 'Converted to Work Order',
+                convertedAt: new Date().toISOString()
+            });
+        }
     }), [db, userId, workOrders]);
     
     // 3. Bundle everything into a single context value object

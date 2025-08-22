@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Edit2 } from 'lucide-react';
+import { FileText, PlusCircle, ChevronDown, CheckCircle, XCircle, Printer, Edit2, ThumbsUp, ThumbsDown, Wrench } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
 import { STATUS } from '../utils/constants';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
@@ -70,6 +70,7 @@ const BillingView = () => {
         const safeQuotes = quotes || [];
         const totalQuoteAmount = safeQuotes.reduce((sum, quote) => sum + (quote.total || 0), 0);
         const pendingQuotes = safeQuotes.filter(quote => quote.status === 'Draft' || quote.status === 'Pending');
+        const approvedQuotes = safeQuotes.filter(quote => quote.status === 'Approved');
         
         return { 
             totalInvoiceAmount, 
@@ -78,7 +79,8 @@ const BillingView = () => {
             totalPaidAmount, 
             totalUnpaidAmount,
             totalQuoteAmount,
-            pendingQuotesCount: pendingQuotes.length
+            pendingQuotesCount: pendingQuotes.length,
+            approvedQuotesCount: approvedQuotes.length
         };
     }, [invoices, quotes]);
 
@@ -99,8 +101,10 @@ const BillingView = () => {
             [STATUS.OVERDUE]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
             [STATUS.DRAFT]: 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200',
             'Draft': 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200',
-            'Approved': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
+            'Pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
+            'Approved': 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
             'Rejected': 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
+            'Converted to Work Order': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
         };
         return styles[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200';
     };
@@ -112,6 +116,80 @@ const BillingView = () => {
             console.log('PDF generated successfully');
         }
         // Errors are already handled by the generator functions
+    };
+
+    // Quote approval/rejection handlers - CORRECTED to match context signatures
+    const handleApproveQuote = async (quote) => {
+        if (window.confirm(`Approve quote ${quote.id} for ${quote.customerName}?`)) {
+            try {
+                // Use the dedicated approveQuote handler if available, otherwise use updateQuote with full object
+                if (handlers.approveQuote) {
+                    await handlers.approveQuote(quote);
+                } else {
+                    await handlers.updateQuote({ ...quote, status: 'Approved', approvedAt: new Date().toISOString() });
+                }
+            } catch (error) {
+                console.error('Error approving quote:', error);
+                alert('Failed to approve quote');
+            }
+        }
+    };
+
+    const handleRejectQuote = async (quote) => {
+        if (window.confirm(`Reject quote ${quote.id} for ${quote.customerName}?`)) {
+            try {
+                // Use the dedicated rejectQuote handler if available, otherwise use updateQuote with full object
+                if (handlers.rejectQuote) {
+                    await handlers.rejectQuote(quote);
+                } else {
+                    await handlers.updateQuote({ ...quote, status: 'Rejected', rejectedAt: new Date().toISOString() });
+                }
+            } catch (error) {
+                console.error('Error rejecting quote:', error);
+                alert('Failed to reject quote');
+            }
+        }
+    };
+
+    const handleConvertToWorkOrder = async (quote) => {
+        if (window.confirm(`Convert approved quote ${quote.id} to a work order?`)) {
+            try {
+                // Use the dedicated convertQuoteToWorkOrder handler if available
+                if (handlers.convertQuoteToWorkOrder) {
+                    await handlers.convertQuoteToWorkOrder(quote);
+                    alert(`Work order created successfully from quote ${quote.id}`);
+                } else {
+                    // Fallback to manual conversion
+                    const workOrderData = {
+                        'WO#': `WO-${Date.now()}`,
+                        Client: quote.customerName,
+                        Company: quote.customerName,
+                        Task: `Work from Quote #${quote.id}`,
+                        NTE: quote.total,
+                        'Order Status': 'Open',
+                        'Schedule Date': '',
+                        Priority: 'Regular',
+                        technician: [],
+                        quoteId: quote.id,
+                        lineItems: quote.lineItems || [],
+                        notes: [`Created from approved quote #${quote.id}`]
+                    };
+
+                    await handlers.addNewOrder(workOrderData);
+                    
+                    await handlers.updateQuote({ 
+                        ...quote,
+                        status: 'Converted to Work Order',
+                        convertedAt: new Date().toISOString()
+                    });
+                    
+                    alert(`Work order created successfully from quote ${quote.id}`);
+                }
+            } catch (error) {
+                console.error('Error converting quote to work order:', error);
+                alert('Failed to convert quote to work order');
+            }
+        }
     };
 
     if (!invoices || !quotes || !workOrders || !customers) {
@@ -136,7 +214,7 @@ const BillingView = () => {
                         </button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                     <div className="p-4 border dark:border-slate-700 rounded-lg text-center">
                         <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoiced</h4>
                         <p className="text-2xl font-bold text-gray-800 dark:text-white">{formatCurrency(financialSummary.totalInvoiceAmount)}</p>
@@ -156,6 +234,11 @@ const BillingView = () => {
                         <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Quotes Pending</h4>
                         <p className="text-2xl font-bold text-blue-600">{formatCurrency(financialSummary.totalQuoteAmount)}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{financialSummary.pendingQuotesCount} pending</p>
+                    </div>
+                    <div className="p-4 border dark:border-slate-700 rounded-lg text-center">
+                        <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">Quotes Approved</h4>
+                        <p className="text-2xl font-bold text-green-600">{financialSummary.approvedQuotesCount}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">ready to convert</p>
                     </div>
                 </div>
             </div>
@@ -249,16 +332,49 @@ const BillingView = () => {
                                             <td className="p-3 font-mono">{formatCurrency(quote.total)}</td>
                                             <td className="p-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyles(quote.status)}`}>{quote.status}</span></td>
                                             <td className="p-3">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <button 
                                                         onClick={() => handlePdfGeneration(generateQuotePdf, quote, customers)} 
                                                         className="flex items-center gap-1 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white disabled:opacity-50" 
                                                         disabled={!isPdfReady}
                                                         title={isPdfReady ? "Generate PDF" : "PDF library loading..."}
                                                     >
-                                                        <Printer size={16} /> {!isPdfReady && 'Loading...'}
+                                                        <Printer size={16} />
                                                     </button>
-                                                    <button onClick={() => setEditingQuote(quote)} className="font-semibold text-blue-600 hover:text-blue-500">Edit</button>
+                                                    
+                                                    {quote.status === 'Draft' || quote.status === 'Pending' ? (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => handleApproveQuote(quote)} 
+                                                                className="flex items-center gap-1 text-green-600 hover:text-green-500 text-xs"
+                                                                title="Approve Quote"
+                                                            >
+                                                                <ThumbsUp size={14} /> Approve
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleRejectQuote(quote)} 
+                                                                className="flex items-center gap-1 text-red-600 hover:text-red-500 text-xs"
+                                                                title="Reject Quote"
+                                                            >
+                                                                <ThumbsDown size={14} /> Reject
+                                                            </button>
+                                                        </>
+                                                    ) : quote.status === 'Approved' ? (
+                                                        <button 
+                                                            onClick={() => handleConvertToWorkOrder(quote)} 
+                                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-500 text-xs"
+                                                            title="Convert to Work Order"
+                                                        >
+                                                            <Wrench size={14} /> Create WO
+                                                        </button>
+                                                    ) : null}
+                                                    
+                                                    <button 
+                                                        onClick={() => setEditingQuote(quote)} 
+                                                        className="flex items-center gap-1 font-semibold text-blue-600 hover:text-blue-500 text-xs"
+                                                    >
+                                                        <Edit2 size={14} /> Edit
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
