@@ -7,21 +7,34 @@ const RoutePlanningView = () => {
     const { workOrders, technicians, customers } = useWorkOrderContext();
     const mapRef = useRef(null);
     const [map, setMap] = useState(null);
+    const [isMapApiLoaded, setIsMapApiLoaded] = useState(false);
 
     const [selectedTechId, setSelectedTechId] = useState('ALL');
     const [viewType, setViewType] = useState('today');
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-    // Initialize the map
+    // ✅ Effect to check if the Google Maps API script has loaded
     useEffect(() => {
-        if (mapRef.current && !map) {
+        const checkGoogleMaps = () => {
+            if (window.google && window.google.maps) {
+                setIsMapApiLoaded(true);
+            } else {
+                setTimeout(checkGoogleMaps, 100); // Check again shortly
+            }
+        };
+        checkGoogleMaps();
+    }, []);
+
+    // Initialize the map once the API is ready
+    useEffect(() => {
+        if (isMapApiLoaded && mapRef.current && !map) {
             setMap(new window.google.maps.Map(mapRef.current, {
                 center: { lat: 42.4731, lng: -83.2504 }, // Centered on Southfield, MI
                 zoom: 10,
             }));
         }
-    }, [mapRef, map]);
+    }, [isMapApiLoaded, mapRef, map]);
 
     const jobsForRange = useMemo(() => {
         if (!workOrders || !technicians) return [];
@@ -34,7 +47,21 @@ const RoutePlanningView = () => {
                 startDate = new Date(now);
                 endDate = new Date(now);
                 break;
-            // ... other cases
+            case '3-day':
+                startDate = new Date(now);
+                endDate = new Date(now);
+                endDate.setDate(startDate.getDate() + 2);
+                break;
+            case 'week':
+                startDate = new Date(now);
+                const dayOfWeek = startDate.getDay();
+                startDate.setDate(startDate.getDate() - dayOfWeek);
+                endDate.setDate(startDate.getDate() + 6);
+                break;
+            case 'custom':
+                startDate = new Date(customStartDate + 'T00:00:00');
+                endDate = new Date(customEndDate + 'T23:59:59');
+                break;
             default:
                 startDate = new Date(now);
                 endDate = new Date(now);
@@ -56,9 +83,8 @@ const RoutePlanningView = () => {
     // Update map markers when jobs change
     useEffect(() => {
         if (map && customers) {
-            // Clear existing markers
-            // In a real app, you'd manage marker objects to avoid re-creating them
-            
+            // This is a simplified approach. In a real app, you'd manage an array of marker objects to add/remove them efficiently.
+            // For now, we'll just re-add them on every change.
             const bounds = new window.google.maps.LatLngBounds();
             
             jobsForRange.forEach((job, index) => {
@@ -77,7 +103,7 @@ const RoutePlanningView = () => {
                 }
             });
 
-            if (jobsForRange.length > 0) {
+            if (jobsForRange.length > 0 && !bounds.isEmpty()) {
                 map.fitBounds(bounds);
             }
         }
@@ -112,7 +138,12 @@ const RoutePlanningView = () => {
                         <option value="week">This Week</option>
                         <option value="custom">Custom Range</option>
                     </select>
-                    {/* ... other controls ... */}
+                    {viewType === 'custom' && (
+                        <>
+                            <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
+                            <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="p-2 border rounded dark:bg-slate-700 dark:border-slate-600" />
+                        </>
+                    )}
                     <select value={selectedTechId} onChange={e => setSelectedTechId(e.target.value)} className="p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
                         <option value="ALL">All Technicians</option>
                         {technicians.filter(t=>t.name !== 'Unassigned').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -155,7 +186,13 @@ const RoutePlanningView = () => {
                     )}
                 </div>
                 <div className="md:col-span-2 bg-gray-200 dark:bg-slate-600 rounded-lg min-h-[600px]">
-                    <div ref={mapRef} className="w-full h-full rounded-lg"></div>
+                    <div ref={mapRef} className="w-full h-full rounded-lg">
+                        {!isMapApiLoaded && (
+                            <div className="flex items-center justify-center h-full">
+                                <p className="text-gray-500 dark:text-gray-400">Loading map...</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
