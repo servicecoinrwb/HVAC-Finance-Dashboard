@@ -7,6 +7,7 @@ const RoutePlanningView = () => {
     const { workOrders, technicians, customers } = useWorkOrderContext();
     const mapRef = useRef(null);
     const [map, setMap] = useState(null);
+    const [markers, setMarkers] = useState([]);
     const [isMapApiLoaded, setIsMapApiLoaded] = useState(false);
 
     const [selectedTechId, setSelectedTechId] = useState('ALL');
@@ -14,23 +15,21 @@ const RoutePlanningView = () => {
     const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-    // ✅ Effect to check if the Google Maps API script has loaded
     useEffect(() => {
         const checkGoogleMaps = () => {
             if (window.google && window.google.maps) {
                 setIsMapApiLoaded(true);
             } else {
-                setTimeout(checkGoogleMaps, 100); // Check again shortly
+                setTimeout(checkGoogleMaps, 100);
             }
         };
         checkGoogleMaps();
     }, []);
 
-    // Initialize the map once the API is ready
     useEffect(() => {
         if (isMapApiLoaded && mapRef.current && !map) {
             setMap(new window.google.maps.Map(mapRef.current, {
-                center: { lat: 42.4731, lng: -83.2504 }, // Centered on Southfield, MI
+                center: { lat: 42.4731, lng: -83.2504 },
                 zoom: 10,
             }));
         }
@@ -56,6 +55,7 @@ const RoutePlanningView = () => {
                 startDate = new Date(now);
                 const dayOfWeek = startDate.getDay();
                 startDate.setDate(startDate.getDate() - dayOfWeek);
+                endDate = new Date(startDate); // Correctly create a new date object
                 endDate.setDate(startDate.getDate() + 6);
                 break;
             case 'custom':
@@ -80,11 +80,12 @@ const RoutePlanningView = () => {
         return filtered.sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
     }, [selectedTechId, workOrders, technicians, viewType, customStartDate, customEndDate]);
     
-    // Update map markers when jobs change
     useEffect(() => {
         if (map && customers) {
-            // This is a simplified approach. In a real app, you'd manage an array of marker objects to add/remove them efficiently.
-            // For now, we'll just re-add them on every change.
+            // Clear existing markers
+            markers.forEach(marker => marker.setMap(null));
+            const newMarkers = [];
+            
             const bounds = new window.google.maps.LatLngBounds();
             
             jobsForRange.forEach((job, index) => {
@@ -93,15 +94,17 @@ const RoutePlanningView = () => {
                 
                 if (location && location.lat && location.lng) {
                     const position = { lat: location.lat, lng: location.lng };
-                    new window.google.maps.Marker({
+                    const marker = new window.google.maps.Marker({
                         position,
                         map,
                         label: `${index + 1}`,
                         title: `${job.Company}\n${job.Task}`,
                     });
+                    newMarkers.push(marker);
                     bounds.extend(position);
                 }
             });
+            setMarkers(newMarkers);
 
             if (jobsForRange.length > 0 && !bounds.isEmpty()) {
                 map.fitBounds(bounds);
