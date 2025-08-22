@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { StatCard } from './StatCard'; 
 import { DollarSign, PlusCircle, Edit, Trash2, Info, ChevronDown } from 'lucide-react';
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
+import { excelDateToJSDateString } from '../utils/helpers';
 
 const TAX_RATE_PRESETS = {
     'single-member-llc': 20,
@@ -10,9 +11,9 @@ const TAX_RATE_PRESETS = {
     'partnership': 20,
 };
 
-const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
+const TaxManagement = ({ workOrders, bills, weeklyCosts, taxPayments, openModal, handleDelete }) => {
     // ✅ Guard Clause: Add a check at the top of the component
-    if (!jobs || !bills || !weeklyCosts || !taxPayments) {
+    if (!workOrders || !bills || !weeklyCosts || !taxPayments) {
         return (
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Tax Estimation</h3>
@@ -60,29 +61,32 @@ const TaxManagement = ({ jobs, bills, weeklyCosts, taxPayments, openModal, handl
     }, [period]);
 
     const pnlData = useMemo(() => {
-        // ✅ Safely filter and reduce data by providing fallback empty arrays
-        const filteredJobs = (jobs || []).filter(job => {
-            if (!job.date) return false;
-            const jobDate = new Date(job.date);
-            return jobDate >= dateRange.start && jobDate <= dateRange.end;
+        const filteredOrders = (workOrders || []).filter(order => {
+            if (order['Order Status'] !== 'Completed' || !order['Completed Date']) return false;
+            const completedDate = new Date(excelDateToJSDateString(order['Completed Date']));
+            return completedDate >= dateRange.start && completedDate <= dateRange.end;
         });
         
         const operatingExpenses = (bills || []).reduce((acc, bill) => acc + bill.amount, 0) + ((weeklyCosts || []).reduce((acc, cost) => acc + cost.amount, 0) * 4.33);
         const periodExpenseFactor = (dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24 * 30.44);
         const periodOperatingExpenses = operatingExpenses * periodExpenseFactor;
 
-        const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
-        const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
+        const revenue = filteredOrders.reduce((acc, order) => acc + (order.NTE || 0), 0);
+        const cogs = filteredOrders.reduce((acc, order) => {
+             if (order.lineItems && Array.isArray(order.lineItems)) {
+                return acc + order.lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+            }
+            return acc;
+        }, 0);
         const grossProfit = revenue - cogs;
         
         const netProfit = grossProfit - periodOperatingExpenses;
         const estimatedTax = netProfit > 0 ? netProfit * (taxRate / 100) : 0;
         
         return { netProfit, estimatedTax, grossProfit, periodOperatingExpenses };
-    }, [jobs, bills, weeklyCosts, taxRate, dateRange]);
+    }, [workOrders, bills, weeklyCosts, taxRate, dateRange]);
 
     const totalPaidThisPeriod = useMemo(() => {
-        // ✅ Safely filter and reduce tax payments
         return (taxPayments || [])
             .filter(p => {
                 if (!p.date) return false;

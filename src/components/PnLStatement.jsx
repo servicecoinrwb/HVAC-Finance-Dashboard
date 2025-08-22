@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
+import { formatCurrency, excelDateToJSDateString } from '../utils/helpers'; // Assuming you have this helper
 
-export const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRange }) => {
+export const PnLStatement = ({ workOrders, bills, weeklyCosts, reportingPeriod, dateRange }) => {
 
     // ✅ Guard Clause: Add a check at the top of the component
-    if (!jobs || !bills || !weeklyCosts) {
+    if (!workOrders || !bills || !weeklyCosts) {
         return (
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
                 <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Profit & Loss Statement</h3>
@@ -13,27 +14,33 @@ export const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRa
     }
 
     const pnlData = useMemo(() => {
-        // ✅ Safely filter jobs by providing a fallback empty array
-        const filteredJobs = (jobs || []).filter(job => {
-            if (!job.date) return false;
-            const jobDate = new Date(job.date);
-            return jobDate >= dateRange.start && jobDate <= dateRange.end;
+        const filteredOrders = (workOrders || []).filter(order => {
+            if (order['Order Status'] !== 'Completed' || !order['Completed Date']) return false;
+            const completedDate = new Date(excelDateToJSDateString(order['Completed Date']));
+            return completedDate >= dateRange.start && completedDate <= dateRange.end;
         });
 
-        const revenue = filteredJobs.reduce((acc, job) => acc + (job.revenue || 0), 0);
-        const cogs = filteredJobs.reduce((acc, job) => acc + (job.materialCost || 0) + (job.laborCost || 0), 0);
+        const revenue = filteredOrders.reduce((acc, order) => acc + (order.NTE || 0), 0);
+        
+        // Calculate COGS from line items if available, otherwise use older fields
+        const cogs = filteredOrders.reduce((acc, order) => {
+            if (order.lineItems && Array.isArray(order.lineItems)) {
+                const itemsCost = order.lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+                return acc + itemsCost;
+            }
+            return acc + (order.materialCost || 0) + (order.laborCost || 0);
+        }, 0);
+
         const grossProfit = revenue - cogs;
 
         const periodExpenseFactor = (dateRange.end - dateRange.start) / (1000 * 60 * 60 * 24 * 30.44);
         
-        // ✅ Safely reduce bills
         const expensesByCategory = (bills || []).reduce((acc, bill) => {
             const category = bill.category || 'Uncategorized';
             acc[category] = (acc[category] || 0) + bill.amount;
             return acc;
         }, {});
 
-        // ✅ Safely reduce weekly costs
         const weeklyCostsTotal = (weeklyCosts || []).reduce((acc, cost) => acc + cost.amount, 0) * periodExpenseFactor;
         if(weeklyCostsTotal > 0) {
             expensesByCategory['Weekly & Misc'] = (expensesByCategory['Weekly & Misc'] || 0) + weeklyCostsTotal;
@@ -50,7 +57,7 @@ export const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRa
             revenue, cogs, grossProfit, operatingExpenses, 
             expensesByCategory, netProfit, grossProfitMargin, netProfitMargin
         };
-    }, [jobs, bills, weeklyCosts, dateRange]);
+    }, [workOrders, bills, weeklyCosts, dateRange]);
 
     const formatPeriod = () => {
         const options = { month: 'long', year: 'numeric' };
@@ -76,18 +83,18 @@ export const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRa
                 {/* Revenue Section */}
                 <div className="flex justify-between items-center p-3 font-semibold">
                     <span>Total Revenue</span>
-                    <span className="font-mono">${pnlData.revenue.toFixed(2)}</span>
+                    <span className="font-mono">{formatCurrency(pnlData.revenue)}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 pl-8">
                     <span className="text-slate-600 dark:text-slate-400">Cost of Goods Sold (COGS)</span>
-                    <span className="font-mono">(${pnlData.cogs.toFixed(2)})</span>
+                    <span className="font-mono">({formatCurrency(pnlData.cogs)})</span>
                 </div>
                 <hr className="border-slate-200 dark:border-slate-700 my-2"/>
 
                 {/* Gross Profit Section */}
                 <div className="flex justify-between items-center p-3 font-bold text-lg">
                     <span>Gross Profit</span>
-                    <span className="font-mono">${pnlData.grossProfit.toFixed(2)}</span>
+                    <span className="font-mono">{formatCurrency(pnlData.grossProfit)}</span>
                 </div>
                 <div className="flex justify-between items-center p-1 pl-8 text-xs text-slate-500">
                     <span>Gross Profit Margin</span>
@@ -102,12 +109,12 @@ export const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRa
                 {Object.entries(pnlData.expensesByCategory).map(([category, amount]) => (
                     <div key={category} className="flex justify-between items-center p-1 pl-8">
                         <span className="text-slate-600 dark:text-slate-400">{category}</span>
-                        <span className="font-mono">(${amount.toFixed(2)})</span>
+                        <span className="font-mono">({formatCurrency(amount)})</span>
                     </div>
                 ))}
                 <div className="flex justify-between items-center p-3 pl-8 font-semibold">
                     <span>Total Operating Expenses</span>
-                    <span className="font-mono">(${pnlData.operatingExpenses.toFixed(2)})</span>
+                    <span className="font-mono">({formatCurrency(pnlData.operatingExpenses)})</span>
                 </div>
                 <hr className="border-slate-300 dark:border-slate-600 my-2 border-2"/>
 
@@ -115,7 +122,7 @@ export const PnLStatement = ({ jobs, bills, weeklyCosts, reportingPeriod, dateRa
                 <div className="flex justify-between items-center p-3 font-bold text-xl" style={{ color: pnlData.netProfit >= 0 ? '#22c55e' : '#ef4444' }}>
                     <span>Net Profit</span>
                     <span className="font-mono">
-                        {pnlData.netProfit < 0 ? `-$${Math.abs(pnlData.netProfit).toFixed(2)}` : `$${pnlData.netProfit.toFixed(2)}`}
+                        {formatCurrency(pnlData.netProfit)}
                     </span>
                 </div>
                 <div className="flex justify-between items-center p-1 pl-8 text-xs text-slate-500">
