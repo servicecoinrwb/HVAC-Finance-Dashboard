@@ -15,7 +15,6 @@ import WorkOrderManagement from './components/work-order-management/WorkOrderMan
 import VehicleManagement from './components/VehicleManagement.jsx';
 import ValuationCalculator from './components/ValuationCalculator.jsx';
 import { InventoryManagement } from './components/InventoryManagement.jsx';
-// import { ReportsSection } from './components/ReportsSection.jsx'; // Removed obsolete component
 import { AlertsPanel } from './components/AlertsPanel.jsx';
 import { ActivePieChart } from './components/ActivePieChart.jsx';
 import { ForecastSection } from './components/Forecast.jsx';
@@ -71,6 +70,8 @@ const App = () => {
     const [theme, setTheme] = useState('dark');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
+    const [workOrders, setWorkOrders] = useState([]); // State for work orders
+    const [technicians, setTechnicians] = useState([]); // State for technicians
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -111,6 +112,7 @@ const App = () => {
         const collectionsToWatch = {
             bills: setBills, debts: setDebts, incomes: setIncomes, weeklyCosts: setWeeklyCosts, tasks: setTasks,
             taxPayments: setTaxPayments, goals: setGoals, inventory: setInventory, vehicles: setVehicles, maintenanceLogs: setMaintenanceLogs,
+            workOrders: setWorkOrders, technicians: setTechnicians // Also fetch technicians
         };
         const unsubscribers = Object.entries(collectionsToWatch).map(([colName, setter]) =>
             onSnapshot(query(collection(db, 'artifacts', appId, 'users', userId, colName)), (snapshot) => {
@@ -132,17 +134,17 @@ const App = () => {
     }, [userId]);
 
     const totals = useMemo(() => {
-        const totalIncome = incomes.reduce((acc, i) => acc + (i.amount || 0), 0);
-        const totalMonthlyBills = bills.reduce((acc, b) => acc + (b.amount || 0), 0);
-        const projectedMonthlyWeekly = weeklyCosts.reduce((acc, c) => acc + (c.amount || 0), 0) * 4.33;
+        const totalIncome = (incomes || []).reduce((acc, i) => acc + (i.amount || 0), 0);
+        const totalMonthlyBills = (bills || []).reduce((acc, b) => acc + (b.amount || 0), 0);
+        const projectedMonthlyWeekly = (weeklyCosts || []).reduce((acc, c) => acc + (c.amount || 0), 0) * 4.33;
         const totalOutflow = totalMonthlyBills + projectedMonthlyWeekly;
         const netCashFlow = totalIncome - totalOutflow;
-        const totalDebt = debts.reduce((acc, d) => acc + ((d.totalAmount || 0) - (d.paidAmount || 0)), 0);
+        const totalDebt = (debts || []).reduce((acc, d) => acc + ((d.totalAmount || 0) - (d.paidAmount || 0)), 0);
         return { totalIncome, totalOutflow, netCashFlow, totalDebt };
     }, [bills, debts, incomes, weeklyCosts]);
 
     const expenseByCategory = useMemo(() => {
-        const categories = bills.reduce((acc, bill) => {
+        const categories = (bills || []).reduce((acc, bill) => {
             const category = bill.category || 'Uncategorized';
             acc[category] = (acc[category] || 0) + bill.amount;
             return acc;
@@ -152,10 +154,10 @@ const App = () => {
     }, [bills]);
 
     const goalsWithProgress = useMemo(() => {
-        return goals.map(goal => {
+        return (goals || []).map(goal => {
             let progress = 0;
             if (goal.type === 'debt') {
-                const debt = debts.find(d => d.id === goal.targetId);
+                const debt = (debts || []).find(d => d.id === goal.targetId);
                 if (debt) progress = (debt.paidAmount / debt.totalAmount) * 100;
             }
             return { ...goal, progress: Math.min(progress, 100) };
@@ -213,7 +215,7 @@ const App = () => {
         ids.forEach(id => {
             batch.delete(doc(db, 'artifacts', appId, 'users', userId, collectionName, id));
             if (type === 'vehicle') {
-                maintenanceLogs.filter(log => log.vehicleId === id).forEach(log =>
+                (maintenanceLogs || []).filter(log => log.vehicleId === id).forEach(log =>
                     batch.delete(doc(db, 'artifacts', appId, 'users', userId, 'maintenanceLogs', log.id))
                 );
             }
@@ -224,7 +226,7 @@ const App = () => {
 
     const deleteAllData = async () => {
         if (!userId || !window.confirm("Clear all your business data? This is irreversible.")) return;
-        const collectionsToDelete = ['bills', 'debts', 'incomes', 'weeklyCosts', 'tasks', 'taxPayments', 'goals', 'inventory', 'vehicles', 'maintenanceLogs', 'paidStatus', 'system', 'settings'];
+        const collectionsToDelete = ['bills', 'debts', 'incomes', 'weeklyCosts', 'tasks', 'taxPayments', 'goals', 'inventory', 'vehicles', 'maintenanceLogs', 'paidStatus', 'system', 'settings', 'workOrders', 'technicians', 'customers'];
         for (const collectionName of collectionsToDelete) {
             const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, collectionName));
             if (!snapshot.empty) {
@@ -316,7 +318,6 @@ const App = () => {
                 </header>
                 <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
                     <button onClick={() => setActiveSection('dashboard')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'dashboard' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Dashboard</button>
-                    {/* Removed Reports Button */}
                     <button onClick={() => setActiveSection('calendar')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'calendar' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Calendar</button>
                     <button onClick={() => setActiveSection('workorder')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'workorder' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Work Orders</button>
                     <button onClick={() => setActiveSection('vehicles')} className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeSection === 'vehicles' ? 'text-cyan-600 dark:text-white border-b-2 border-cyan-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>Vehicles</button>
@@ -333,11 +334,13 @@ const App = () => {
                 </nav>
                 <main>
                     {activeSection === 'dashboard' && renderDashboard()}
-                    {/* Removed ReportsSection from render logic */}
                     {activeSection === 'valuation' && <ValuationCalculator />}
-                    {activeSection === 'calendar' && <CalendarSection tasks={tasks} openModal={openModal} />}
-                    {activeSection === 'tax' && <TaxManagement taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} />}
-                    {activeSection === 'pnl' && <PnLStatement bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} />}
+                    {/* ✅ Pass workOrders and technicians to CalendarSection */}
+                    {activeSection === 'calendar' && <CalendarSection tasks={tasks} openModal={openModal} workOrders={workOrders} technicians={technicians} />}
+                    {/* ✅ Pass workOrders to TaxManagement */}
+                    {activeSection === 'tax' && <TaxManagement taxPayments={taxPayments} openModal={openModal} handleDelete={handleDelete} workOrders={workOrders} bills={bills} weeklyCosts={weeklyCosts} />}
+                    {/* ✅ Pass workOrders to PnLStatement */}
+                    {activeSection === 'pnl' && <PnLStatement bills={bills} weeklyCosts={weeklyCosts} reportingPeriod={reportingPeriod} dateRange={dateRange} workOrders={workOrders} />}
                     {activeSection === 'forecast' && <ForecastSection bills={bills} weeklyCosts={weeklyCosts} currentBankBalance={currentBankBalance} setCurrentBankBalance={handleUpdateCurrentBalance} />}
                     {activeSection === 'goals' && <GoalsSection goalsWithProgress={goalsWithProgress} openModal={openModal} onDeleteGoal={(goalId) => handleDelete('goal', goalId)} onEditGoal={(goal) => openModal('goal', goal)} />}
                     {activeSection === 'incentives' && <IncentiveCalculator userId={userId} db={db} appId={appId} />}
