@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { StatCard } from './StatCard'; 
 import { DollarSign, PlusCircle, Edit, Trash2, Info, ChevronDown } from 'lucide-react';
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
-import { excelDateToJSDateString } from '../utils/helpers';
+// ✅ Corrected the import path to the helpers file
+import { excelDateToJSDateString } from './work-order-management/utils/helpers';
 
 const TAX_RATE_PRESETS = {
     'single-member-llc': 20,
