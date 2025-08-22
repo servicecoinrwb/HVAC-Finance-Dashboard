@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown, Edit } from 'lucide-react';
-// 1. Import the context hook
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
+import * as api from '../services/firestore'; // Import the api for geocoding
 
 // --- Utility Functions ---
 const getCustomerTypeStyles = (t) => ({
@@ -54,7 +54,18 @@ const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
     const [city, setCity] = useState('');
     const [state, setState] = useState('MI');
     const [zip, setZip] = useState('');
-    const handleSubmit = (e) => { e.preventDefault(); if (!name.trim()) { alert("Location name cannot be empty."); return; } onAddLocation(customer, { name, locNum, street, city, state, zip, assets: [] }); onClose(); };
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        if (!name.trim()) { alert("Location name cannot be empty."); return; }
+        
+        const fullAddress = `${street}, ${city}, ${state} ${zip}`;
+        const coordinates = await api.geocodeAddress(fullAddress);
+
+        if (coordinates) {
+            onAddLocation(customer, { name, locNum, street, city, state, zip, assets: [], ...coordinates }); 
+            onClose();
+        }
+    };
     return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4 overflow-y-auto"><input type="text" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required /><input type="text" placeholder="Location #" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="Street Address" value={street} onChange={e => setStreet(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><div className="grid grid-cols-3 gap-4"><input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="Zip Code" value={zip} onChange={e => setZip(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /></div></div><div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
 };
 

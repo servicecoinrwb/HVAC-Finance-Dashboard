@@ -9,6 +9,23 @@ const getDocRef = (db, userId, collectionName, docId) => {
     return doc(db, 'artifacts', 'workOrderManagement', 'users', userId, collectionName, docId);
 };
 
+// --- NEW: Geocoding Function ---
+export const geocodeAddress = async (address) => {
+    const geocoder = new window.google.maps.Geocoder();
+    try {
+        const results = await geocoder.geocode({ address });
+        if (results.results[0]) {
+            const { lat, lng } = results.results[0].geometry.location;
+            return { lat: lat(), lng: lng() };
+        }
+    } catch (error) {
+        console.error('Geocoding failed:', error);
+        alert('Could not find coordinates for the address. Please check the address and try again.');
+    }
+    return null;
+};
+
+
 // --- Generic Listener ---
 export const getCollectionListener = (db, userId, collectionName, callback) => {
     const q = query(getCollectionRef(db, userId, collectionName));
@@ -21,7 +38,8 @@ export const getCollectionListener = (db, userId, collectionName, callback) => {
 // --- Work Order Functions ---
 export const addWorkOrder = (db, userId, orderData) => {
     const newOrder = { ...orderData, createdAt: serverTimestamp() };
-    return addDoc(getCollectionRef(db, userId, 'workOrders'), newOrder);
+    const docRef = doc(getCollectionRef(db, userId, 'workOrders'));
+    return setDoc(docRef, { ...newOrder, id: docRef.id });
 };
 
 export const updateWorkOrder = (db, userId, orderId, payload) => {
@@ -44,7 +62,8 @@ export const addNoteToWorkOrder = async (db, userId, orderId, noteText) => {
 
 // --- Customer Functions ---
 export const addCustomer = (db, userId, customerData) => {
-    return addDoc(getCollectionRef(db, userId, 'customers'), { ...customerData, createdAt: serverTimestamp() });
+    const docRef = doc(getCollectionRef(db, userId, 'customers'));
+    return setDoc(docRef, { ...customerData, id: docRef.id, createdAt: serverTimestamp() });
 };
 
 export const updateCustomer = (db, userId, customerId, payload) => {
@@ -59,7 +78,8 @@ export const deleteCustomer = (db, userId, customerId) => {
 
 // --- Technician Functions ---
 export const addTechnician = (db, userId, techData) => {
-    return addDoc(getCollectionRef(db, userId, 'technicians'), { ...techData, createdAt: serverTimestamp() });
+    const docRef = doc(getCollectionRef(db, userId, 'technicians'));
+    return setDoc(docRef, { ...techData, id: docRef.id, createdAt: serverTimestamp() });
 };
 
 export const updateTechnician = (db, userId, techId, payload) => {
@@ -89,11 +109,13 @@ export const deleteTechnician = async (db, userId, techId, workOrders) => {
 
 // --- Billing Functions ---
 export const addInvoice = (db, userId, invoiceData) => {
-    return addDoc(getCollectionRef(db, userId, 'invoices'), { ...invoiceData, createdAt: serverTimestamp() });
+    const docRef = doc(getCollectionRef(db, userId, 'invoices'), invoiceData.id);
+    return setDoc(docRef, { ...invoiceData, createdAt: serverTimestamp() });
 };
 
 export const addQuote = (db, userId, quoteData) => {
-    return addDoc(getCollectionRef(db, userId, 'quotes'), { ...quoteData, createdAt: serverTimestamp() });
+    const docRef = doc(getCollectionRef(db, userId, 'quotes'), quoteData.id);
+    return setDoc(docRef, { ...quoteData, createdAt: serverTimestamp() });
 };
 
 export const updateInvoice = (db, userId, invoiceId, payload) => {
@@ -106,7 +128,6 @@ export const updateQuote = (db, userId, quoteId, payload) => {
     return updateDoc(quoteRef, { ...payload, updatedAt: serverTimestamp() });
 };
 
-// --- NEW ADVANCED BILLING FUNCTIONS ---
 export const updateInvoiceItems = (db, userId, invoiceId, items, discount, lateFee) => {
     const invoiceRef = getDocRef(db, userId, 'invoices', invoiceId);
     const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -119,16 +140,4 @@ export const updateInvoiceItems = (db, userId, invoiceId, items, discount, lateF
         total,
         updatedAt: serverTimestamp()
     });
-};
-
-export const generateInvoicePdf = (invoice) => {
-    // In a real app, you'd use a library like jsPDF or a backend service.
-    // This is a simplified simulation for demonstration.
-    alert(`Generating PDF for Invoice #${invoice.id}...\n\n(This would open a new tab with the generated PDF)`);
-    console.log("Simulating PDF Generation for:", invoice);
-};
-
-export const generateQuotePdf = (quote) => {
-    alert(`Generating PDF for Quote #${quote.id}...\n\n(This would open a new tab with the generated PDF)`);
-    console.log("Simulating PDF Generation for:", quote);
 };
