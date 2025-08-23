@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown, Edit } from 'lucide-react';
+import { User, Mail, Phone, PlusCircle, Trash2, Building, HardHat, ChevronDown, Edit, MapPin, AlertCircle, Loader } from 'lucide-react';
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 import * as api from '../services/firestore'; // Import the api for geocoding
 
@@ -11,8 +11,7 @@ const getCustomerTypeStyles = (t) => ({
     'maintenance': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
 }[t?.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200');
 
-
-// --- Modals ---
+// --- Enhanced Modals with Geocoding ---
 const AddCustomerModal = ({ onClose, onAddCustomer }) => {
     const [name, setName] = useState('');
     const [type, setType] = useState('Commercial');
@@ -23,18 +22,252 @@ const AddCustomerModal = ({ onClose, onAddCustomer }) => {
     const [city, setCity] = useState('');
     const [state, setState] = useState('MI');
     const [zip, setZip] = useState('');
+    
+    // Geocoding states
+    const [isGeocoding, setIsGeocoding] = useState(false);
+    const [geocodingError, setGeocodingError] = useState('');
+    const [geocodingSuccess, setGeocodingSuccess] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!name.trim()) { alert("Customer name cannot be empty."); return; }
-        onAddCustomer({ name, type, contact: { name: contactName, email: contactEmail, phone: contactPhone }, billingAddress: { street, city, state, zip }, locations: [] });
-        onClose();
+        if (!name.trim()) { 
+            alert("Customer name cannot be empty."); 
+            return; 
+        }
+
+        setIsGeocoding(true);
+        setGeocodingError('');
+        setGeocodingSuccess('');
+
+        const customerData = {
+            name,
+            type,
+            contact: {
+                name: contactName,
+                email: contactEmail,
+                phone: contactPhone
+            },
+            // Store address fields for geocoding
+            street,
+            city,
+            state,
+            zip,
+            // Also store as billingAddress for backward compatibility
+            billingAddress: {
+                street,
+                city,
+                state,
+                zip
+            },
+            locations: []
+        };
+
+        try {
+            // Use the enhanced geocoding function
+            const result = await onAddCustomer(customerData);
+            
+            if (result && result.coordinates) {
+                setGeocodingSuccess(`Customer added successfully with coordinates: ${result.coordinates.lat}, ${result.coordinates.lng}`);
+                setTimeout(() => onClose(), 1500); // Close after showing success
+            } else if (result && result.warning) {
+                setGeocodingError(result.warning);
+                setTimeout(() => onClose(), 3000); // Close after showing warning
+            } else {
+                onClose(); // Close normally if no geocoding was attempted
+            }
+        } catch (error) {
+            console.error('Error adding customer:', error);
+            setGeocodingError(`Failed to add customer: ${error.message}`);
+        }
+        
+        setIsGeocoding(false);
     };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required /></div><div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label><select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t dark:border-slate-600"><h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs text-gray-500 dark:text-gray-400">Name</label><input value={contactName} onChange={e=>setContactName(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">Email</label><input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} type="email" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">Phone</label><input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} type="tel" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div></div></div><div className="pt-4 border-t dark:border-slate-600"><h3 className="font-semibold text-gray-800 dark:text-white">Billing Address</h3><div className="mt-2"><label className="text-xs text-gray-500 dark:text-gray-400">Street</label><input value={street} onChange={e=>setStreet(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs text-gray-500 dark:text-gray-400">City</label><input value={city} onChange={e=>setCity(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">State</label><input value={state} onChange={e=>setState(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">Zip</label><input value={zip} onChange={e=>setZip(e.target.value)} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div></div></div></div><div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Save Customer</button></div></form></div>);
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Customer</h2>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    {/* Geocoding Status Messages */}
+                    {isGeocoding && (
+                        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <Loader className="animate-spin" size={16} />
+                            <span className="text-sm text-blue-700 dark:text-blue-300">Adding customer and geocoding address...</span>
+                        </div>
+                    )}
+                    
+                    {geocodingError && (
+                        <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <AlertCircle size={16} />
+                            <span className="text-sm text-yellow-700 dark:text-yellow-300">{geocodingError}</span>
+                        </div>
+                    )}
+                    
+                    {geocodingSuccess && (
+                        <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <MapPin size={16} />
+                            <span className="text-sm text-green-700 dark:text-green-300">{geocodingSuccess}</span>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name *</label>
+                            <input 
+                                type="text" 
+                                value={name} 
+                                onChange={e => setName(e.target.value)} 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                required 
+                                disabled={isGeocoding}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label>
+                            <select 
+                                value={type} 
+                                onChange={e => setType(e.target.value)} 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                disabled={isGeocoding}
+                            >
+                                <option>Commercial</option>
+                                <option>Residential</option>
+                                <option>National Account</option>
+                                <option>Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Name</label>
+                                <input 
+                                    value={contactName} 
+                                    onChange={e => setContactName(e.target.value)} 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Email</label>
+                                <input 
+                                    value={contactEmail} 
+                                    onChange={e => setContactEmail(e.target.value)} 
+                                    type="email" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Phone</label>
+                                <input 
+                                    value={contactPhone} 
+                                    onChange={e => setContactPhone(e.target.value)} 
+                                    type="tel" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">
+                            Billing Address
+                            <span className="text-xs text-gray-500 ml-2">(Used for geocoding - include complete address)</span>
+                        </h3>
+                        <div className="mt-2">
+                            <label className="text-xs text-gray-500 dark:text-gray-400">Street Address *</label>
+                            <input 
+                                value={street} 
+                                onChange={e => setStreet(e.target.value)} 
+                                type="text" 
+                                placeholder="123 Main Street"
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                disabled={isGeocoding}
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">City *</label>
+                                <input 
+                                    value={city} 
+                                    onChange={e => setCity(e.target.value)} 
+                                    type="text" 
+                                    placeholder="Detroit"
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">State *</label>
+                                <input 
+                                    value={state} 
+                                    onChange={e => setState(e.target.value)} 
+                                    type="text" 
+                                    placeholder="MI"
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Zip Code</label>
+                                <input 
+                                    value={zip} 
+                                    onChange={e => setZip(e.target.value)} 
+                                    type="text" 
+                                    placeholder="48201"
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4"
+                        disabled={isGeocoding}
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isGeocoding}
+                    >
+                        {isGeocoding ? 'Adding...' : 'Save Customer'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const EditCustomerModal = ({ customer, onClose, onUpdateCustomer }) => {
-    const [formData, setFormData] = useState(customer);
+    const [formData, setFormData] = useState({
+        ...customer,
+        // Flatten address data for easier editing
+        street: customer.billingAddress?.street || customer.street || '',
+        city: customer.billingAddress?.city || customer.city || '',
+        state: customer.billingAddress?.state || customer.state || '',
+        zip: customer.billingAddress?.zip || customer.zip || ''
+    });
+    
+    // Geocoding states
+    const [isGeocoding, setIsGeocoding] = useState(false);
+    const [geocodingError, setGeocodingError] = useState('');
+    const [geocodingSuccess, setGeocodingSuccess] = useState('');
+
     const handleChange = (e, section = null) => {
         const { name, value } = e.target;
         if (section) {
@@ -43,8 +276,226 @@ const EditCustomerModal = ({ customer, onClose, onUpdateCustomer }) => {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
     };
-    const handleSubmit = (e) => { e.preventDefault(); onUpdateCustomer(formData); onClose(); };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Customer</h2></div><div className="p-6 overflow-y-auto space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required /></div><div><label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label><select name="type" value={formData.type} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"><option>Commercial</option><option>Residential</option><option>National Account</option><option>Maintenance</option></select></div></div><div className="pt-4 border-t dark:border-slate-600"><h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs text-gray-500 dark:text-gray-400">Name</label><input name="name" value={formData.contact.name} onChange={e => handleChange(e, 'contact')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">Email</label><input name="email" value={formData.contact.email} onChange={e => handleChange(e, 'contact')} type="email" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">Phone</label><input name="phone" value={formData.contact.phone} onChange={e => handleChange(e, 'contact')} type="tel" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div></div></div><div className="pt-4 border-t dark:border-slate-600"><h3 className="font-semibold text-gray-800 dark:text-white">Billing Address</h3><div className="mt-2"><label className="text-xs text-gray-500 dark:text-gray-400">Street</label><input name="street" value={formData.billingAddress.street} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2"><div><label className="text-xs text-gray-500 dark:text-gray-400">City</label><input name="city" value={formData.billingAddress.city} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">State</label><input name="state" value={formData.billingAddress.state} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div><div><label className="text-xs text-gray-500 dark:text-gray-400">Zip</label><input name="zip" value={formData.billingAddress.zip} onChange={e => handleChange(e, 'billingAddress')} type="text" className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" /></div></div></div></div><div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button></div></form></div>);
+
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        
+        setIsGeocoding(true);
+        setGeocodingError('');
+        setGeocodingSuccess('');
+
+        try {
+            // Prepare the update payload
+            const updatePayload = {
+                ...formData,
+                // Update both flat fields and billingAddress object
+                billingAddress: {
+                    street: formData.street,
+                    city: formData.city,
+                    state: formData.state,
+                    zip: formData.zip
+                }
+            };
+
+            const result = await onUpdateCustomer(updatePayload);
+            
+            if (result && result.coordinates) {
+                setGeocodingSuccess(`Customer updated successfully with new coordinates: ${result.coordinates.lat}, ${result.coordinates.lng}`);
+                setTimeout(() => onClose(), 1500);
+            } else if (result && result.warning) {
+                setGeocodingError(result.warning);
+                setTimeout(() => onClose(), 3000);
+            } else {
+                onClose();
+            }
+        } catch (error) {
+            console.error('Error updating customer:', error);
+            setGeocodingError(`Failed to update customer: ${error.message}`);
+        }
+        
+        setIsGeocoding(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Customer</h2>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-4">
+                    {/* Geocoding Status Messages */}
+                    {isGeocoding && (
+                        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <Loader className="animate-spin" size={16} />
+                            <span className="text-sm text-blue-700 dark:text-blue-300">Updating customer and re-geocoding address...</span>
+                        </div>
+                    )}
+                    
+                    {geocodingError && (
+                        <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <AlertCircle size={16} />
+                            <span className="text-sm text-yellow-700 dark:text-yellow-300">{geocodingError}</span>
+                        </div>
+                    )}
+                    
+                    {geocodingSuccess && (
+                        <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <MapPin size={16} />
+                            <span className="text-sm text-green-700 dark:text-green-300">{geocodingSuccess}</span>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Name</label>
+                            <input 
+                                type="text" 
+                                name="name" 
+                                value={formData.name} 
+                                onChange={handleChange} 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                                required 
+                                disabled={isGeocoding}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer Type</label>
+                            <select 
+                                name="type" 
+                                value={formData.type} 
+                                onChange={handleChange} 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                disabled={isGeocoding}
+                            >
+                                <option>Commercial</option>
+                                <option>Residential</option>
+                                <option>National Account</option>
+                                <option>Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">Primary Contact</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Name</label>
+                                <input 
+                                    name="name" 
+                                    value={formData.contact?.name || ''} 
+                                    onChange={e => handleChange(e, 'contact')} 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Email</label>
+                                <input 
+                                    name="email" 
+                                    value={formData.contact?.email || ''} 
+                                    onChange={e => handleChange(e, 'contact')} 
+                                    type="email" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Phone</label>
+                                <input 
+                                    name="phone" 
+                                    value={formData.contact?.phone || ''} 
+                                    onChange={e => handleChange(e, 'contact')} 
+                                    type="tel" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t dark:border-slate-600">
+                        <h3 className="font-semibold text-gray-800 dark:text-white">
+                            Billing Address
+                            <span className="text-xs text-gray-500 ml-2">(Changes will re-geocode the address)</span>
+                        </h3>
+                        <div className="mt-2">
+                            <label className="text-xs text-gray-500 dark:text-gray-400">Street</label>
+                            <input 
+                                name="street" 
+                                value={formData.street} 
+                                onChange={handleChange} 
+                                type="text" 
+                                className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                disabled={isGeocoding}
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">City</label>
+                                <input 
+                                    name="city" 
+                                    value={formData.city} 
+                                    onChange={handleChange} 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">State</label>
+                                <input 
+                                    name="state" 
+                                    value={formData.state} 
+                                    onChange={handleChange} 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">Zip</label>
+                                <input 
+                                    name="zip" 
+                                    value={formData.zip} 
+                                    onChange={handleChange} 
+                                    type="text" 
+                                    className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700" 
+                                    disabled={isGeocoding}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Display current coordinates if available */}
+                    {customer.coordinates && (
+                        <div className="pt-2 text-xs text-gray-500 dark:text-gray-400">
+                            Current coordinates: {customer.coordinates.lat}, {customer.coordinates.lng}
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4"
+                        disabled={isGeocoding}
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isGeocoding}
+                    >
+                        {isGeocoding ? 'Updating...' : 'Save Changes'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
@@ -54,19 +505,172 @@ const AddLocationModal = ({ customer, onClose, onAddLocation }) => {
     const [city, setCity] = useState('');
     const [state, setState] = useState('MI');
     const [zip, setZip] = useState('');
+    
+    // Geocoding states
+    const [isGeocoding, setIsGeocoding] = useState(false);
+    const [geocodingError, setGeocodingError] = useState('');
+
     const handleSubmit = async (e) => { 
         e.preventDefault(); 
-        if (!name.trim()) { alert("Location name cannot be empty."); return; }
-        
-        const fullAddress = `${street}, ${city}, ${state} ${zip}`;
-        const coordinates = await api.geocodeAddress(fullAddress);
-
-        if (coordinates) {
-            onAddLocation(customer, { name, locNum, street, city, state, zip, assets: [], ...coordinates }); 
-            onClose();
+        if (!name.trim()) { 
+            alert("Location name cannot be empty."); 
+            return; 
         }
+
+        setIsGeocoding(true);
+        setGeocodingError('');
+
+        try {
+            // Use the enhanced geocoding
+            const addressObj = { street, city, state, zip };
+            const fullAddress = api.formatAddressForGeocoding(addressObj);
+            
+            console.log('Geocoding location:', fullAddress);
+            
+            const geocodeResult = await api.smartGeocode(fullAddress);
+            
+            let newLocation = {
+                name, 
+                locNum, 
+                street, 
+                city, 
+                state, 
+                zip, 
+                assets: []
+            };
+
+            if (geocodeResult.success) {
+                // Add coordinates to location
+                newLocation.coordinates = geocodeResult.coordinates;
+                newLocation.formattedAddress = geocodeResult.formattedAddress;
+                console.log('Location geocoded successfully:', geocodeResult.coordinates);
+            } else {
+                // Save location without coordinates but show warning
+                newLocation.geocodingError = geocodeResult.error;
+                setGeocodingError(`Location will be saved without coordinates: ${geocodeResult.error}`);
+                console.warn('Geocoding failed:', geocodeResult.error);
+            }
+
+            onAddLocation(customer, newLocation);
+            
+            if (geocodeResult.success) {
+                onClose(); // Close immediately if successful
+            } else {
+                // Delay close to show error message
+                setTimeout(() => onClose(), 2000);
+            }
+            
+        } catch (error) {
+            console.error('Error adding location:', error);
+            setGeocodingError(`Failed to add location: ${error.message}`);
+        }
+        
+        setIsGeocoding(false);
     };
-    return (<div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"><form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-6 border-b dark:border-slate-700"><h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add Location to {customer.name}</h2></div><div className="p-6 space-y-4 overflow-y-auto"><input type="text" placeholder="Location Name" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required /><input type="text" placeholder="Location #" value={locNum} onChange={e => setLocNum(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="Street Address" value={street} onChange={e => setStreet(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><div className="grid grid-cols-3 gap-4"><input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /><input type="text" placeholder="Zip Code" value={zip} onChange={e => setZip(e.target.value)} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" /></div></div><div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4"><button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button><button type="submit" className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700">Add Location</button></div></form></div>);
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg">
+                <div className="p-6 border-b dark:border-slate-700">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add Location to {customer.name}</h2>
+                </div>
+                
+                <div className="p-6 space-y-4 overflow-y-auto">
+                    {/* Geocoding Status Messages */}
+                    {isGeocoding && (
+                        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <Loader className="animate-spin" size={16} />
+                            <span className="text-sm text-blue-700 dark:text-blue-300">Adding location and geocoding address...</span>
+                        </div>
+                    )}
+                    
+                    {geocodingError && (
+                        <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <AlertCircle size={16} />
+                            <span className="text-sm text-yellow-700 dark:text-yellow-300">{geocodingError}</span>
+                        </div>
+                    )}
+
+                    <input 
+                        type="text" 
+                        placeholder="Location Name *" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                        required 
+                        disabled={isGeocoding}
+                    />
+                    
+                    <input 
+                        type="text" 
+                        placeholder="Location # (optional)" 
+                        value={locNum} 
+                        onChange={e => setLocNum(e.target.value)} 
+                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                        disabled={isGeocoding}
+                    />
+                    
+                    <input 
+                        type="text" 
+                        placeholder="Street Address *" 
+                        value={street} 
+                        onChange={e => setStreet(e.target.value)} 
+                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                        disabled={isGeocoding}
+                    />
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                        <input 
+                            type="text" 
+                            placeholder="City *" 
+                            value={city} 
+                            onChange={e => setCity(e.target.value)} 
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                            disabled={isGeocoding}
+                        />
+                        <input 
+                            type="text" 
+                            placeholder="State *" 
+                            value={state} 
+                            onChange={e => setState(e.target.value)} 
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                            disabled={isGeocoding}
+                        />
+                        <input 
+                            type="text" 
+                            placeholder="Zip Code" 
+                            value={zip} 
+                            onChange={e => setZip(e.target.value)} 
+                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
+                            disabled={isGeocoding}
+                        />
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        * Complete address information improves geocoding accuracy for mapping features
+                    </p>
+                </div>
+
+                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4"
+                        disabled={isGeocoding}
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isGeocoding}
+                    >
+                        {isGeocoding ? 'Adding...' : 'Add Location'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 };
 
 const AddAssetModal = ({ customer, locationIndex, onClose, onAddAsset }) => {
@@ -238,14 +842,13 @@ const EditAssetModal = ({ asset, customer, locationIndex, assetIndex, onClose, o
     );
 };
 
-
 export const CustomerManagementView = () => {
-    const { customers, handlers } = useWorkOrderContext();
+    const { customers, handlers, db, userId } = useWorkOrderContext();
     const [isAddingCustomer, setIsAddingCustomer] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [addingLocationTo, setAddingLocationTo] = useState(null);
     const [addingAssetTo, setAddingAssetTo] = useState(null);
-    const [editingAsset, setEditingAsset] = useState(null); // { customer, locationIndex, assetIndex }
+    const [editingAsset, setEditingAsset] = useState(null);
     const [expandedCustomers, setExpandedCustomers] = useState(new Set());
     const [expandedLocations, setExpandedLocations] = useState({});
 
@@ -263,6 +866,37 @@ export const CustomerManagementView = () => {
             else customerLocations.add(locationIndex);
             return { ...prev, [customerId]: customerLocations };
         });
+    };
+
+    // Enhanced customer handlers with geocoding
+    const handleAddCustomer = async (customerData) => {
+        try {
+            if (db && userId) {
+                // Use the enhanced geocoding function
+                return await api.addCustomerWithGeocoding(db, userId, customerData);
+            } else {
+                // Fallback to original handler if db/userId not available
+                return handlers.addCustomer(customerData);
+            }
+        } catch (error) {
+            console.error('Error in handleAddCustomer:', error);
+            throw error;
+        }
+    };
+
+    const handleUpdateCustomer = async (customerData) => {
+        try {
+            if (db && userId && customerData.id) {
+                // Use the enhanced geocoding function for updates
+                return await api.updateCustomerWithGeocoding(db, userId, customerData.id, customerData);
+            } else {
+                // Fallback to original handler
+                return handlers.updateCustomer(customerData);
+            }
+        } catch (error) {
+            console.error('Error in handleUpdateCustomer:', error);
+            throw error;
+        }
     };
 
     const handleAddLocation = (customer, newLocation) => {
@@ -317,6 +951,8 @@ export const CustomerManagementView = () => {
                                 <div className="flex items-center gap-4">
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{customer.name}</h3>
                                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getCustomerTypeStyles(customer.type)}`}>{customer.type}</span>
+                                    {customer.coordinates && <MapPin size={16} className="text-green-600" title="Location geocoded" />}
+                                    {customer.geocodingError && <AlertCircle size={16} className="text-yellow-600" title={`Geocoding failed: ${customer.geocodingError}`} />}
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -331,7 +967,21 @@ export const CustomerManagementView = () => {
                                 <div className="p-4 border-t dark:border-slate-700">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="text-sm"><p className="font-semibold text-gray-600 dark:text-gray-400">Primary Contact</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><User size={14}/> {customer.contact?.name}</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Mail size={14}/> {customer.contact?.email}</p><p className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><Phone size={14}/> {customer.contact?.phone}</p></div>
-                                        <div className="text-sm"><p className="font-semibold text-gray-600 dark:text-gray-400">Billing Address</p><p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.street}</p><p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.city}, {customer.billingAddress?.state} {customer.billingAddress?.zip}</p></div>
+                                        <div className="text-sm">
+                                            <p className="font-semibold text-gray-600 dark:text-gray-400">Billing Address</p>
+                                            <p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.street || customer.street}</p>
+                                            <p className="text-gray-800 dark:text-gray-300">{customer.billingAddress?.city || customer.city}, {customer.billingAddress?.state || customer.state} {customer.billingAddress?.zip || customer.zip}</p>
+                                            {customer.coordinates && (
+                                                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                    <MapPin size={12} /> {customer.coordinates.lat.toFixed(6)}, {customer.coordinates.lng.toFixed(6)}
+                                                </p>
+                                            )}
+                                            {customer.geocodingError && (
+                                                <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                                                    <AlertCircle size={12} /> Geocoding failed
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="mt-3 pt-3 border-t dark:border-slate-600">
                                         <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Service Locations ({(customer.locations || []).length})</h4>
@@ -344,8 +994,17 @@ export const CustomerManagementView = () => {
                                                         <div className="flex items-center gap-2">
                                                             <ChevronDown className={`transition-transform ${isLocationExpanded ? 'rotate-180' : ''}`} size={16} />
                                                             <div>
-                                                                <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold flex items-center gap-2"><Building size={14} /> {loc.name} (#{loc.locNum})</p>
+                                                                <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold flex items-center gap-2">
+                                                                    <Building size={14} /> {loc.name} (#{loc.locNum})
+                                                                    {loc.coordinates && <MapPin size={12} className="text-green-600" />}
+                                                                    {loc.geocodingError && <AlertCircle size={12} className="text-yellow-600" />}
+                                                                </p>
                                                                 <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">{loc.street}, {loc.city}, {loc.state} {loc.zip}</p>
+                                                                {loc.coordinates && (
+                                                                    <p className="text-xs text-green-600 dark:text-green-400 ml-6">
+                                                                        📍 {loc.coordinates.lat.toFixed(6)}, {loc.coordinates.lng.toFixed(6)}
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -388,8 +1047,8 @@ export const CustomerManagementView = () => {
                     )
                 })}
             </div>
-            {isAddingCustomer && <AddCustomerModal onAddCustomer={handlers.addCustomer} onClose={() => setIsAddingCustomer(false)} />}
-            {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={handlers.updateCustomer} onClose={() => setEditingCustomer(null)} />}
+            {isAddingCustomer && <AddCustomerModal onAddCustomer={handleAddCustomer} onClose={() => setIsAddingCustomer(false)} />}
+            {editingCustomer && <EditCustomerModal customer={editingCustomer} onUpdateCustomer={handleUpdateCustomer} onClose={() => setEditingCustomer(null)} />}
             {addingLocationTo && <AddLocationModal customer={addingLocationTo} onAddLocation={handleAddLocation} onClose={() => setAddingLocationTo(null)} />}
             {addingAssetTo && <AddAssetModal customer={addingAssetTo.customer} locationIndex={addingAssetTo.locationIndex} onAddAsset={handleAddAsset} onClose={() => setAddingAssetTo(null)} />}
             {editingAsset && <EditAssetModal asset={editingAsset.asset} customer={editingAsset.customer} locationIndex={editingAsset.locationIndex} assetIndex={editingAsset.assetIndex} onUpdateAsset={handleUpdateAsset} onClose={() => setEditingAsset(null)} />}
