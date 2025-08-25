@@ -9,6 +9,7 @@ const AddWorkOrderModal = () => {
     const [clientId, setClientId] = useState('');
     const [task, setTask] = useState('');
     const [priority, setPriority] = useState('Regular');
+    const [clientWorkOrderNumber, setClientWorkOrderNumber] = useState('');
     const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 75, amount: 75, inventoryId: null, asset: '' }]);
     const selectedClient = useMemo(() => (customers || []).find(c => c.id === clientId), [clientId, customers]);
 
@@ -50,6 +51,14 @@ const AddWorkOrderModal = () => {
         setIsAddingOrder(false);
     };
 
+    // Generate work order number
+    const generateWorkOrderNumber = () => {
+        const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        const time = new Date().toTimeString().slice(0, 5).replace(':', '');
+        const random = Math.floor(Math.random() * 999).toString().padStart(3, '0');
+        return `WO-${date}-${time}-${random}`;
+    };
+
     const handleAssetToggle = (assetName) => {
         setServicedAssets(prev => 
             prev.includes(assetName) 
@@ -76,7 +85,12 @@ const AddWorkOrderModal = () => {
             return alert('Please fill out all required fields, including the task description.');
         }
 
+        // Use client work order number if provided, otherwise generate one
+        const workOrderNumber = clientWorkOrderNumber.trim() || generateWorkOrderNumber();
+
         const orderData = {
+            'Work Order #': workOrderNumber,
+            'Client WO#': clientWorkOrderNumber.trim() || '',
             Client: selectedClient.name,
             Company: location.name,
             'Loc #': location.locNum,
@@ -136,7 +150,7 @@ const AddWorkOrderModal = () => {
                 <div className="p-6 overflow-y-auto space-y-6">
                     <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
                         <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Details</legend>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Client</label>
                                 <select value={clientId} onChange={(e) => setClientId(e.target.value)} className={inputStyles}>
@@ -153,6 +167,21 @@ const AddWorkOrderModal = () => {
                                 <select value={priority} onChange={(e) => setPriority(e.target.value)} className={inputStyles}>
                                     <option>Regular</option><option>Low</option><option>Urgent</option><option>Emergency</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                                    Client WO# <span className="text-xs text-gray-500">(optional)</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    value={clientWorkOrderNumber} 
+                                    onChange={e => setClientWorkOrderNumber(e.target.value)} 
+                                    placeholder="Client's work order #" 
+                                    className={inputStyles}
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Leave blank to auto-generate
+                                </p>
                             </div>
                         </div>
                     </fieldset>
