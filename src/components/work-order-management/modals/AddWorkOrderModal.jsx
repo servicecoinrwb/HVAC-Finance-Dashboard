@@ -11,7 +11,7 @@ const AddWorkOrderModal = () => {
     const [priority, setPriority] = useState('Regular');
     const [clientWorkOrderNumber, setClientWorkOrderNumber] = useState('');
     const [notes, setNotes] = useState('');
-    const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 75, amount: 75, inventoryId: null, asset: '' }]);
+    const [lineItems, setLineItems] = useState([{ description: 'NTE', quantity: 1, rate: 75, amount: 75, inventoryId: null, asset: '' }]);
     const selectedClient = useMemo(() => (customers || []).find(c => c.id === clientId), [clientId, customers]);
 
     // Changed to store location index directly instead of parsing string
@@ -189,22 +189,6 @@ const AddWorkOrderModal = () => {
                     </fieldset>
 
                     <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
-                        <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Notes</legend>
-                        <div className="mt-2">
-                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
-                                Additional Information
-                            </label>
-                            <textarea
-                                value={notes}
-                                onChange={e => setNotes(e.target.value)}
-                                placeholder="Add any additional notes, special instructions, or observations..."
-                                rows={4}
-                                className={`${inputStyles} resize-vertical min-h-[100px]`}
-                            />
-                        </div>
-                    </fieldset>
-
-                    <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
                         <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Service Location</legend>
                         {selectedClient && !needsLocation ? (
                              <div>
@@ -286,6 +270,22 @@ const AddWorkOrderModal = () => {
                             ))}
                         </div>
                         <button type="button" onClick={addLineItem} className="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold"><PlusCircle size={16} /> Add Line Item</button>
+                    </fieldset>
+
+                    <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
+                        <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Notes</legend>
+                        <div className="mt-2">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                                Additional Information
+                            </label>
+                            <textarea
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
+                                placeholder="Add any additional notes, special instructions, or observations..."
+                                rows={4}
+                                className={`${inputStyles} resize-vertical min-h-[100px]`}
+                            />
+                        </div>
                     </fieldset>
 
                 </div>
