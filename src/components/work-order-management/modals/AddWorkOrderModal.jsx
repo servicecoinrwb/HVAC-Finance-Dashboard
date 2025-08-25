@@ -10,6 +10,7 @@ const AddWorkOrderModal = () => {
     const [task, setTask] = useState('');
     const [priority, setPriority] = useState('Regular');
     const [clientWorkOrderNumber, setClientWorkOrderNumber] = useState('');
+    const [notes, setNotes] = useState('');
     const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 75, amount: 75, inventoryId: null, asset: '' }]);
     const selectedClient = useMemo(() => (customers || []).find(c => c.id === clientId), [clientId, customers]);
 
@@ -96,6 +97,7 @@ const AddWorkOrderModal = () => {
             'Loc #': location.locNum,
             Task: task,
             Priority: priority,
+            Notes: notes.trim(),
             City: location.city,
             State: location.state,
             lineItems: lineItems,
@@ -183,6 +185,22 @@ const AddWorkOrderModal = () => {
                                     Leave blank to auto-generate
                                 </p>
                             </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
+                        <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Notes</legend>
+                        <div className="mt-2">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                                Additional Information
+                            </label>
+                            <textarea
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
+                                placeholder="Add any additional notes, special instructions, or observations..."
+                                rows={4}
+                                className={`${inputStyles} resize-vertical min-h-[100px]`}
+                            />
                         </div>
                     </fieldset>
 
