@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Search, Filter, ChevronDown, Briefcase, User, Calendar as CalendarIcon, Wrench, Check, DollarSign, BarChart } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Briefcase, User, Calendar as CalendarIcon, Wrench, Check, DollarSign, BarChart } from 'lucide-react';
 // 1. Import the context hook to access shared state
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
@@ -24,6 +24,29 @@ const getStatusStyles = (s) => ({
     'on hold':'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200',
     'cancelled':'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
 }[s?.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200');
+
+// --- Date Utilities ---
+const getDateCategory = (scheduleDate) => {
+    if (!scheduleDate) return 'later';
+    
+    const date = excelToJSDate(scheduleDate);
+    if (!date) return 'later';
+    
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekFromNow = new Date(today);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
+    
+    const isToday = date.toDateString() === today.toDateString();
+    const isTomorrow = date.toDateString() === tomorrow.toDateString();
+    const isThisWeek = date <= weekFromNow && date > tomorrow;
+    
+    if (isToday) return 'today';
+    if (isTomorrow) return 'tomorrow';
+    if (isThisWeek) return 'thisweek';
+    return 'later';
+};
 
 // --- Reusable Components ---
 
@@ -69,6 +92,87 @@ const OrderCard = ({ order, onSelectOrder }) => (
     </div>
 );
 
+const DateGroupSection = ({ title, orders, onSelectOrder, badge }) => {
+    if (!orders.length) return null;
+    
+    return (
+        <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
+                {badge && <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 rounded-full">{badge}</span>}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={onSelectOrder} />)}
+            </div>
+        </div>
+    );
+};
+
+const TabButton = ({ active, onClick, children, count }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-4 py-2 font-medium text-sm rounded-lg transition-colors ${
+            active 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+        }`}
+    >
+        {children}
+        {count > 0 && (
+            <span className={`px-2 py-1 text-xs rounded-full ${
+                active 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300'
+            }`}>
+                {count}
+            </span>
+        )}
+    </button>
+);
+
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+    if (totalPages <= 1) return null;
+    
+    return (
+        <div className="flex items-center justify-center gap-2 mt-8">
+            <button
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-slate-600"
+            >
+                <ChevronLeft size={20} />
+            </button>
+            
+            <div className="flex gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const page = i + 1;
+                    return (
+                        <button
+                            key={page}
+                            onClick={() => onPageChange(page)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                                currentPage === page
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                            }`}
+                        >
+                            {page}
+                        </button>
+                    );
+                })}
+            </div>
+            
+            <button
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-slate-600"
+            >
+                <ChevronRight size={20} />
+            </button>
+        </div>
+    );
+};
+
 export const DashboardView = () => {
     const { 
         workOrders,
@@ -76,10 +180,12 @@ export const DashboardView = () => {
         filteredOrders, 
         setSelectedOrder, 
         searchTerm, 
-        setSearchTerm, 
-        statusFilter, 
-        setStatusFilter 
+        setSearchTerm
     } = useWorkOrderContext();
+
+    const [activeTab, setActiveTab] = useState('active');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ordersPerPage = 15;
 
     const kpiData = useMemo(() => {
         const safeOrders = workOrders || [];
@@ -105,22 +211,170 @@ export const DashboardView = () => {
         return { openOrders, completedThisMonth, billedThisMonth, avgInvoiceValue };
     }, [workOrders, invoices]);
 
-    const orders = filteredOrders;
+    // Tab filtering logic
+    const tabData = useMemo(() => {
+        const safeOrders = filteredOrders || [];
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const active = safeOrders.filter(order => 
+            ['Open', 'In Progress', 'On Hold'].includes(order['Order Status'])
+        );
+
+        const scheduled = safeOrders.filter(order => 
+            order['Order Status'] === 'Scheduled' || 
+            (order['Schedule Date'] && excelToJSDate(order['Schedule Date']) > now)
+        );
+
+        const recent = safeOrders.filter(order => {
+            const completedDate = excelToJSDate(order['Completed Date']);
+            return order['Order Status'] === 'Completed' && completedDate >= sevenDaysAgo;
+        });
+
+        const all = safeOrders;
+
+        return { active, scheduled, recent, all };
+    }, [filteredOrders]);
+
+    // Date grouping for scheduled tab
+    const scheduledByDate = useMemo(() => {
+        const groups = {
+            today: [],
+            tomorrow: [],
+            thisweek: [],
+            later: []
+        };
+
+        tabData.scheduled.forEach(order => {
+            const category = getDateCategory(order['Schedule Date']);
+            groups[category].push(order);
+        });
+
+        return groups;
+    }, [tabData.scheduled]);
+
+    // Pagination logic for "All" tab
+    const paginatedOrders = useMemo(() => {
+        if (activeTab !== 'all') return [];
+        
+        const startIndex = (currentPage - 1) * ordersPerPage;
+        return tabData.all.slice(startIndex, startIndex + ordersPerPage);
+    }, [tabData.all, currentPage, ordersPerPage, activeTab]);
+
+    const totalPages = Math.ceil(tabData.all.length / ordersPerPage);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setCurrentPage(1);
+    };
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'active':
+                return tabData.active.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {tabData.active.map(order => 
+                            <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} />
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Active Work Orders</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2">All work orders are either scheduled or completed.</p>
+                    </div>
+                );
+
+            case 'scheduled':
+                return (
+                    <div>
+                        <DateGroupSection 
+                            title="Today" 
+                            orders={scheduledByDate.today} 
+                            onSelectOrder={setSelectedOrder}
+                            badge={scheduledByDate.today.length}
+                        />
+                        <DateGroupSection 
+                            title="Tomorrow" 
+                            orders={scheduledByDate.tomorrow} 
+                            onSelectOrder={setSelectedOrder}
+                            badge={scheduledByDate.tomorrow.length}
+                        />
+                        <DateGroupSection 
+                            title="This Week" 
+                            orders={scheduledByDate.thisweek} 
+                            onSelectOrder={setSelectedOrder}
+                            badge={scheduledByDate.thisweek.length}
+                        />
+                        <DateGroupSection 
+                            title="Later" 
+                            orders={scheduledByDate.later} 
+                            onSelectOrder={setSelectedOrder}
+                            badge={scheduledByDate.later.length}
+                        />
+                        {tabData.scheduled.length === 0 && (
+                            <div className="text-center py-16 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Scheduled Work Orders</h3>
+                                <p className="text-gray-500 dark:text-gray-400 mt-2">Schedule work orders to see them organized by date.</p>
+                            </div>
+                        )}
+                    </div>
+                );
+
+            case 'recent':
+                return tabData.recent.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {tabData.recent.map(order => 
+                            <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} />
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Recently Completed Work Orders</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2">Completed work orders from the last 7 days will appear here.</p>
+                    </div>
+                );
+
+            case 'all':
+                return (
+                    <div>
+                        {paginatedOrders.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {paginatedOrders.map(order => 
+                                    <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} />
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Work Orders Found</h3>
+                                <p className="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search criteria.</p>
+                            </div>
+                        )}
+                        <Pagination 
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                        />
+                    </div>
+                );
+
+            default:
+                return null;
+        }
+    };
 
     return (
-    <>
-        {/* --- KPI Section --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <KpiCard title="Open Work Orders" value={kpiData.openOrders} icon={<Wrench size={24} />} color="yellow" />
-            <KpiCard title="Completed This Month" value={kpiData.completedThisMonth} icon={<Check size={24} />} color="green" />
-            <KpiCard title="Billed This Month" value={formatCurrency(kpiData.billedThisMonth)} icon={<DollarSign size={24} />} color="blue" />
-            <KpiCard title="Avg. Invoice Value" value={formatCurrency(kpiData.avgInvoiceValue)} icon={<BarChart size={24} />} color="purple" />
-        </div>
+        <>
+            {/* --- KPI Section --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <KpiCard title="Open Work Orders" value={kpiData.openOrders} icon={<Wrench size={24} />} color="yellow" />
+                <KpiCard title="Completed This Month" value={kpiData.completedThisMonth} icon={<Check size={24} />} color="green" />
+                <KpiCard title="Billed This Month" value={formatCurrency(kpiData.billedThisMonth)} icon={<DollarSign size={24} />} color="blue" />
+                <KpiCard title="Avg. Invoice Value" value={formatCurrency(kpiData.avgInvoiceValue)} icon={<BarChart size={24} />} color="purple" />
+            </div>
 
-        {/* --- Search and Filter --- */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="relative md:col-span-2">
+            {/* --- Search Section --- */}
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm mb-8">
+                <div className="relative">
                     <label htmlFor="work-order-search" className="sr-only">Search Work Orders</label>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={20} />
                     <input 
@@ -133,40 +387,42 @@ export const DashboardView = () => {
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
                     />
                 </div>
-                <div className="relative">
-                    <label htmlFor="status-filter" className="sr-only">Filter by Status</label>
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={20} />
-                    <select 
-                        id="status-filter"
-                        name="status-filter"
-                        value={statusFilter} 
-                        onChange={(e) => setStatusFilter(e.target.value)} 
-                        className="w-full appearance-none pl-10 pr-8 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    >
-                        <option>All</option>
-                        <option>Open</option>
-                        <option>Scheduled</option>
-                        <option>In Progress</option>
-                        <option>On Hold</option>
-                        <option>Completed</option>
-                        <option>Cancelled</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                </div>
             </div>
-        </div>
-        
-        {/* --- Work Order List --- */}
-        {(orders || []).length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {orders.map(order => <OrderCard key={order.id} order={order} onSelectOrder={setSelectedOrder} />)}
+
+            {/* --- Tabs --- */}
+            <div className="flex flex-wrap gap-2 mb-8">
+                <TabButton 
+                    active={activeTab === 'active'} 
+                    onClick={() => handleTabChange('active')}
+                    count={tabData.active.length}
+                >
+                    Active
+                </TabButton>
+                <TabButton 
+                    active={activeTab === 'scheduled'} 
+                    onClick={() => handleTabChange('scheduled')}
+                    count={tabData.scheduled.length}
+                >
+                    Scheduled
+                </TabButton>
+                <TabButton 
+                    active={activeTab === 'recent'} 
+                    onClick={() => handleTabChange('recent')}
+                    count={tabData.recent.length}
+                >
+                    Recent
+                </TabButton>
+                <TabButton 
+                    active={activeTab === 'all'} 
+                    onClick={() => handleTabChange('all')}
+                    count={tabData.all.length}
+                >
+                    All
+                </TabButton>
             </div>
-        ) : (
-            <div className="text-center py-16 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">No Work Orders Found</h3>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
-            </div>
-        )}
-    </>
+            
+            {/* --- Tab Content --- */}
+            {renderTabContent()}
+        </>
     );
 };
