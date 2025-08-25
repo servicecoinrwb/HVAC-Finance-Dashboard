@@ -194,7 +194,7 @@ const AddWorkOrderModal = () => {
                             </div>
                         </fieldset>
                     )}
-
+                    
                     <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
                         <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Attachments</legend>
                         <div>
