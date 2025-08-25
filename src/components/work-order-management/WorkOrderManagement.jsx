@@ -39,8 +39,67 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
 
-    // --- MEMOIZED VALUES ---
-    const filteredOrders = useMemo(() => (workOrders || []).filter(order => (statusFilter === 'All' || order['Order Status'] === statusFilter) && Object.values(order).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))), [workOrders, searchTerm, statusFilter]);
+    // --- ENHANCED FILTERING LOGIC ---
+    const filteredOrders = useMemo(() => {
+        let filtered = workOrders || [];
+        
+        // Status filter
+        if (statusFilter && statusFilter !== 'All') {
+            filtered = filtered.filter(order => order['Order Status'] === statusFilter);
+        }
+        
+        // Search filter - now specifically searches key fields
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(order => {
+                // Search in work order numbers
+                const woNumber = String(order['Work Order #'] || '').toLowerCase();
+                const clientWoNumber = String(order['Client WO#'] || '').toLowerCase();
+                
+                // Search in core fields
+                const client = String(order.Client || '').toLowerCase();
+                const company = String(order.Company || '').toLowerCase();
+                const task = String(order.Task || '').toLowerCase();
+                const locNumber = String(order['Loc #'] || '').toLowerCase();
+                const priority = String(order.Priority || '').toLowerCase();
+                const status = String(order['Order Status'] || '').toLowerCase();
+                const notes = String(order.Notes || '').toLowerCase();
+                
+                // Search in technician array
+                const technicianMatch = Array.isArray(order.technician) 
+                    ? order.technician.some(tech => String(tech || '').toLowerCase().includes(term))
+                    : String(order.technician || '').toLowerCase().includes(term);
+                
+                // Search in line items
+                const lineItemMatch = Array.isArray(order.lineItems)
+                    ? order.lineItems.some(item => 
+                        String(item.description || '').toLowerCase().includes(term) ||
+                        String(item.asset || '').toLowerCase().includes(term)
+                    )
+                    : false;
+                
+                // Search in serviced assets
+                const assetMatch = Array.isArray(order.servicedAssets)
+                    ? order.servicedAssets.some(asset => String(asset || '').toLowerCase().includes(term))
+                    : false;
+                
+                return woNumber.includes(term) ||
+                       clientWoNumber.includes(term) ||
+                       client.includes(term) ||
+                       company.includes(term) ||
+                       task.includes(term) ||
+                       locNumber.includes(term) ||
+                       priority.includes(term) ||
+                       status.includes(term) ||
+                       notes.includes(term) ||
+                       technicianMatch ||
+                       lineItemMatch ||
+                       assetMatch;
+            });
+        }
+        
+        return filtered;
+    }, [workOrders, searchTerm, statusFilter]);
     
     // 2. Wrap all handlers in useCallback for performance
     const handlers = useMemo(() => ({
