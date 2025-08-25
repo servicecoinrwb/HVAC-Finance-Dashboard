@@ -52,7 +52,7 @@ const WorkOrderDetailModal = () => {
                     scheduleDate: excelDateToYYYYMMDD(order['Schedule Date']),
                     startTime: order.startTime || '',
                     endTime: order.endTime || '',
-                    clientWO: order.clientWO || '',
+                    clientWO: order['Client WO#'] || '', // FIXED: Use correct field name
                 }
             });
         }
@@ -89,7 +89,8 @@ const WorkOrderDetailModal = () => {
                 payload['Order Status'] = 'Scheduled';
             }
         }
-        if (formData.clientWO !== order.clientWO) payload.clientWO = formData.clientWO;
+        // FIXED: Use correct field name for client work order
+        if (formData.clientWO !== order['Client WO#']) payload['Client WO#'] = formData.clientWO;
         if (Object.keys(payload).length > 0) {
             handlers.updateOrder(order.id, payload);
         }
@@ -102,8 +103,8 @@ const WorkOrderDetailModal = () => {
     };
 
     const details = useMemo(() => [
-        { label: "Work Order #", value: order['WO#'], icon: <Wrench /> },
-        { label: "Client WO#", value: order.clientWO, icon: <Briefcase /> },
+        { label: "Work Order #", value: order['Work Order #'] || order['WO#'], icon: <Wrench /> }, // FIXED: Use correct field name
+        { label: "Client WO#", value: order['Client WO#'], icon: <Briefcase /> }, // FIXED: Use correct field name
         { label: "Location", value: `${order.Company} (#${order['Loc #']})`, icon: <Building /> },
         { label: "Address", value: `${order.City}, ${order.State}`, icon: <MapPin /> },
         { label: "Priority", value: order.Priority, icon: <AlertTriangle />, style: `${getDynamicStyles('priority', order.Priority)} px-2 py-0.5 rounded-full text-xs font-semibold` },
