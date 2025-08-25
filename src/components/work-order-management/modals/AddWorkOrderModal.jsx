@@ -12,7 +12,8 @@ const AddWorkOrderModal = () => {
     const [lineItems, setLineItems] = useState([{ description: 'General Labor', quantity: 1, rate: 75, amount: 75, inventoryId: null, asset: '' }]);
     const selectedClient = useMemo(() => (customers || []).find(c => c.id === clientId), [clientId, customers]);
 
-    const [locationIdentifier, setLocationIdentifier] = useState('');
+    // Changed to store location index directly instead of parsing string
+    const [locationIndex, setLocationIndex] = useState(0);
     const [needsLocation, setNeedsLocation] = useState(false);
     const [newLocationName, setNewLocationName] = useState('');
     const [newLocationNum, setNewLocationNum] = useState('');
@@ -31,11 +32,10 @@ const AddWorkOrderModal = () => {
     useEffect(() => {
         if (selectedClient) {
             if (selectedClient.locations?.length > 0) {
-                const loc = selectedClient.locations[0];
-                setLocationIdentifier(`${loc.name}-${loc.locNum}-0`);
+                setLocationIndex(0);
                 setNeedsLocation(false);
             } else {
-                setLocationIdentifier('');
+                setLocationIndex(0);
                 setNeedsLocation(true);
                 setNewLocationName(selectedClient.type === 'Residential' ? 'Primary Residence' : 'Main Location');
                 setNewLocationNum(selectedClient.type === 'Residential' ? 'N/A' : '001');
@@ -68,8 +68,8 @@ const AddWorkOrderModal = () => {
             }
             location = { name: newLocationName.trim(), locNum: newLocationNum.trim() || 'N/A', city: newLocationCity.trim(), state: newLocationState.trim(), assets: [] };
         } else {
-            const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
-            location = selectedClient?.locations.find(l => l.name === company && l.locNum === locNum);
+            // Use direct index lookup instead of parsing
+            location = selectedClient?.locations[locationIndex];
         }
 
         if (!clientId || !selectedClient || !location || !task.trim()) {
@@ -117,12 +117,12 @@ const AddWorkOrderModal = () => {
         );
     }
 
+    // Fixed asset lookup using direct index
     const currentAssets = useMemo(() => {
-        if (needsLocation || !selectedClient || !locationIdentifier) return [];
-        const [company, locNum] = locationIdentifier.split('-').slice(0, 2);
-        const location = selectedClient?.locations.find(l => l.name === company && l.locNum === locNum);
+        if (needsLocation || !selectedClient || !selectedClient.locations || selectedClient.locations.length === 0) return [];
+        const location = selectedClient.locations[locationIndex];
         return location?.assets || [];
-    }, [locationIdentifier, selectedClient, needsLocation]);
+    }, [locationIndex, selectedClient, needsLocation]);
 
     const inputStyles = "w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white";
 
@@ -162,8 +162,17 @@ const AddWorkOrderModal = () => {
                         {selectedClient && !needsLocation ? (
                              <div>
                                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mt-2 mb-1">Select Location</label>
-                                <select value={locationIdentifier} onChange={e => setLocationIdentifier(e.target.value)} className={inputStyles}>
-                                    {(selectedClient.locations || []).map((loc, index) => <option key={index} value={`${loc.name}-${loc.locNum}-${index}`}>{loc.name} (#{loc.locNum}) - {loc.city}</option>)}
+                                {/* Changed to use index-based selection */}
+                                <select 
+                                    value={locationIndex} 
+                                    onChange={e => setLocationIndex(parseInt(e.target.value))} 
+                                    className={inputStyles}
+                                >
+                                    {(selectedClient.locations || []).map((loc, index) => (
+                                        <option key={index} value={index}>
+                                            {loc.name} (#{loc.locNum}) - {loc.city}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         ) : (
@@ -176,6 +185,7 @@ const AddWorkOrderModal = () => {
                         )}
                     </fieldset>
 
+                    {/* This section will now properly show when assets exist */}
                     {currentAssets.length > 0 && (
                         <fieldset className="border dark:border-slate-600 p-4 rounded-lg">
                             <legend className="text-lg font-semibold px-2 text-gray-800 dark:text-white">Assets Being Serviced</legend>
