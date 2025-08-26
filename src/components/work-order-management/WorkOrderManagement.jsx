@@ -115,8 +115,25 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
         updateCustomer: (customer) => api.updateCustomer(db, userId, customer.id, customer),
         deleteCustomer: (id) => api.deleteCustomer(db, userId, id),
         
-        // Technician handlers
-        addTechnician: (data) => api.addTechnician(db, userId, data),
+        // Technician handlers - Fixed for Firestore permissions
+        addTechnician: async (data) => {
+            try {
+                // Create technician document with business owner info for security rules
+                const technicianData = {
+                    id: `temp_${Date.now()}`, // Temporary ID until proper auth user is created
+                    ...data,
+                    createdBy: userId, // Required for Firestore security rules
+                    businessOwnerId: userId, // Alternative field for security rules
+                    status: 'pending_auth', // Mark as needing Firebase Auth setup
+                    createdAt: new Date().toISOString()
+                };
+                
+                return await api.addTechnician(db, userId, technicianData);
+            } catch (error) {
+                console.error('Error creating technician:', error);
+                throw error;
+            }
+        },
         updateTechnician: (tech) => api.updateTechnician(db, userId, tech.id, tech),
         deleteTechnician: (id) => { if (window.confirm("Are you sure?")) api.deleteTechnician(db, userId, id, workOrders); },
         
