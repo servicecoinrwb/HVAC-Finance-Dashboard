@@ -12,6 +12,7 @@ import { TechnicianManagementView } from './views/TechnicianManagementView.jsx';
 import BillingView from './views/BillingView.jsx';
 import ReportingView from './views/ReportingView.jsx';
 import MarginCalculatorView from './views/MarginCalculatorView.jsx';
+import ServiceReportsView from './views/ServiceReportsView.jsx'; // ✅ Added ServiceReportsView
 // ✅ Corrected the modal imports to be default
 import AddWorkOrderModal from './modals/AddWorkOrderModal.jsx';
 import WorkOrderDetailModal from './modals/WorkOrderDetailModal.jsx';
@@ -29,6 +30,7 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
     const { data: technicians, loading: loadingTechs } = useFirestoreCollection(db, userId, 'technicians');
     const { data: invoices, loading: loadingInvoices } = useFirestoreCollection(db, userId, 'invoices');
     const { data: quotes, loading: loadingQuotes } = useFirestoreCollection(db, userId, 'quotes');
+    const { data: serviceReports, loading: loadingReports } = useFirestoreCollection(db, userId, 'serviceReports'); // ✅ Added service reports
 
     // --- STATE MANAGEMENT ---
     const [currentView, setCurrentView] = useState('dashboard');
@@ -158,8 +160,8 @@ const WorkOrderManagement = ({ userId, db, inventory }) => {
     
     // 3. Bundle everything into a single context value object
     const contextValue = {
-        workOrders, customers, technicians, invoices, quotes, inventory,
-        filteredOrders, loading: loadingOrders || loadingCustomers || loadingTechs || loadingInvoices || loadingQuotes,
+        workOrders, customers, technicians, invoices, quotes, serviceReports, inventory, // ✅ Added serviceReports to context
+        filteredOrders, loading: loadingOrders || loadingCustomers || loadingTechs || loadingInvoices || loadingQuotes || loadingReports, // ✅ Added loadingReports
         currentView, setCurrentView,
         selectedOrder, setSelectedOrder,
         isAddingOrder, setIsAddingOrder,
@@ -184,11 +186,17 @@ const WorkOrderUI = () => {
         selectedOrder, isAddingOrder, editingInvoice, editingQuote, setIsAddingOrder
     } = useWorkOrderContext();
 
+    // ✅ Updated navigation buttons to include Service Reports
     const navButtons = useMemo(() => [
-        { key: 'dashboard', label: 'Dashboard' }, { key: 'dispatch', label: 'Dispatch Board' },
-        { key: 'route', label: 'Route Planning' }, { key: 'customers', label: 'Customers' },
-        { key: 'technicians', label: 'Technicians' }, { key: 'billing', label: 'Billing' },
-        { key: 'reporting', label: 'Reporting' }, { key: 'margin-calculator', label: 'Margin Calculator' },
+        { key: 'dashboard', label: 'Dashboard' }, 
+        { key: 'dispatch', label: 'Dispatch Board' },
+        { key: 'route', label: 'Route Planning' }, 
+        { key: 'customers', label: 'Customers' },
+        { key: 'technicians', label: 'Technicians' }, 
+        { key: 'billing', label: 'Billing' },
+        { key: 'service-reports', label: 'Service Reports' }, // ✅ Added Service Reports tab
+        { key: 'reporting', label: 'Reporting' }, 
+        { key: 'margin-calculator', label: 'Margin Calculator' },
     ], []);
 
     const renderContent = () => {
@@ -200,6 +208,7 @@ const WorkOrderUI = () => {
             case 'customers': return <CustomerManagementView />;
             case 'technicians': return <TechnicianManagementView />;
             case 'billing': return <BillingView />;
+            case 'service-reports': return <ServiceReportsView />; // ✅ Added ServiceReportsView route
             case 'reporting': return <ReportingView />;
             case 'margin-calculator': return <MarginCalculatorView />;
             default: return <DashboardView />;
