@@ -474,8 +474,15 @@ export const deleteCustomer = (db, userId, customerId) => {
 
 // --- Technician Functions ---
 export const addTechnician = (db, userId, techData) => {
-    const docRef = doc(getCollectionRef(db, userId, 'technicians'));
-    return setDoc(docRef, { ...techData, id: docRef.id, createdAt: serverTimestamp() });
+    // Use provided ID (Firebase UID for mobile) or generate new one (for non-mobile)
+    const docId = techData.id || doc(getCollectionRef(db, userId, 'technicians')).id;
+    const docRef = doc(getCollectionRef(db, userId, 'technicians'), docId);
+    
+    return setDoc(docRef, { 
+        ...techData, 
+        id: docId, 
+        createdAt: serverTimestamp() 
+    });
 };
 
 export const updateTechnician = (db, userId, techId, payload) => {
