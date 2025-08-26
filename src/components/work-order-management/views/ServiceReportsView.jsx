@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Download, Eye, Calendar, User, MapPin, Clock, CheckCircle, AlertCircle, FileText, Camera, Wrench } from 'lucide-react';
+import { Search, Filter, Download, Eye, Calendar, User, MapPin, Clock, CheckCircle, AlertCircle, FileText, Camera, Wrench, X } from 'lucide-react'; // Added X icon
 import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
 
 // --- Utility Functions ---
@@ -99,6 +99,8 @@ const ServiceReportsView = () => {
       window.open(report.pdfUrl, '_blank');
     } else {
       console.log('Generate PDF for report:', report.id);
+      // You could add PDF generation logic here or show a message
+      alert('PDF generation not yet implemented');
     }
   };
 
@@ -112,6 +114,11 @@ const ServiceReportsView = () => {
     return wo || {};
   };
 
+  // Enhanced technician filtering - show all technicians, not just mobile-enabled ones
+  const availableTechnicians = useMemo(() => {
+    return technicians?.filter(t => t.status === 'active') || [];
+  }, [technicians]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,13 +126,22 @@ const ServiceReportsView = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Service Reports</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            View completed service reports from mobile technicians
+            View completed service reports from technicians
           </p>
         </div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {filteredReports.length} of {serviceReports?.length || 0} reports
         </div>
       </div>
+
+      {/* Debug Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            Debug: {serviceReports?.length || 0} total reports, {technicians?.length || 0} total technicians
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
@@ -164,7 +180,7 @@ const ServiceReportsView = () => {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
               <option value="all">All Technicians</option>
-              {technicians?.filter(t => t.mobileAccess).map(tech => (
+              {availableTechnicians.map(tech => (
                 <option key={tech.id} value={tech.id}>{tech.name}</option>
               ))}
             </select>
@@ -221,7 +237,7 @@ const ServiceReportsView = () => {
                   <td colSpan="7" className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <FileText className="mx-auto w-12 h-12 text-gray-400 mb-4" />
                     <p className="text-lg font-medium mb-2">No service reports found</p>
-                    <p className="text-sm">Service reports from mobile technicians will appear here</p>
+                    <p className="text-sm">Service reports from technicians will appear here</p>
                   </td>
                 </tr>
               ) : (
