@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDoc, query, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDoc, query, onSnapshot, setDoc, where, orderBy } from 'firebase/firestore';
 
 // --- Helper Functions ---
 const getCollectionRef = (db, userId, collectionName) => {
@@ -503,6 +503,223 @@ export const deleteTechnician = async (db, userId, techId, workOrders) => {
     return batch.commit();
 };
 
+// --- Service Report Functions (NEW) ---
+export const addServiceReport = (db, userId, reportData) => {
+    const docRef = doc(getCollectionRef(db, userId, 'serviceReports'));
+    const newReport = {
+        ...reportData,
+        id: docRef.id,
+        createdAt: serverTimestamp(),
+        submittedAt: serverTimestamp()
+    };
+    return setDoc(docRef, newReport);
+};
+
+export const updateServiceReport = (db, userId, reportId, payload) => {
+    const reportRef = getDocRef(db, userId, 'serviceReports', reportId);
+    return updateDoc(reportRef, { 
+        ...payload, 
+        updatedAt: serverTimestamp() 
+    });
+};
+
+export const deleteServiceReport = (db, userId, reportId) => {
+    const reportRef = getDocRef(db, userId, 'serviceReports', reportId);
+    return deleteDoc(reportRef);
+};
+
+// Get service reports for a specific work order
+export const getServiceReportsByWorkOrder = (db, userId, workOrderId, callback) => {
+    const q = query(
+        getCollectionRef(db, userId, 'serviceReports'),
+        where('workOrderId', '==', workOrderId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        callback(reports);
+    }, (err) => console.error('Error fetching service reports by work order:', err));
+};
+
+// Get service reports for a specific technician
+export const getServiceReportsByTechnician = (db, userId, technicianId, callback) => {
+    const q = query(
+        getCollectionRef(db, userId, 'serviceReports'),
+        where('technicianId', '==', technicianId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        callback(reports);
+    }, (err) => console.error('Error fetching service reports by technician:', err));
+};
+
+// Get service reports by status
+export const getServiceReportsByStatus = (db, userId, status, callback) => {
+    const q = query(
+        getCollectionRef(db, userId, 'serviceReports'),
+        where('status', '==', status),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snapshot) => {
+        const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        callback(reports);
+    }, (err) => console.error('Error fetching service reports by status:', err));
+};
+
+// Mark service report as reviewed
+export const markServiceReportReviewed = (db, userId, reportId, reviewedBy) => {
+    const reportRef = getDocRef(db, userId, 'serviceReports', reportId);
+    return updateDoc(reportRef, {
+        reviewedAt: serverTimestamp(),
+        reviewedBy: reviewedBy,
+        status: 'reviewed',
+        updatedAt: serverTimestamp()
+    });
+};
+
+// Add internal note to service report (for office use)
+export const addNoteToServiceReport = async (db, userId, reportId, noteText, addedBy) => {
+    const reportRef = getDocRef(db, userId, 'serviceReports', reportId);
+    const reportSnap = await getDoc(reportRef);
+    
+    if (reportSnap.exists()) {
+        const newNote = {
+            text: noteText.trim(),
+            addedBy: addedBy,
+            timestamp: new Date().toISOString(),
+            type: 'internal' // Distinguish from technician notes
+        };
+        
+        const currentNotes = reportSnap.data().internalNotes || [];
+        
+        return updateDoc(reportRef, {
+            internalNotes: [...currentNotes, newNote],
+            updatedAt: serverTimestamp()
+        });
+    }
+};
+
+// Update work order status based on service report completion
+export const updateWorkOrderFromServiceReport = async (db, userId, workOrderId, reportData) => {
+    try {
+        const workOrderRef = getDocRef(db, userId, 'workOrders', workOrderId);
+        const workOrderSnap = await getDoc(workOrderRef);
+        
+        if (workOrderSnap.exists()) {
+            const updates = {
+                'Order Status': reportData.status === 'completed' ? 'Completed' : 'In Progress',
+                completedDate: reportData.status === 'completed' ? reportData.completedAt : null,
+                serviceReportId: reportData.id,
+                actualDuration: reportData.startTime && reportData.completedAt ? 
+                    Math.round((new Date(reportData.completedAt) - new Date(reportData.startTime)) / (1000 * 60)) : null, // minutes
+                servicedAssets: reportData.units?.map(unit => unit.type).filter(Boolean) || [],
+                updatedAt: serverTimestamp()
+            };
+            
+            // Add service completion note
+            if (reportData.status === 'completed') {
+                const currentNotes = workOrderSnap.data().notes || [];
+                const serviceNote = {
+                    text: `Service completed by ${reportData.technicianName}. ${reportData.units?.length || 0} units serviced.`,
+                    timestamp: new Date().toISOString(),
+                    source: 'mobile_app'
+                };
+                updates.notes = [...currentNotes, serviceNote];
+            }
+            
+            return updateDoc(workOrderRef, updates);
+        }
+    } catch (error) {
+        console.error('Error updating work order from service report:', error);
+        throw error;
+    }
+};
+
+// Bulk operations for service reports
+export const bulkUpdateServiceReports = async (db, userId, reportIds, updates) => {
+    const batch = writeBatch(db);
+    
+    reportIds.forEach(reportId => {
+        const reportRef = getDocRef(db, userId, 'serviceReports', reportId);
+        batch.update(reportRef, {
+            ...updates,
+            updatedAt: serverTimestamp()
+        });
+    });
+    
+    return batch.commit();
+};
+
+// Generate service report summary statistics
+export const getServiceReportStats = async (db, userId, startDate = null, endDate = null) => {
+    try {
+        let q = query(getCollectionRef(db, userId, 'serviceReports'));
+        
+        if (startDate && endDate) {
+            q = query(q, 
+                where('createdAt', '>=', startDate),
+                where('createdAt', '<=', endDate)
+            );
+        }
+        
+        return new Promise((resolve, reject) => {
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                const stats = {
+                    total: reports.length,
+                    completed: reports.filter(r => r.status === 'completed').length,
+                    inProgress: reports.filter(r => r.status === 'in_progress').length,
+                    pending: reports.filter(r => r.status === 'pending').length,
+                    totalUnits: reports.reduce((sum, r) => sum + (r.units?.length || 0), 0),
+                    avgDuration: 0,
+                    technicianBreakdown: {}
+                };
+                
+                // Calculate average duration
+                const completedWithDuration = reports.filter(r => 
+                    r.status === 'completed' && r.startTime && r.completedAt
+                );
+                
+                if (completedWithDuration.length > 0) {
+                    const totalMinutes = completedWithDuration.reduce((sum, r) => {
+                        const duration = (new Date(r.completedAt) - new Date(r.startTime)) / (1000 * 60);
+                        return sum + duration;
+                    }, 0);
+                    stats.avgDuration = Math.round(totalMinutes / completedWithDuration.length);
+                }
+                
+                // Technician breakdown
+                reports.forEach(report => {
+                    const techId = report.technicianId;
+                    const techName = report.technicianName || 'Unknown';
+                    
+                    if (!stats.technicianBreakdown[techId]) {
+                        stats.technicianBreakdown[techId] = {
+                            name: techName,
+                            total: 0,
+                            completed: 0
+                        };
+                    }
+                    
+                    stats.technicianBreakdown[techId].total++;
+                    if (report.status === 'completed') {
+                        stats.technicianBreakdown[techId].completed++;
+                    }
+                });
+                
+                resolve(stats);
+                unsubscribe();
+            }, reject);
+        });
+        
+    } catch (error) {
+        console.error('Error getting service report stats:', error);
+        throw error;
+    }
+};
+
 // --- Billing Functions ---
 export const addInvoice = (db, userId, invoiceData) => {
     const docRef = doc(getCollectionRef(db, userId, 'invoices'), invoiceData.id);
@@ -540,24 +757,24 @@ export const updateInvoiceItems = (db, userId, invoiceId, items, discount, lateF
 
 // --- Utility Functions for Geocoding Diagnostics ---
 export const testGeocoding = async (testAddress = "1600 Amphitheatre Parkway, Mountain View, CA", apiKey = null) => {
-    console.log('🧪 Testing geocoding with address:', testAddress);
+    console.log('Testing geocoding with address:', testAddress);
     
     try {
         const result = await smartGeocode(testAddress, apiKey);
         
         if (result.success) {
-            console.log('✅ Geocoding successful!');
-            console.log('📍 Coordinates:', result.coordinates);
-            console.log('📝 Formatted address:', result.formattedAddress);
+            console.log('Geocoding successful!');
+            console.log('Coordinates:', result.coordinates);
+            console.log('Formatted address:', result.formattedAddress);
         } else {
-            console.log('❌ Geocoding failed:', result.error);
-            console.log('💡 Suggestions:', result.suggestions);
+            console.log('Geocoding failed:', result.error);
+            console.log('Suggestions:', result.suggestions);
         }
         
         return result;
         
     } catch (error) {
-        console.error('🚨 Test error:', error);
+        console.error('Test error:', error);
         return { success: false, error: error.message };
     }
 };
