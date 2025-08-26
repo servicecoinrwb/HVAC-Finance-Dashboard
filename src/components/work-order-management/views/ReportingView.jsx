@@ -1,4 +1,4 @@
-import React, { useMemo, createContext, useContext, useState } from 'react';
+import React, { useMemo, createContext, useContext, useState, useEffect } from 'react';
 import { Award, Trophy } from 'lucide-react';
 
 // --- CONTEXT AND HELPERS ---
@@ -31,6 +31,8 @@ const ReportingView = () => {
     // The component now fully relies on the context for its data.
     // It will be empty until your app provides real data through the WorkOrderContext.Provider.
     const { workOrders, technicians } = useWorkOrderContext();
+    const [isPrinting, setIsPrinting] = useState(false);
+
 
     // A guard clause to handle the initial loading state before data is available.
     if (!workOrders || !technicians) {
@@ -63,8 +65,46 @@ const ReportingView = () => {
     };
 
     const handlePrintCertificate = () => {
-        console.log("Printing winner's certificate...");
-        // window.print(); 
+        // Check if the PDF generation libraries have been loaded onto the window object.
+        if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+            console.error("PDF generation libraries are not loaded yet.");
+            alert("PDF generation script is still loading. Please try again in a moment.");
+            return;
+        }
+
+        setIsPrinting(true);
+        const input = document.getElementById('leaderboard-view');
+        const { jsPDF } = window.jspdf; // Destructure from the window object.
+
+        window.html2canvas(input, { 
+            scale: 2, // Improve resolution
+            useCORS: true 
+        }).then((canvas) => {
+            const imgData = canvas.toDataURL('image/png');
+            // A4 page size: 210mm wide, 297mm tall.
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const width = pdfWidth;
+            const height = width / ratio;
+
+            // If the content is taller than the page, it will be scaled down.
+            // This simple implementation fits the whole component on one page.
+            pdf.addImage(imgData, 'PNG', 0, 0, width, height > pdfHeight ? pdfHeight : height);
+            pdf.save("technician-leaderboard.pdf");
+            setIsPrinting(false);
+        }).catch(err => {
+            console.error("Failed to generate PDF", err);
+            setIsPrinting(false);
+        });
     };
 
     return (
@@ -76,9 +116,11 @@ const ReportingView = () => {
                 </div>
                 <button 
                     onClick={handlePrintCertificate} 
-                    className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors mt-4 sm:mt-0"
+                    disabled={isPrinting}
+                    className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors mt-4 sm:mt-0 disabled:bg-blue-400 disabled:cursor-not-allowed"
                 >
-                    <Trophy size={20} /> Print Winner's Certificate
+                    <Trophy size={20} /> 
+                    {isPrinting ? 'Generating PDF...' : "Print Winner's Certificate"}
                 </button>
             </div>
             
@@ -143,15 +185,40 @@ export default function App() {
         technicians: [] // This would be populated with your actual data
     });
 
-    // Your main app's layout would apply the 'dark' class to a parent element.
-    // For example: <div className={isDarkMode ? 'dark' : ''}> ... </div>
+    // --- FIX: Load external libraries from a CDN ---
+    // This effect runs once when the App component mounts. It dynamically creates
+    // script tags for jspdf and html2canvas and adds them to the document.
+    useEffect(() => {
+        const loadScript = (src) => {
+            return new Promise((resolve, reject) => {
+                if (document.querySelector(`script[src="${src}"]`)) {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+                document.body.appendChild(script);
+            });
+        };
+
+        Promise.all([
+            loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+            loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+        ]).then(() => {
+            console.log('PDF generation libraries loaded successfully.');
+        }).catch(error => {
+            console.error(error);
+        });
+
+    }, []);
+
+
     return (
         <div className="bg-slate-100 dark:bg-slate-900 min-h-screen p-4">
             <div className="flex items-center justify-center">
-                <div className="w-full max-w-2xl">
-                    {/* Your app should wrap the ReportingView (or a parent component)
-                      with the WorkOrderContext.Provider and pass in the real data.
-                    */}
+                <div className="w-full">
                     <WorkOrderContext.Provider value={appData}>
                         <ReportingView />
                     </WorkOrderContext.Provider>
