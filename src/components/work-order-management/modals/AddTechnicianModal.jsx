@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Phone, PlusCircle, Smartphone, Key, User, Wrench, AlertCircle } from 'lucide-react';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 const AddTechnicianModal = ({ onClose, onAdd }) => {
     const [formData, setFormData] = useState({
@@ -57,11 +57,28 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                 console.log('Creating Firebase account for:', formData.email);
 
                 const auth = getAuth();
+                
+                // CRITICAL: Save current user credentials before creating new user
+                const currentUserEmail = auth.currentUser?.email;
+                const currentUserPassword = prompt('Please re-enter your password to maintain session:');
+                
+                if (!currentUserPassword) {
+                    throw new Error('Password required to create mobile technician');
+                }
+
+                // Create the new technician account
                 const userCredential = await createUserWithEmailAndPassword(
                     auth, 
                     formData.email, 
                     formData.password
                 );
+
+                console.log('✅ Firebase account created successfully');
+                console.log('Firebase UID:', userCredential.user.uid);
+
+                // CRITICAL: Sign back in as company owner immediately
+                await signInWithEmailAndPassword(auth, currentUserEmail, currentUserPassword);
+                console.log('✅ Company owner session restored');
 
                 // Use Firebase UID as the technician ID (critical for mobile login)
                 techData.id = userCredential.user.uid;
@@ -72,8 +89,6 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                     createdAt: new Date().toISOString()
                 };
 
-                console.log('✅ Firebase account created successfully');
-                console.log('Firebase UID:', userCredential.user.uid);
                 console.log('Will save technician to path: artifacts/workOrderManagement/users/{companyId}/technicians/' + userCredential.user.uid);
             } else {
                 // Generate ID for non-mobile technicians
@@ -81,6 +96,9 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
             }
 
             console.log('Creating technician with data:', techData);
+            console.log('Current auth user:', getAuth().currentUser?.uid);
+            console.log('Expected company ID:', 'uZAcGdtGAJYr2gZHh8JWicKfJO72');
+            
             await onAdd(techData);
             onClose();
         } catch (error) {
@@ -94,6 +112,8 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                 errorMessage = 'Password is too weak. Please use at least 6 characters.';
             } else if (error.code === 'auth/invalid-email') {
                 errorMessage = 'Please enter a valid email address.';
+            } else if (error.code === 'auth/wrong-password') {
+                errorMessage = 'Incorrect password. Please try again.';
             }
             
             setError(errorMessage);
@@ -192,6 +212,7 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                                     <div>• Enable HVAC Service Reporter app login</div>
                                     <div>• Allow work order assignment and completion</div>
                                     <div>• Sync service reports back to this system</div>
+                                    <div>• <strong>You will be prompted for your password to maintain your session</strong></div>
                                 </div>
                                 
                                 <div>
@@ -233,7 +254,7 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                                 <AlertCircle size={16} className="text-yellow-600 dark:text-yellow-400 mt-0.5" />
                                 <div className="text-xs text-yellow-800 dark:text-yellow-200">
                                     <div className="font-medium mb-1">Security Note:</div>
-                                    <div>Share login credentials securely with the technician. They should change their password after first login for security.</div>
+                                    <div>Creating mobile access requires re-authentication. You'll be prompted for your password to maintain your admin session while creating the technician account.</div>
                                 </div>
                             </div>
                         </div>
