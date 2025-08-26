@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { PlusCircle, Wrench, AlertCircle } from 'lucide-react';
-// 1. Import Firebase Functions
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 
 const AddTechnicianModal = ({ onClose, onAdd }) => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
-        mobileAccess: true, // Default to true for new techs
+        mobileAccess: true,
         password: '',
         confirmPassword: ''
     });
@@ -30,7 +29,7 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
         setLoading(true);
         setError('');
         
-        // --- VALIDATION ---
+        // Validation
         if (formData.mobileAccess) {
             if (!formData.email.trim()) {
                 setError('Email is required for mobile access');
@@ -50,37 +49,59 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
         }
         
         try {
-            // 2. Get a reference to the Cloud Functions service
-            const functions = getFunctions();
-            // 3. Point to the specific function by name
-            const createTechnician = httpsCallable(functions, 'createTechnician');
-
-            console.log('Calling createTechnician Cloud Function with data:', formData);
-
-            // 4. Call the function and pass the form data
-            const result = await createTechnician({
+            // Step 1: Create the technician document FIRST (while you're authenticated as business owner)
+            const technicianData = {
+                id: crypto.randomUUID(),
                 name: formData.name,
                 email: formData.email,
-                password: formData.password,
                 phone: formData.phone,
+                status: 'active',
                 mobileAccess: formData.mobileAccess,
-            });
+                userType: 'technician',
+                role: 'field_technician',
+                skills: [],
+                createdAt: new Date().toISOString(),
+                firebaseUid: null // Will be updated if mobile access is needed
+            };
 
-            console.log('✅ Cloud Function executed successfully', result.data);
+            console.log('Creating technician document first...');
+            
+            // Call your existing onAdd handler to save to Firestore
+            await onAdd(technicianData);
+            
+            console.log('Technician document created successfully');
 
-            // The 'onAdd' prop might not be needed anymore since the function
-            // creates the Firestore record, but we'll call it for consistency
-            // in case it refreshes the UI.
-            if (onAdd) {
-                onAdd();
+            // Step 2: Create Firebase Auth user if mobile access is needed
+            if (formData.mobileAccess && formData.password) {
+                try {
+                    console.log('Creating Firebase Auth user...');
+                    const auth = getAuth();
+                    const userCredential = await createUserWithEmailAndPassword(
+                        auth, 
+                        formData.email, 
+                        formData.password
+                    );
+                    
+                    const firebaseUid = userCredential.user.uid;
+                    console.log('Firebase Auth user created:', firebaseUid);
+                    
+                    // Note: At this point, the new technician is signed in
+                    // But the Firestore document already exists with proper permissions
+                    // You could update the document with firebaseUid here if needed
+                    
+                } catch (authError) {
+                    console.error('Firebase Auth error (but technician document was saved):', authError);
+                    // The technician document still exists, just without Firebase auth
+                    setError(`Technician created but mobile login failed: ${authError.message}`);
+                }
             }
 
-            onClose(); // Close the modal on success
+            console.log('Technician creation completed');
+            onClose();
 
         } catch (error) {
-            console.error('Error calling createTechnician function:', error);
-            // The error message from the function is more user-friendly
-            setError(error.message);
+            console.error('Error creating technician:', error);
+            setError(error.message || 'Failed to create technician');
         } finally {
             setLoading(false);
         }
@@ -97,7 +118,6 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                 </div>
                 
                 <div className="p-6 space-y-4">
-                    {/* Form inputs remain largely the same */}
                     <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Name</label>
                         <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" required />

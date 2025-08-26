@@ -1,104 +1,94 @@
 // functions/index.js
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
 
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
-admin.initializeApp();
+const db = admin.firestore();
 
-/**
- * Creates a new technician user.
- * This function handles both creating the Firebase Authentication account
- * and the corresponding Firestore document for the technician.
- *
- * It must be called by an authenticated user (a company owner/admin).
- */
 exports.createTechnician = functions.https.onCall(async (data, context) => {
-  // 1. Authentication Check
-  // Ensure the user calling this function is authenticated.
+  // Verify the user is authenticated
   if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "You must be logged in to create a technician."
-    );
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  // 2. Data Validation
-  // Ensure all required data is present.
+  const businessOwnerUID = context.auth.uid;
   const { name, email, password, phone, mobileAccess } = data;
-  if (!name || !email || (mobileAccess && !password)) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "Missing required fields: name, email, and password (if mobile access is enabled)."
-    );
+
+  // Validate required fields
+  if (!name || !email) {
+    throw new functions.https.HttpsError('invalid-argument', 'Name and email are required');
   }
 
-  const adminUid = context.auth.uid; // The UID of the admin making the request.
-  let newTechnicianUid;
+  if (mobileAccess && (!password || password.length < 6)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Password must be at least 6 characters for mobile access');
+  }
 
   try {
-    // 3. Create Firebase Authentication User
-    // If mobile access is enabled, create an auth account for the technician.
+    let firebaseUid = null;
+
+    // Create Firebase Auth user if mobile access is enabled
     if (mobileAccess) {
-        const userRecord = await admin.auth().createUser({
-            email: email,
-            password: password,
-            displayName: name,
-        });
-        newTechnicianUid = userRecord.uid;
-        console.log("Successfully created new auth user:", newTechnicianUid);
-    } else {
-        // If no mobile access, we still need a unique ID for the Firestore document.
-        newTechnicianUid = admin.firestore().collection('tmp').doc().id;
+      console.log('Creating Firebase Auth user for:', email);
+      
+      const userRecord = await admin.auth().createUser({
+        email: email,
+        password: password,
+        displayName: name,
+      });
+      
+      firebaseUid = userRecord.uid;
+      console.log('Created Firebase user:', firebaseUid);
     }
 
-
-    // 4. Prepare Technician Data for Firestore
+    // Create technician document in Firestore
     const technicianData = {
-      id: newTechnicianUid, // Use the new UID as the document ID
-      firebaseUid: mobileAccess ? newTechnicianUid : null,
+      id: firebaseUid || admin.firestore().collection('temp').doc().id,
       name: name,
       email: email,
-      phone: phone,
-      status: "Available",
-      mobileAccess: mobileAccess,
-      userType: "technician",
-      role: "field_technician",
-      createdAt: new Date().toISOString(),
-      createdBy: adminUid, // Track which admin created this technician
+      phone: phone || '',
+      status: 'active',
+      mobileAccess: mobileAccess || false,
+      firebaseUid: firebaseUid,
+      userType: 'technician',
+      role: 'field_technician',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: businessOwnerUID,
+      skills: [],
+      // Add any other default fields your app expects
     };
 
-    // 5. Create Technician Document in Firestore
-    // The path correctly places the new technician under the admin's data.
-    const technicianDocRef = admin
-      .firestore()
-      .collection("artifacts/workOrderManagement/users")
-      .doc(adminUid)
-      .collection("technicians")
-      .doc(newTechnicianUid);
+    const docRef = db.doc(`artifacts/workOrderManagement/users/${businessOwnerUID}/technicians/${technicianData.id}`);
+    await docRef.set(technicianData);
 
-    await technicianDocRef.set(technicianData);
-    console.log("Successfully created Firestore document for technician:", newTechnicianUid);
+    console.log('Technician document created:', technicianData.id);
 
-    // 6. Return Success
     return {
-      status: "success",
-      message: "Technician created successfully.",
-      technicianId: newTechnicianUid,
+      success: true,
+      technicianId: technicianData.id,
+      message: `Technician ${name} created successfully${mobileAccess ? ' with mobile access' : ''}`,
+      firebaseUid: firebaseUid
     };
-  } catch (error) {
-    console.error("Error creating technician:", error);
 
-    // Provide specific error messages back to the client.
-    if (error.code === "auth/email-already-exists") {
-      throw new functions.https.HttpsError(
-        "already-exists",
-        "This email is already in use by another account."
-      );
+  } catch (error) {
+    console.error('Error creating technician:', error);
+    
+    // Handle specific Firebase Auth errors
+    if (error.code === 'auth/email-already-exists') {
+      throw new functions.https.HttpsError('already-exists', 'A user with this email already exists');
     }
-    // Generic error for other issues.
-    throw new functions.https.HttpsError(
-      "internal",
-      "An unexpected error occurred. Please try again."
-    );
+    
+    if (error.code === 'auth/invalid-email') {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid email address');
+    }
+    
+    if (error.code === 'auth/weak-password') {
+      throw new functions.https.HttpsError('invalid-argument', 'Password is too weak');
+    }
+
+    throw new functions.https.HttpsError('internal', 'Failed to create technician: ' + error.message);
   }
 });
