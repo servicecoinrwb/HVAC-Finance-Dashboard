@@ -195,7 +195,7 @@ const WorkOrderUI = () => {
         { key: 'technicians', label: 'Technicians' }, 
         { key: 'billing', label: 'Billing' },
         { key: 'service-reports', label: 'Service Reports' }, // ✅ Added Service Reports tab
-        { key: 'reporting', label: 'Reporting' }, 
+        { key: 'leaderboard', label: 'Leaderboard' },
         { key: 'margin-calculator', label: 'Margin Calculator' },
     ], []);
 
@@ -209,7 +209,7 @@ const WorkOrderUI = () => {
             case 'technicians': return <TechnicianManagementView />;
             case 'billing': return <BillingView />;
             case 'service-reports': return <ServiceReportsView />; // ✅ Added ServiceReportsView route
-            case 'reporting': return <ReportingView />;
+            case 'leaderboard': return <ReportingView />;
             case 'margin-calculator': return <MarginCalculatorView />;
             default: return <DashboardView />;
         }

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Phone, PlusCircle, Smartphone, Key, User, Wrench, AlertCircle } from 'lucide-react';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+// Import necessary Firebase functions
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { initializeApp, getApp, deleteApp } from 'firebase/app';
 
 const AddTechnicianModal = ({ onClose, onAdd }) => {
     const [formData, setFormData] = useState({
@@ -29,6 +31,14 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
         setLoading(true);
         setError('');
         
+        // --- SOLUTION FOR AUTHENTICATION CONFLICT ---
+        // We create a temporary, secondary Firebase app instance.
+        // This allows us to create a new user in an isolated authentication environment,
+        // without signing out the currently logged-in admin/company owner from the main app.
+        const secondaryAppName = `auth-worker-${Date.now()}`;
+        let secondaryApp;
+        // ---------------------------------------------
+
         try {
             let techData = {
                 name: formData.name,
@@ -36,84 +46,85 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                 phone: formData.phone,
                 status: 'Available',
                 mobileAccess: formData.mobileAccess,
-                userType: 'technician',  // Critical for mobile app recognition
-                role: 'field_technician', // Specific role for permissions
+                userType: 'technician',
+                role: 'field_technician',
                 createdAt: new Date().toISOString()
             };
 
-            // If mobile access is enabled, create Firebase auth account
             if (formData.mobileAccess) {
-                // Validation for mobile access
-                if (!formData.email.trim()) {
-                    throw new Error('Email is required for mobile access');
-                }
-                if (formData.password !== formData.confirmPassword) {
-                    throw new Error('Passwords do not match');
-                }
-                if (formData.password.length < 6) {
-                    throw new Error('Password must be at least 6 characters');
-                }
+                // --- Validation ---
+                if (!formData.email.trim()) throw new Error('Email is required for mobile access');
+                if (formData.password !== formData.confirmPassword) throw new Error('Passwords do not match');
+                if (formData.password.length < 6) throw new Error('Password must be at least 6 characters');
 
                 console.log('Creating Firebase account for:', formData.email);
 
-                const auth = getAuth();
-                
-                // Create Firebase auth account 
+                // Initialize the secondary app using the main app's config
+                const mainAppConfig = getApp().options;
+                secondaryApp = initializeApp(mainAppConfig, secondaryAppName);
+                const secondaryAuth = getAuth(secondaryApp);
+
+                // Create the new user in the isolated, secondary app
                 const userCredential = await createUserWithEmailAndPassword(
-                    auth, 
+                    secondaryAuth, 
                     formData.email, 
                     formData.password
                 );
                 
                 const firebaseUid = userCredential.user.uid;
-                console.log('✅ Firebase account created successfully');
+                console.log('✅ Firebase account created successfully in secondary app');
                 console.log('Firebase UID:', firebaseUid);
+
+                // The main app's auth state is NEVER disturbed. No need to sign out or wait.
                 
-                // CRITICAL: Sign out the newly created user immediately
-                await auth.signOut();
-                console.log('✅ Signed out new technician, auth should revert to company owner');
-                
-                // Wait a moment for auth state to settle
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                // Use Firebase UID as the technician ID (critical for mobile login)
                 techData.id = firebaseUid;
                 techData.firebaseUid = firebaseUid;
                 techData.mobileCredentials = {
                     email: formData.email,
-                    temporaryPassword: formData.password,
                     createdAt: new Date().toISOString()
                 };
 
-                console.log('Will save technician to path: artifacts/workOrderManagement/users/{companyId}/technicians/' + firebaseUid);
             } else {
-                // Generate ID for non-mobile technicians
+                // Generate a random ID for non-mobile technicians
                 techData.id = crypto.randomUUID();
             }
 
             console.log('Creating technician with data:', techData);
-            console.log('Current auth user:', getAuth().currentUser?.uid);
-            console.log('Expected company ID:', 'uZAcGdtGAJYr2gZHh8JWicKfJO72');
+            // The current user is still the company owner, so this Firestore write will be allowed.
+            console.log('Current auth user (should be company owner):', getAuth().currentUser?.uid);
             
             await onAdd(techData);
             onClose();
+
         } catch (error) {
             console.error('Error creating technician:', error);
             
-            // Provide user-friendly error messages
             let errorMessage = error.message;
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'This email is already registered. Use a different email or check existing technicians.';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'Password is too weak. Please use at least 6 characters.';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'Please enter a valid email address.';
-            } else if (error.code === 'auth/wrong-password') {
-                errorMessage = 'Incorrect password. Please try again.';
+            if (error.code) {
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'This email is already registered. Use a different email.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Password is too weak. Please use at least 6 characters.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    default:
+                        errorMessage = `An unexpected error occurred: ${error.message}`;
+                }
             }
             
             setError(errorMessage);
         } finally {
+            // --- CLEANUP ---
+            // Delete the temporary app instance to prevent memory leaks
+            if (secondaryApp) {
+                await deleteApp(secondaryApp);
+                console.log(`✅ Cleaned up secondary app: ${secondaryAppName}`);
+            }
+            // ---------------
             setLoading(false);
         }
     };
@@ -132,7 +143,7 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                 </div>
                 
                 <div className="p-6 space-y-4">
-                    {/* Basic Information */}
+                    {/* Form inputs remain the same... */}
                     <div>
                         <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Name</label>
                         <input 
@@ -170,17 +181,6 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                         />
                     </div>
 
-                    {/* User Type Display */}
-                    <div className="border-t pt-4">
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">User Type</label>
-                        <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border">
-                            <User size={16} className="text-blue-600 dark:text-blue-400" />
-                            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Field Technician</span>
-                            <span className="text-xs text-blue-600 dark:text-blue-400 ml-auto">Mobile Service Reporter</span>
-                        </div>
-                    </div>
-
-                    {/* Mobile Access Section */}
                     <div className="border-t pt-4">
                         <div className="flex items-center space-x-3 mb-4">
                             <input 
@@ -199,18 +199,9 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                         
                         {formData.mobileAccess && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg space-y-3">
-                                <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 mb-3">
-                                    <Key size={16} />
-                                    <span className="font-medium">Creating mobile access will:</span>
-                                </div>
-                                <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1 mb-3">
-                                    <div>• Generate Firebase authentication account</div>
-                                    <div>• Enable HVAC Service Reporter app login</div>
-                                    <div>• Allow work order assignment and completion</div>
-                                    <div>• Sync service reports back to this system</div>
-                                    <div>• <strong>You will be prompted for your password to maintain your session</strong></div>
-                                </div>
-                                
+                                <p className="text-xs text-blue-700 dark:text-blue-300">
+                                    This will generate a Firebase authentication account for the technician to log in to the mobile app.
+                                </p>
                                 <div>
                                     <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
                                         Password (min 6 characters) <span className="text-red-500">*</span>
@@ -242,19 +233,6 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
                             </div>
                         )}
                     </div>
-
-                    {/* Security Note */}
-                    {formData.mobileAccess && (
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
-                            <div className="flex items-start gap-2">
-                                <AlertCircle size={16} className="text-yellow-600 dark:text-yellow-400 mt-0.5" />
-                                <div className="text-xs text-yellow-800 dark:text-yellow-200">
-                                    <div className="font-medium mb-1">Security Note:</div>
-                                    <div>Creating mobile access requires re-authentication. You'll be prompted for your password to maintain your admin session while creating the technician account.</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {error && (
                         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
