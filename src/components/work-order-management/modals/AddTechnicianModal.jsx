@@ -58,38 +58,34 @@ const AddTechnicianModal = ({ onClose, onAdd }) => {
 
                 const auth = getAuth();
                 
-                // CRITICAL: Save current user credentials before creating new user
-                const currentUserEmail = auth.currentUser?.email;
-                const currentUserPassword = prompt('Please re-enter your password to maintain session:');
-                
-                if (!currentUserPassword) {
-                    throw new Error('Password required to create mobile technician');
-                }
-
-                // Create the new technician account
+                // Create Firebase auth account 
                 const userCredential = await createUserWithEmailAndPassword(
                     auth, 
                     formData.email, 
                     formData.password
                 );
-
+                
+                const firebaseUid = userCredential.user.uid;
                 console.log('✅ Firebase account created successfully');
-                console.log('Firebase UID:', userCredential.user.uid);
-
-                // CRITICAL: Sign back in as company owner immediately
-                await signInWithEmailAndPassword(auth, currentUserEmail, currentUserPassword);
-                console.log('✅ Company owner session restored');
-
+                console.log('Firebase UID:', firebaseUid);
+                
+                // CRITICAL: Sign out the newly created user immediately
+                await auth.signOut();
+                console.log('✅ Signed out new technician, auth should revert to company owner');
+                
+                // Wait a moment for auth state to settle
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
                 // Use Firebase UID as the technician ID (critical for mobile login)
-                techData.id = userCredential.user.uid;
-                techData.firebaseUid = userCredential.user.uid;
+                techData.id = firebaseUid;
+                techData.firebaseUid = firebaseUid;
                 techData.mobileCredentials = {
                     email: formData.email,
                     temporaryPassword: formData.password,
                     createdAt: new Date().toISOString()
                 };
 
-                console.log('Will save technician to path: artifacts/workOrderManagement/users/{companyId}/technicians/' + userCredential.user.uid);
+                console.log('Will save technician to path: artifacts/workOrderManagement/users/{companyId}/technicians/' + firebaseUid);
             } else {
                 // Generate ID for non-mobile technicians
                 techData.id = crypto.randomUUID();
