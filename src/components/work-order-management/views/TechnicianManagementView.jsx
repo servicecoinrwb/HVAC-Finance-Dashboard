@@ -1,498 +1,386 @@
-import React, { useState } from 'react';
-import { Mail, Phone, PlusCircle, Edit, Trash2, Smartphone, Key } from 'lucide-react';
-import { useWorkOrderContext } from '../WorkOrderManagement.jsx';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { Users, Smartphone, Clock, AlertTriangle, Plus, Search, Bell } from 'lucide-react';
+import AddTechnicianModal from './AddTechnicianModal';
 
-// --- Utility Functions ---
-const getTechStatusStyles = (s) => ({
-    'available': 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
-    'on site': 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
-    'en route': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
-    'on break': 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200',
-    'on call': 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200',
-    'day off': 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-200',
-}[s?.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-600/50 dark:text-gray-200');
+// Import your Firebase and enhanced functions
+// import { db, auth } from '../firebase';
+// import { 
+//   addTechnicianWithAuth, 
+//   getTechniciansListener, 
+//   checkEmailConflict,
+//   getTechnicianStats,
+//   updateTechnicianEnhanced,
+//   deleteTechnicianEnhanced
+// } from '../enhanced-technician-functions';
 
-// --- Enhanced Modals with Mobile Access ---
-const AddTechnicianModal = ({ onClose, onAdd }) => {
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        mobileAccess: false,
-        password: '',
-        confirmPassword: ''
+export default function TechnicianManagement({ 
+  db, 
+  auth, 
+  addTechnicianWithAuth,
+  getTechniciansListener,
+  checkEmailConflict,
+  getTechnicianStats,
+  updateTechnicianEnhanced,
+  deleteTechnicianEnhanced,
+  createTechnicianAuth // Firebase Auth function
+}) {
+  const [technicians, setTechnicians] = useState([]);
+  const [stats, setStats] = useState({});
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Get current user ID (adjust based on your user management)
+  const userId = auth.currentUser?.uid;
+
+  useEffect(() => {
+    if (!userId) return;
+
+    // Set up real-time listener for technicians
+    const unsubscribe = getTechniciansListener(db, userId, (technicianData) => {
+      setTechnicians(technicianData);
+      setLoading(false);
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-    };
+    // Load stats
+    loadStats();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!formData.name.trim()) return;
-        
-        setLoading(true);
-        setError('');
-        
-        try {
-            let techData = {
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                status: 'Available',
-                mobileAccess: formData.mobileAccess,
-                createdAt: new Date().toISOString()
-            };
+    return () => unsubscribe();
+  }, [userId]);
 
-            // If mobile access is enabled, create Firebase auth account
-            if (formData.mobileAccess) {
-                if (formData.password !== formData.confirmPassword) {
-                    throw new Error('Passwords do not match');
-                }
-                if (formData.password.length < 6) {
-                    throw new Error('Password must be at least 6 characters');
-                }
-
-                const auth = getAuth();
-                const userCredential = await createUserWithEmailAndPassword(
-                    auth, 
-                    formData.email, 
-                    formData.password
-                );
-
-                // Use Firebase UID as the technician ID
-                techData.id = userCredential.user.uid;
-                techData.firebaseUid = userCredential.user.uid;
-                techData.mobileCredentials = {
-                    email: formData.email,
-                    temporaryPassword: formData.password,
-                    createdAt: new Date().toISOString()
-                };
-            }
-
-            await onAdd(techData);
-            onClose();
-        } catch (error) {
-            console.error('Error creating technician:', error);
-            setError(error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b dark:border-slate-700">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Add New Technician</h2>
-                </div>
-                
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Name</label>
-                        <input 
-                            type="text" 
-                            name="name"
-                            value={formData.name} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                            required 
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Email</label>
-                        <input 
-                            type="email" 
-                            name="email"
-                            value={formData.email} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                            required={formData.mobileAccess}
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
-                        <input 
-                            type="tel" 
-                            name="phone"
-                            value={formData.phone} 
-                            onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                        />
-                    </div>
-
-                    <div className="border-t pt-4">
-                        <div className="flex items-center space-x-3 mb-4">
-                            <input 
-                                type="checkbox" 
-                                name="mobileAccess"
-                                id="mobileAccess"
-                                checked={formData.mobileAccess}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600"
-                            />
-                            <label htmlFor="mobileAccess" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <Smartphone size={16} />
-                                Grant Mobile App Access
-                            </label>
-                        </div>
-                        
-                        {formData.mobileAccess && (
-                            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg space-y-3">
-                                <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-                                    Creating mobile access will generate login credentials for the HVAC Service app.
-                                </p>
-                                
-                                <div>
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Password (min 6 characters)</label>
-                                    <input 
-                                        type="password" 
-                                        name="password"
-                                        value={formData.password} 
-                                        onChange={handleChange}
-                                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                                        required
-                                        minLength={6}
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Confirm Password</label>
-                                    <input 
-                                        type="password" 
-                                        name="confirmPassword"
-                                        value={formData.confirmPassword} 
-                                        onChange={handleChange}
-                                        className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                                        required
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {error && (
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-                            {error}
-                        </div>
-                    )}
-                </div>
-                
-                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
-                    <button 
-                        type="button" 
-                        onClick={onClose} 
-                        className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4"
-                        disabled={loading}
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        type="submit" 
-                        className="bg-green-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
-                        disabled={loading}
-                    >
-                        {loading ? 'Creating...' : 'Save Technician'}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-const EditTechnicianModal = ({ technician, onClose, onUpdate }) => {
-    const [formData, setFormData] = useState(technician);
-    
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-    };
-    
-    const handleSubmit = (e) => { 
-        e.preventDefault(); 
-        onUpdate(formData); 
-        onClose(); 
-    };
-    
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
-                <div className="p-6 border-b dark:border-slate-700">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Edit Technician</h2>
-                </div>
-                
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Name</label>
-                        <input 
-                            type="text" 
-                            name="name" 
-                            value={formData.name} 
-                            onChange={handleChange} 
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                            required 
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Email</label>
-                        <input 
-                            type="email" 
-                            name="email" 
-                            value={formData.email} 
-                            onChange={handleChange} 
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
-                        <input 
-                            type="tel" 
-                            name="phone" 
-                            value={formData.phone} 
-                            onChange={handleChange} 
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white" 
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">Status</label>
-                        <select 
-                            name="status" 
-                            value={formData.status} 
-                            onChange={handleChange} 
-                            className="w-full p-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                        >
-                            <option>Available</option>
-                            <option>En Route</option>
-                            <option>On Site</option>
-                            <option>On Break</option>
-                            <option>On Call</option>
-                            <option>Day Off</option>
-                        </select>
-                    </div>
-
-                    <div className="border-t pt-4">
-                        <div className="flex items-center space-x-3">
-                            <input 
-                                type="checkbox" 
-                                name="mobileAccess"
-                                id="editMobileAccess"
-                                checked={formData.mobileAccess || false}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600"
-                            />
-                            <label htmlFor="editMobileAccess" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <Smartphone size={16} />
-                                Mobile App Access
-                            </label>
-                        </div>
-                        
-                        {formData.mobileAccess && (
-                            <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
-                                Firebase account already created. Contact IT for password reset if needed.
-                            </div>
-                        )}
-                    </div>
-                </div>
-                
-                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end gap-4">
-                    <button type="button" onClick={onClose} className="text-gray-700 dark:text-gray-300 font-bold py-2 px-4">Cancel</button>
-                    <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
-// Credentials Display Modal
-const MobileCredentialsModal = ({ technician, onClose }) => {
-    const [showPassword, setShowPassword] = useState(false);
-    
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
-                <div className="p-6 border-b dark:border-slate-700">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                        <Key size={24} />
-                        Mobile App Credentials
-                    </h2>
-                </div>
-                
-                <div className="p-6 space-y-4">
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                        <h3 className="font-semibold text-gray-800 dark:text-white mb-2">{technician.name}</h3>
-                        <div className="space-y-2 text-sm">
-                            <div>
-                                <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                                <span className="ml-2 font-mono text-blue-600 dark:text-blue-400">{technician.email}</span>
-                            </div>
-                            <div>
-                                <span className="text-gray-600 dark:text-gray-400">Password:</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="ml-2 font-mono text-blue-600 dark:text-blue-400">
-                                        {showPassword ? technician.mobileCredentials?.temporaryPassword || '••••••••' : '••••••••'}
-                                    </span>
-                                    <button 
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                                    >
-                                        {showPassword ? 'Hide' : 'Show'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-                        <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                            <strong>Security Note:</strong> Share these credentials securely with the technician. 
-                            They should change the password after their first login.
-                        </p>
-                    </div>
-                </div>
-                
-                <div className="p-6 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end">
-                    <button 
-                        onClick={onClose} 
-                        className="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700"
-                    >
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export const TechnicianManagementView = () => {
-    const { technicians, handlers } = useWorkOrderContext();
-    const [isAdding, setIsAdding] = useState(false);
-    const [editing, setEditing] = useState(null);
-    const [showingCredentials, setShowingCredentials] = useState(null);
-
-    if (!technicians) {
-        return <div className="p-6">Loading technician data...</div>;
+  const loadStats = async () => {
+    try {
+      const statsData = await getTechnicianStats(db, userId);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
     }
+  };
 
+  const handleAddTechnician = async (technicianData) => {
+    try {
+      if (!userId) throw new Error('User not authenticated');
+
+      // Check for email conflicts
+      const conflict = await checkEmailConflict(db, userId, technicianData.email);
+      if (conflict.conflict) {
+        throw new Error(conflict.message);
+      }
+
+      let firebaseUid = null;
+
+      // Create Firebase Auth user if mobile access is enabled
+      if (technicianData.mobileAccess && technicianData.password) {
+        console.log('🔧 Creating TECHNICIAN Firebase Auth user (separate from main app users)...');
+        
+        const authResult = await createTechnicianAuth({
+          email: technicianData.email,
+          password: technicianData.password,
+          name: technicianData.name,
+          userType: 'technician',
+          role: technicianData.role,
+          department: technicianData.department
+        });
+        
+        firebaseUid = authResult.uid;
+        console.log('✅ Technician Firebase Auth user created successfully:', {
+          uid: authResult.uid,
+          email: authResult.email,
+          userType: 'TECHNICIAN',
+          separatedFromMainApp: true
+        });
+      }
+
+      // Create technician document in Firestore
+      const newTechnician = await addTechnicianWithAuth(db, userId, {
+        ...technicianData,
+        firebaseUid
+      });
+
+      console.log('✅ Technician created successfully:', newTechnician);
+      setShowModal(false);
+      
+      // Refresh stats
+      loadStats();
+
+    } catch (error) {
+      console.error('Failed to create technician:', error);
+      throw error; // Let the modal handle the error display
+    }
+  };
+
+  const handleToggleMobileAccess = async (technicianId) => {
+    try {
+      const technician = technicians.find(t => t.id === technicianId);
+      if (technician) {
+        await updateTechnicianEnhanced(db, userId, technicianId, {
+          mobileAccess: !technician.mobileAccess
+        });
+        console.log('✅ Mobile access toggled for technician:', technician.email);
+      }
+    } catch (error) {
+      console.error('Failed to toggle mobile access:', error);
+    }
+  };
+
+  const handleDeleteTechnician = async (technicianId) => {
+    if (confirm('Are you sure you want to delete this technician? This action cannot be undone.')) {
+      try {
+        await deleteTechnicianEnhanced(db, userId, technicianId, []);
+        console.log('✅ Technician deleted successfully');
+        loadStats();
+      } catch (error) {
+        console.error('Failed to delete technician:', error);
+      }
+    }
+  };
+
+  // Filter technicians based on search and status
+  const filteredTechnicians = technicians.filter(tech => {
+    const matchesSearch = tech.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         tech.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || tech.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  if (loading) {
     return (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Technician Management</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Manage field technicians and mobile app access
-                    </p>
-                </div>
-                <button 
-                    onClick={() => setIsAdding(true)} 
-                    className="flex items-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"
-                >
-                    <PlusCircle size={20} /> Add New Technician
-                </button>
-            </div>
-
-            <div className="space-y-4">
-                {technicians.map(tech => (
-                    <div key={tech.id} className="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
-                        <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-4 mb-2">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{tech.name}</h3>
-                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getTechStatusStyles(tech.status)}`}>
-                                        {tech.status}
-                                    </span>
-                                    {tech.mobileAccess && (
-                                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 flex items-center gap-1">
-                                            <Smartphone size={12} />
-                                            Mobile Access
-                                        </span>
-                                    )}
-                                </div>
-                                
-                                <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-4">
-                                    <span className="flex items-center gap-1.5"><Mail size={14}/> {tech.email}</span>
-                                    <span className="flex items-center gap-1.5"><Phone size={14}/> {tech.phone}</span>
-                                </div>
-
-                                {tech.mobileAccess && tech.mobileCredentials && (
-                                    <div className="mt-2">
-                                        <button
-                                            onClick={() => setShowingCredentials(tech)}
-                                            className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                                        >
-                                            <Key size={12} />
-                                            View Mobile Credentials
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            {tech.name !== 'Unassigned' && (
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => setEditing(tech)} 
-                                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-slate-700 rounded-full"
-                                    >
-                                        <Edit size={16}/>
-                                    </button>
-                                    <button 
-                                        onClick={() => handlers.deleteTechnician(tech.id)} 
-                                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-slate-700 rounded-full"
-                                    >
-                                        <Trash2 size={16}/>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Mobile Access Summary */}
-            <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Mobile App Integration</h3>
-                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                    <p>• Technicians with mobile access can use the HVAC Service Reporter app</p>
-                    <p>• They can view assigned work orders and submit completed service reports</p>
-                    <p>• Service reports automatically sync back to this system</p>
-                    <p>• Currently <strong>{technicians.filter(t => t.mobileAccess).length}</strong> technicians have mobile access</p>
-                </div>
-            </div>
-
-            {/* Modals */}
-            {isAdding && (
-                <AddTechnicianModal 
-                    onAdd={handlers.addTechnician} 
-                    onClose={() => setIsAdding(false)} 
-                />
-            )}
-            {editing && (
-                <EditTechnicianModal 
-                    technician={editing} 
-                    onUpdate={handlers.updateTechnician} 
-                    onClose={() => setEditing(null)} 
-                />
-            )}
-            {showingCredentials && (
-                <MobileCredentialsModal
-                    technician={showingCredentials}
-                    onClose={() => setShowingCredentials(null)}
-                />
-            )}
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="text-gray-600 dark:text-gray-400">Loading technicians...</div>
+      </div>
     );
-};
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Technician Management</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Manage technicians separate from main app users</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors" data-testid="button-notifications">
+                <Bell className="w-5 h-5" />
+              </button>
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-white">A</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6" data-testid="card-active-technicians">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Technicians</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-active-count">{stats.active || 0}</p>
+              </div>
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6" data-testid="card-mobile-access">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Mobile Access</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-mobile-count">{stats.mobileEnabled || 0}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <Smartphone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6" data-testid="card-pending-setup">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Setup</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-pending-count">{stats.pending || 0}</p>
+              </div>
+              <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/20 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6" data-testid="card-auth-issues">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Auth Issues</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400" data-testid="text-auth-issues-count">{stats.authFailed || 0}</p>
+              </div>
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search technicians..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="input-search"
+              />
+              <Search className="w-4 h-4 text-gray-500 dark:text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              data-testid="select-status-filter"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+          <button 
+            onClick={() => setShowModal(true)}
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            data-testid="button-add-technician"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Technician</span>
+          </button>
+        </div>
+
+        {/* Technicians Table */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Name</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Contact</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Department</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Status</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Mobile Access</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Auth Status</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                {filteredTechnicians.map((technician) => (
+                  <tr key={technician.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-testid={`row-technician-${technician.id}`}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-white">
+                            {technician.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'T'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white" data-testid={`text-name-${technician.id}`}>
+                            {technician.name}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400" data-testid={`text-id-${technician.id}`}>
+                            ID: {technician.id?.slice(0, 8)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 dark:text-white" data-testid={`text-email-${technician.id}`}>
+                        {technician.email}
+                      </div>
+                      {technician.phone && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400" data-testid={`text-phone-${technician.id}`}>
+                          {technician.phone}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-900 dark:text-white">{technician.department}</span>
+                    </td>
+                    <td className="px-6 py-4" data-testid={`status-${technician.id}`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        technician.status === 'active' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                      }`}>
+                        {technician.status || 'inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleToggleMobileAccess(technician.id)}
+                        className={`flex items-center space-x-1 text-sm ${
+                          technician.mobileAccess 
+                            ? 'text-blue-600 dark:text-blue-400' 
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}
+                      >
+                        <Smartphone className="w-4 h-4" />
+                        <span>{technician.mobileAccess ? 'Enabled' : 'Disabled'}</span>
+                      </button>
+                    </td>
+                    <td className="px-6 py-4" data-testid={`auth-status-${technician.id}`}>
+                      <div className="flex items-center space-x-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          technician.authStatus === 'connected' ? 'bg-green-500' :
+                          technician.authStatus === 'pending' ? 'bg-amber-500' :
+                          technician.authStatus === 'failed' ? 'bg-red-500' : 'bg-gray-400'
+                        }`}></div>
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {technician.authStatus === 'connected' ? 'Connected' :
+                           technician.authStatus === 'pending' ? 'Pending' :
+                           technician.authStatus === 'failed' ? 'Failed' : 'None'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button 
+                        onClick={() => handleDeleteTechnician(technician.id)}
+                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+                        data-testid={`button-delete-${technician.id}`}
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredTechnicians.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      No technicians found. Click "Add Technician" to get started.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Add Technician Modal */}
+        <AddTechnicianModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          onAdd={handleAddTechnician}
+        />
+      </div>
+    </div>
+  );
+}
