@@ -4,7 +4,7 @@
 import React from 'react';
 
 // Simple redirect component to avoid build errors
-export default function TechnicianManagementView() {
+export function TechnicianManagementView() {
   return (
     <div className="p-6">
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
